@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+/* Fix for Tailwind v4 class-based dark mode */
+@variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900 transition-colors duration-300;
+  }
+  /* Fallback for body background if layout wrapper doesn't catch it */
+  :is(.dark) body {
+    @apply bg-[#0B0F19] text-slate-50;
+  }
+}
+
+/* Premium Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 dark:bg-slate-700 rounded-full;
+}
