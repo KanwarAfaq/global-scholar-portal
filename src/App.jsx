@@ -6,10 +6,11 @@ import MainLayout from './components/layout/MainLayout';
 import ProtectedRoute from './components/ProtectedRoute';
 import Analytics from './pages/Analytics';
 import Dashboard from './pages/Dashboard';
+import Settings from './pages/Settings';
 import Applications from './pages/Applications';
 import Copilot from './pages/Copilot';
 import Auth from './pages/Auth';
-import Profile from './pages/Profile';
+
 
 function App() {
   return (
@@ -31,13 +32,16 @@ function App() {
                 } 
               />
               <Route 
-  path="profile" 
-  element={
-    <ProtectedRoute>
-      <Profile />
-    </ProtectedRoute>
-  } 
-/>
+                path="settings" 
+                element={
+                  <ProtectedRoute>
+                    <Settings />
+                  </ProtectedRoute>
+                } 
+              />
+            
+ 
+
 <Route 
   path="analytics" 
   element={

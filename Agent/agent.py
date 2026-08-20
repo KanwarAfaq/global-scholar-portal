@@ -5,6 +5,8 @@ import time
 import requests
 from datetime import datetime
 from dotenv import load_dotenv
+from dispatch_alerts import run_line_matchmaker
+from dispatch_email_alerts import run_email_matchmaker
 
 # SDK Imports
 from google import genai
@@ -194,6 +196,9 @@ Return ONLY valid JSON. Start with [ and end with ]. Do not include markdown for
         send_line_notification(successful_inserts)
     else:
         print("🤷‍♂️ No new unique opportunities to add this cycle.")
-
+    print("Scrape complete. Dispatching subscriber alerts...")
+    run_line_matchmaker()
+    run_email_matchmaker()
 if __name__ == "__main__":
+    
     run_agent()

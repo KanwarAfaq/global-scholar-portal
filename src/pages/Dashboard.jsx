@@ -6,13 +6,15 @@ import { useSearchParams } from 'react-router-dom';
 import { 
   Search, Sparkles, MapPin, Building2, Calendar, 
   DollarSign, ChevronRight, ChevronLeft, X, ExternalLink, Tag,
-  CheckCircle2, UserCheck
+  UserCheck, Brain, Loader2, RefreshCw, CheckCircle2
 } from 'lucide-react';
 
 // Initialize Supabase
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
 // --- DYNAMIC COLOR BADGE HELPERS ---
 const getLevelBadgeStyle = (type = '') => {
@@ -69,11 +71,10 @@ const isOpportunityActive = (deadlineStr) => {
     return true;
   }
   
-  // Replace wildcards like '2026-11-XX' with an approximate date '2026-11-28'
   const sanitized = deadlineStr.replace(/XX/gi, '28').trim();
   const parsedDate = new Date(sanitized);
   
-  if (isNaN(parsedDate.getTime())) return true; // Keep if format cannot be parsed
+  if (isNaN(parsedDate.getTime())) return true;
   
   const now = new Date();
   const GRACE_PERIOD_DAYS = 5;
@@ -86,11 +87,17 @@ export default function Dashboard() {
   const { user } = useAuth();
   const [opportunities, setOpportunities] = useState([]);
   const [userProfile, setUserProfile] = useState(null);
+  const [userSettings, setUserSettings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeItem, setActiveItem] = useState(null);
   const [saving, setSaving] = useState(false);
   const [matchMyProfileOnly, setMatchMyProfileOnly] = useState(false);
+
+  // --- AI Matchmaker States ---
+  const [aiAnalysisMap, setAiAnalysisMap] = useState({}); // Stores cache per opportunity ID
+  const [analyzingAi, setAnalyzingAi] = useState(false);
+  const [aiError, setAiError] = useState(null);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -102,9 +109,7 @@ export default function Dashboard() {
   const activeCountry = searchParams.get('country') || 'All';
   const activeField = searchParams.get('field') || 'All';
 
-  const categories = ['All', 'Bachelor', 'Master', 'MPhil', 'PhD', 'Internship', 'Course'];
-
-  // Dynamically generate lists based on actual database content
+  // Dynamically generate filter lists based on actual database content
   const availableCountries = useMemo(() => {
     const countries = opportunities.map(o => o.country).filter(Boolean);
     return ['All', ...new Set(countries)].sort();
@@ -115,12 +120,19 @@ export default function Dashboard() {
     return ['All', ...new Set(fields)].sort();
   }, [opportunities]);
 
+  const availableTypes = useMemo(() => {
+    const types = opportunities.map(o => o.type).filter(Boolean);
+    return ['All', ...new Set(types)].sort();
+  }, [opportunities]);
+
   useEffect(() => {
     fetchOpportunities();
-    if (user) fetchUserProfile();
+    if (user) {
+      fetchUserProfile();
+      fetchUserSettings();
+    }
   }, [user]);
 
-  // Reset to page 1 whenever filters or search terms change
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, activeTab, activeCountry, activeField, matchMyProfileOnly]);
@@ -157,6 +169,93 @@ export default function Dashboard() {
       console.log('No user profile found for custom filtering.');
     }
   }
+
+  async function fetchUserSettings() {
+    try {
+      const { data } = await supabase
+        .from('user_settings')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (data) setUserSettings(data);
+    } catch (err) {
+      console.log('No user settings found.');
+    }
+  }
+
+  // --- LIVE AI MATCHMAKER CALL ---
+  const handleGenerateAiAnalysis = async (opportunity) => {
+    if (!opportunity) return;
+    setAnalyzingAi(true);
+    setAiError(null);
+
+    const isDetailed = userSettings?.ai_summary_detail === 'detailed';
+
+    const userContext = userProfile ? `
+Candidate Name: ${userProfile.full_name || 'Candidate'}
+Profile Alias: ${userProfile.profile_name || 'General'}
+Bio & Experience: ${userProfile.bio || 'Not provided'}
+Skills & Competencies: ${userProfile.skills || 'Not specified'}
+` : 'No candidate profile attached. Analyze general suitability based on opportunity requirements.';
+
+    const oppDetails = `
+Title: ${opportunity.title}
+Organization: ${opportunity.organization}
+Level: ${opportunity.type}
+Discipline: ${opportunity.field || 'General'}
+Location: ${opportunity.country}
+Funding: ${opportunity.funding_details || 'Not specified'}
+Overview: ${opportunity.description || 'Not provided'}
+Tags: ${(opportunity.tags || []).join(', ')}
+`;
+
+    const systemPrompt = isDetailed
+      ? `You are an elite academic & career copilot. Perform a comprehensive match analysis evaluating the candidate against this opportunity.
+Format your output with clear markdown headings:
+### 🎯 Match Assessment (Give a percentage match rating e.g., 85% Fit)
+### 🌟 Key Strengths & Synergy (2-3 tailored points on why the background fits)
+### 💡 Application Strategy (Specific advice on what experiences to emphasize and how to address potential gaps)`
+      : `You are an elite academic & career copilot. Evaluate this candidate against the opportunity and provide a concise, highly personalized 3-bullet fit summary.
+Format strictly as 3 bullet points starting with actionable emojis (e.g., ✨, 🚀, 📌). Be direct, highlighting key alignment and one specific skill they should feature.`;
+
+    try {
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                { text: `${systemPrompt}\n\n[OPPORTUNITY DETAILS]:\n${oppDetails}\n\n[CANDIDATE CONTEXT]:\n${userContext}` }
+              ]
+            }
+          ]
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Gemini API returned status ${response.status}`);
+      }
+
+      const result = await response.json();
+      const generatedText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+      if (!generatedText) throw new Error('No analysis generated.');
+
+      setAiAnalysisMap(prev => ({
+        ...prev,
+        [opportunity.id]: generatedText
+      }));
+    } catch (err) {
+      console.error('AI Analysis failed:', err);
+      setAiError('Could not generate AI match analysis. Please verify your Gemini API key.');
+    } finally {
+      setAnalyzingAi(false);
+    }
+  };
 
   const handleSaveApplication = async (opportunity) => {
     if (!user) {
@@ -195,18 +294,15 @@ export default function Dashboard() {
     });
   };
 
-  // Filter Pipeline: Expiration Check -> Degree/Country/Field Filters -> Search -> Profile Personalization
+  // Filter Pipeline
   const filteredData = useMemo(() => {
     return opportunities.filter(item => {
-      // 1. Deadline Expiration Rule (+5 days grace)
       if (!isOpportunityActive(item.deadline)) return false;
 
-      // 2. Degree Level, Country, & Field Filter
       const matchesTab = activeTab === 'All' || item.type?.toLowerCase().includes(activeTab.toLowerCase());
       const matchesCountry = activeCountry === 'All' || item.country === activeCountry;
       const matchesField = activeField === 'All' || item.field === activeField;
 
-      // 3. Search Query Filter
       const searchLower = searchQuery.toLowerCase();
       const matchesSearch = 
         !searchQuery ||
@@ -216,29 +312,18 @@ export default function Dashboard() {
         item.field?.toLowerCase().includes(searchLower) ||
         (item.tags && item.tags.some(tag => tag.toLowerCase().includes(searchLower)));
 
-      // 4. Personalized Filter Profile Match
       let matchesProfile = true;
       if (matchMyProfileOnly && userProfile) {
-        const userDomains = (userProfile.domains || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean);
-        const userGeography = (userProfile.geography || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean);
-        
-        const matchesUserCountry = userGeography.length === 0 || userGeography.some(geo => 
-          geo === 'global' || item.country?.toLowerCase().includes(geo)
-        );
-        const matchesUserDomain = userDomains.length === 0 || userDomains.some(dom => 
-          item.title?.toLowerCase().includes(dom) || 
-          item.field?.toLowerCase().includes(dom) ||
-          (item.tags && item.tags.some(tag => tag.toLowerCase().includes(dom)))
-        );
-
-        matchesProfile = matchesUserCountry && matchesUserDomain;
+        const userDomains = (userProfile.bio || '').toLowerCase() + ' ' + (userProfile.skills || '').toLowerCase();
+        matchesProfile = 
+          (item.field && userDomains.includes(item.field.toLowerCase())) ||
+          (item.tags && item.tags.some(tag => userDomains.includes(tag.toLowerCase())));
       }
 
       return matchesTab && matchesCountry && matchesField && matchesSearch && matchesProfile;
     });
   }, [opportunities, activeTab, activeCountry, activeField, searchQuery, matchMyProfileOnly, userProfile]);
 
-  // Pagination Slice
   const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE) || 1;
   const paginatedData = useMemo(() => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -309,10 +394,8 @@ export default function Dashboard() {
             </span>
           </div>
 
-          {/* Right Controls: Filters & Profile Match */}
+          {/* Right Controls */}
           <div className="flex flex-wrap items-center gap-3">
-            
-            {/* Field Dropdown */}
             <select
               value={activeField}
               onChange={(e) => handleFilterChange('field', e.target.value)}
@@ -324,7 +407,17 @@ export default function Dashboard() {
               ))}
             </select>
 
-            {/* Country Dropdown */}
+            <select
+              value={activeTab}
+              onChange={(e) => handleFilterChange('type', e.target.value)}
+              className="bg-[#111827]/80 text-gray-300 text-xs font-bold px-3.5 py-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-indigo-500 cursor-pointer appearance-none"
+            >
+              <option value="All">All Levels</option>
+              {availableTypes.filter(t => t !== 'All').map(type => (
+                <option key={type} value={type}>{type}</option>
+              ))}
+            </select>
+
             <select
               value={activeCountry}
               onChange={(e) => handleFilterChange('country', e.target.value)}
@@ -336,24 +429,6 @@ export default function Dashboard() {
               ))}
             </select>
 
-            {/* Level Tabs */}
-            <div className="flex gap-1.5 overflow-x-auto p-1 bg-[#111827]/80 border border-white/10 rounded-2xl">
-              {categories.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => handleFilterChange('type', cat)}
-                  className={`whitespace-nowrap px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                    activeTab === cat 
-                      ? 'bg-indigo-600 text-white shadow-md' 
-                      : 'text-gray-400 hover:text-white hover:bg-white/5'
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-
-            {/* Profile Match Toggle */}
             {userProfile && (
               <button
                 onClick={() => setMatchMyProfileOnly(!matchMyProfileOnly)}
@@ -367,7 +442,6 @@ export default function Dashboard() {
                 Match Profile
               </button>
             )}
-
           </div>
         </div>
 
@@ -396,7 +470,6 @@ export default function Dashboard() {
                 className="group relative flex flex-col justify-between p-6 h-full rounded-3xl bg-[#111827]/70 border border-white/10 backdrop-blur-md cursor-pointer transition-all duration-300 hover:-translate-y-1.5 hover:bg-white/10 hover:border-indigo-500/40 hover:shadow-[0_12px_35px_rgba(99,102,241,0.18)]"
               >
                 <div>
-                  {/* Category Level & Country Badges */}
                   <div className="flex justify-between items-center mb-4 gap-2">
                     <span className={`px-3 py-1 text-xs font-semibold rounded-full border ${getLevelBadgeStyle(item.type)}`}>
                       {item.type || 'Opportunity'}
@@ -406,7 +479,6 @@ export default function Dashboard() {
                     </span>
                   </div>
 
-                  {/* Title & Organization */}
                   <h3 className="text-lg font-bold text-white leading-snug mb-2 group-hover:text-indigo-200 transition-colors line-clamp-2">
                     {item.title}
                   </h3>
@@ -414,7 +486,6 @@ export default function Dashboard() {
                     <Building2 className="w-4 h-4 shrink-0" /> {item.organization}
                   </p>
 
-                  {/* Focus Tags */}
                   {item.tags && item.tags.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mb-4">
                       {item.tags.slice(0, 3).map((tag, idx) => (
@@ -431,7 +502,6 @@ export default function Dashboard() {
                   )}
                 </div>
 
-                {/* Footer Details */}
                 <div className="space-y-2 pt-4 border-t border-white/10 mt-4 text-xs font-medium">
                   <p className="text-emerald-400/90 flex items-center truncate">
                     <DollarSign className="w-4 h-4 mr-1.5 shrink-0" />
@@ -447,7 +517,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* --- PAGINATION BAR (10 Per Page) --- */}
+        {/* --- PAGINATION --- */}
         {totalPages > 1 && (
           <div className="flex items-center justify-between pt-6 border-t border-white/10">
             <p className="text-xs text-gray-400">
@@ -490,7 +560,7 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* --- DETAILED MODAL --- */}
+      {/* --- DETAILED MODAL WITH LIVE AI MATCHMAKER --- */}
       <AnimatePresence>
         {activeItem && (
           <>
@@ -526,7 +596,6 @@ export default function Dashboard() {
                     {activeItem.organization} • {activeItem.country}
                   </p>
                   
-                  {/* DYNAMIC FIELD DISPLAY */}
                   {activeItem.field && (
                     <p className="text-indigo-300 font-bold mt-1 text-sm">
                       Discipline: {activeItem.field}
@@ -536,6 +605,75 @@ export default function Dashboard() {
 
                 {/* Body */}
                 <div className="p-6 overflow-y-auto space-y-6">
+                  
+                  {/* --- LIVE AI MATCHMAKER HERO BOX --- */}
+                  <div className="p-5 rounded-2xl bg-gradient-to-br from-indigo-950/60 via-slate-900 to-purple-950/40 border border-indigo-500/30 relative overflow-hidden shadow-lg">
+                    <div className="flex items-center justify-between gap-4 mb-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="p-2 rounded-xl bg-indigo-600/30 text-indigo-400 border border-indigo-500/30">
+                          <Brain className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-extrabold text-white flex items-center gap-2">
+                            AI Matchmaker Analysis
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 uppercase tracking-wider">
+                              Gemini 2.5
+                            </span>
+                          </h4>
+                          <p className="text-xs text-slate-400">
+                            Evaluates fit based on your active AI Profile.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Trigger / Re-generate button */}
+                      <button
+                        onClick={() => handleGenerateAiAnalysis(activeItem)}
+                        disabled={analyzingAi}
+                        className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-indigo-600/30 shrink-0"
+                      >
+                        {analyzingAi ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            Analyzing...
+                          </>
+                        ) : aiAnalysisMap[activeItem.id] ? (
+                          <>
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            Re-analyze
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="w-3.5 h-3.5" />
+                            Analyze Fit
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {/* AI Output Content */}
+                    {analyzingAi ? (
+                      <div className="py-4 space-y-2.5 animate-pulse">
+                        <div className="h-3 bg-indigo-500/20 rounded-full w-3/4"></div>
+                        <div className="h-3 bg-indigo-500/10 rounded-full w-full"></div>
+                        <div className="h-3 bg-indigo-500/15 rounded-full w-5/6"></div>
+                      </div>
+                    ) : aiError ? (
+                      <p className="text-xs text-rose-400 mt-2 font-medium bg-rose-500/10 p-3 rounded-xl border border-rose-500/20">
+                        {aiError}
+                      </p>
+                    ) : aiAnalysisMap[activeItem.id] ? (
+                      <div className="mt-3 pt-3 border-t border-white/10 text-xs sm:text-sm text-slate-200 leading-relaxed whitespace-pre-line space-y-2">
+                        {aiAnalysisMap[activeItem.id]}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-400 mt-1 italic">
+                        Click "Analyze Fit" to get a tailored review of why this opportunity matches your background and key skills to emphasize.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Funding & Deadline cards */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
                       <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Funding Details</p>
@@ -547,6 +685,7 @@ export default function Dashboard() {
                     </div>
                   </div>
 
+                  {/* Description */}
                   {activeItem.description && (
                     <div>
                       <h4 className="text-sm font-bold text-white mb-2">Overview</h4>
@@ -556,6 +695,7 @@ export default function Dashboard() {
                     </div>
                   )}
 
+                  {/* Focus Tags */}
                   {activeItem.tags && activeItem.tags.length > 0 && (
                     <div>
                       <h4 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
