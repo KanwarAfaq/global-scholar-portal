@@ -1,14 +1,18 @@
 name: Daily Copilot Scraper
 
-# Runs every day at 00:00 UTC (Adjust the cron schedule as needed)
 on:
   schedule:
     - cron: '0 0 * * *'
-  workflow_dispatch: # Allows you to trigger it manually via a button
+  workflow_dispatch:
 
 jobs:
   run-scraper:
     runs-on: ubuntu-latest
+    # Tell all steps to run inside the Agent folder by default
+    defaults:
+      run:
+        working-directory: ./Agent
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -23,22 +27,15 @@ jobs:
 
       - name: Run AI Agent & Dispatch Alerts
         env:
-          # Supabase Keys (Passed twice for both script formats)
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.VITE_SUPABASE_SERVICE_ROLE_KEY }}
           SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_SERVICE_ROLE_KEY }}
-          
-          # AI Keys
           VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
           VITE_GROQ_API_KEY: ${{ secrets.VITE_GROQ_API_KEY }}
-          
-          # LINE Keys
           LINE_ACCESS_TOKEN: ${{ secrets.LINE_ACCESS_TOKEN }}
           LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
           LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
-          
-          # SMTP Keys
           SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
