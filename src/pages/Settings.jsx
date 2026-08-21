@@ -481,8 +481,9 @@ export default function Settings() {
                       <label className="block text-sm font-bold text-gray-300 mb-2">Default Landing Page</label>
                       <select name="default_route" value={settings.default_route} onChange={handleSettingsChange} className="w-full bg-[#111827] text-white text-sm px-4 py-3.5 rounded-xl border border-white/10 focus:outline-none focus:border-indigo-500 appearance-none cursor-pointer">
                         <option value="/dashboard">Dashboard</option>
-                        <option value="/opportunities">Opportunities List</option>
-                        <option value="/tracker">Application Tracker</option>
+                        <option value="/copilot">AI Copilot</option>
+                        <option value="/applications">My Applications</option>
+                        <option value="/analytics">My Analytics</option>
                       </select>
                     </div>
 

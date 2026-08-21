@@ -3,6 +3,12 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { GraduationCap, Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
+import { createClient } from '@supabase/supabase-js';
+
+// Initialize Supabase so we can query the user's settings
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function Auth() {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -27,7 +33,32 @@ export default function Auth() {
       } else {
         const { error } = await signIn(email, password);
         if (error) throw error;
-        navigate('/applications');
+        
+        // --- NEW: Smart Route Redirection ---
+        try {
+          // 1. Get the newly authenticated user's ID
+          const { data: { user } } = await supabase.auth.getUser();
+          
+          if (user) {
+            // 2. Check their saved preferences in user_settings
+            const { data } = await supabase
+              .from('user_settings')
+              .select('default_route')
+              .eq('user_id', user.id)
+              .single();
+
+            // 3. Navigate to their preferred route, or default to dashboard
+            if (data && data.default_route) {
+              navigate(data.default_route);
+              return;
+            }
+          }
+        } catch (prefError) {
+          console.error("Could not fetch user routing preference:", prefError);
+        }
+
+        // Fallback if they haven't set a preference yet
+        navigate('/dashboard');
       }
     } catch (err) {
       setErrorMsg(err.message || 'Authentication failed');

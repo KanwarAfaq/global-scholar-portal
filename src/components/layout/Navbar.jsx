@@ -69,7 +69,7 @@ export default function Navbar({ toggleSidebar }) {
   };
 
   return (
-    <nav className="fixed top-0 z-50 w-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 transition-colors">
+    <nav className="fixed top-0 z-50 w-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 transition-colors print:hidden">
       <div className="px-4 py-3 lg:px-6">
         <div className="flex items-center justify-between gap-4">
           

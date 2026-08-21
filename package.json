@@ -12,9 +12,13 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@hello-pangea/dnd": "^18.0.1",
+    "@react-pdf/renderer": "^4.6.1",
     "@supabase/supabase-js": "^2.112.3",
+    "buffer": "^6.0.3",
     "clsx": "^2.1.1",
+    "date-fns": "^4.4.0",
     "framer-motion": "^13.1.0",
+    "html2pdf.js": "^0.14.0",
     "lucide-react": "^1.31.0",
     "next-themes": "^0.4.6",
     "react": "^19.2.8",

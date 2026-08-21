@@ -10,7 +10,8 @@ import Settings from './pages/Settings';
 import Applications from './pages/Applications';
 import Copilot from './pages/Copilot';
 import Auth from './pages/Auth';
-
+import ResumeBuilder from './pages/ResumeBuilder';
+import Profiles from './pages/Profiles';
 
 function App() {
   return (
@@ -21,7 +22,7 @@ function App() {
             <Route path="/" element={<MainLayout />}>
               <Route index element={<Dashboard />} />
               <Route path="auth" element={<Auth />} />
-              
+              <Route path="resume-builder" element={<ResumeBuilder />} />
               {/* Protected Routes */}
               <Route 
                 path="applications" 
@@ -39,8 +40,14 @@ function App() {
                   </ProtectedRoute>
                 } 
               />
-            
- 
+              <Route 
+              path="profiles" 
+              element={
+                <ProtectedRoute>
+                  <Profiles />
+                </ProtectedRoute>
+              } 
+            />
 
 <Route 
   path="analytics" 

@@ -285,7 +285,6 @@ Format strictly as 3 bullet points starting with actionable emojis (e.g., âœ¨, ð
       setSaving(false);
     }
   };
-
   const handleFilterChange = (key, value) => {
     setSearchParams(prev => {
       if (value === 'All') prev.delete(key);
@@ -721,6 +720,8 @@ Format strictly as 3 bullet points starting with actionable emojis (e.g., âœ¨, ð
                   >
                     {saving ? 'Saving...' : 'Save to My Applications'}
                   </button>
+                  
+          
                   <a
                     href={activeItem.url || '#'}
                     target="_blank"
