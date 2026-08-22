@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { createClient } from '@supabase/supabase-js';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams } from 'react-router-dom';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { 
   Search, Sparkles, MapPin, Building2, Calendar, 
   DollarSign, ChevronRight, ChevronLeft, X, ExternalLink, Tag,
@@ -185,6 +186,7 @@ export default function Dashboard() {
   }
 
   // --- LIVE AI MATCHMAKER CALL ---
+ // --- LIVE AI MATCHMAKER CALL (3-TIER SYSTEM) ---
   const handleGenerateAiAnalysis = async (opportunity) => {
     if (!opportunity) return;
     setAnalyzingAi(true);
@@ -219,42 +221,86 @@ Format your output with clear markdown headings:
       : `You are an elite academic & career copilot. Evaluate this candidate against the opportunity and provide a concise, highly personalized 3-bullet fit summary.
 Format strictly as 3 bullet points starting with actionable emojis (e.g., ✨, 🚀, 📌). Be direct, highlighting key alignment and one specific skill they should feature.`;
 
-    try {
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
+    const fullPrompt = `[OPPORTUNITY DETAILS]:\n${oppDetails}\n\n[CANDIDATE CONTEXT]:\n${userContext}`;
+    let generatedText = "";
 
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                { text: `${systemPrompt}\n\n[OPPORTUNITY DETAILS]:\n${oppDetails}\n\n[CANDIDATE CONTEXT]:\n${userContext}` }
-              ]
-            }
+    try {
+      // 🟢 TIER 1: CGU Institutional Gateway (GPT-4o)
+      console.log("Attempting CGU Gateway (Tier 1)...");
+      const cguKey = import.meta.env.VITE_CGU_API_KEY;
+      if (!cguKey) throw new Error("VITE_CGU_API_KEY is missing");
+
+      const cguRes = await fetch('https://air.cgu.edu.tw/cgullmapi/v1/chat/completions', {
+        method: 'POST', 
+        headers: { 
+          'Content-Type': 'application/json', 
+          'Authorization': `Bearer ${cguKey}` 
+        },
+        body: JSON.stringify({ 
+          model: "gpt-4o", 
+          messages: [
+            { role: "system", content: systemPrompt }, 
+            { role: "user", content: fullPrompt }
           ]
         })
       });
+      
+      if (!cguRes.ok) throw new Error(await cguRes.text());
+      generatedText = (await cguRes.json()).choices[0].message.content;
 
-      if (!response.ok) {
-        throw new Error(`Gemini API returned status ${response.status}`);
+    } catch (err1) {
+      console.warn("CGU Gateway Failed:", err1.message);
+      try {
+        // 🟡 TIER 2: Groq Fallback
+        console.log("Attempting Groq AI (Tier 2)...");
+        const groqKey = import.meta.env.VITE_GROQ_API_KEY;
+        if (!groqKey) throw new Error("VITE_GROQ_API_KEY is missing");
+
+        const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST', 
+          headers: { 
+            'Content-Type': 'application/json', 
+            'Authorization': `Bearer ${groqKey}` 
+          },
+          body: JSON.stringify({ 
+            model: "openai/gpt-oss-20b", 
+            messages: [
+              { role: "system", content: systemPrompt }, 
+              { role: "user", content: fullPrompt }
+            ]
+          })
+        });
+        
+        if (!groqRes.ok) throw new Error(await groqRes.text());
+        generatedText = (await groqRes.json()).choices[0].message.content;
+
+      } catch (err2) {
+        console.warn("Groq Failed:", err2.message);
+        try {
+          // 🟠 TIER 3: Gemini Fallback
+          console.log("Attempting Gemini AI (Tier 3)...");
+          const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
+          if (!geminiKey) throw new Error("VITE_GEMINI_API_KEY is missing");
+
+          const genAI = new GoogleGenerativeAI(geminiKey);
+          const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+          const result = await model.generateContent(`${systemPrompt}\n\n${fullPrompt}`);
+          generatedText = result.response.text();
+        
+        } catch (err3) {
+          console.error("All APIs failed:", err3.message);
+          setAiError("AI Generation failed across all networks. Please try again later.");
+          setAnalyzingAi(false);
+          return;
+        }
       }
-
-      const result = await response.json();
-      const generatedText = result.candidates?.[0]?.content?.parts?.[0]?.text;
-
-      if (!generatedText) throw new Error('No analysis generated.');
-
-      setAiAnalysisMap(prev => ({
-        ...prev,
-        [opportunity.id]: generatedText
-      }));
-    } catch (err) {
-      console.error('AI Analysis failed:', err);
-      setAiError('Could not generate AI match analysis. Please verify your Gemini API key.');
-    } finally {
-      setAnalyzingAi(false);
     }
+
+    setAiAnalysisMap(prev => ({
+      ...prev,
+      [opportunity.id]: generatedText
+    }));
+    setAnalyzingAi(false);
   };
 
   const handleSaveApplication = async (opportunity) => {
@@ -614,10 +660,8 @@ Format strictly as 3 bullet points starting with actionable emojis (e.g., ✨, �
                         </div>
                         <div>
                           <h4 className="text-sm font-extrabold text-white flex items-center gap-2">
-                            AI Matchmaker Analysis
-                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 uppercase tracking-wider">
-                              Gemini 2.5
-                            </span>
+                            AI Analysis
+                          
                           </h4>
                           <p className="text-xs text-slate-400">
                             Evaluates fit based on your active AI Profile.

@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './components/ThemeProvider';
 import { AuthProvider } from './context/AuthContext';
 import MainLayout from './components/layout/MainLayout';
@@ -20,10 +20,40 @@ function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<MainLayout />}>
-              <Route index element={<Dashboard />} />
+              
+              {/* PUBLIC ROUTE */}
               <Route path="auth" element={<Auth />} />
-              <Route path="resume-builder" element={<ResumeBuilder />} />
-              {/* Protected Routes */}
+
+              {/* PROTECTED ROUTES */}
+              {/* This handles the root URL "/" */}
+              <Route 
+                index 
+                element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                } 
+              />
+
+              {/* This handles the explicit "/dashboard" URL */}
+              <Route 
+                path="dashboard" 
+                element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
+                path="resume-builder" 
+                element={
+                  <ProtectedRoute>
+                    <ResumeBuilder />
+                  </ProtectedRoute>
+                } 
+              />
+              
               <Route 
                 path="applications" 
                 element={
@@ -32,6 +62,7 @@ function App() {
                   </ProtectedRoute>
                 } 
               />
+              
               <Route 
                 path="settings" 
                 element={
@@ -40,23 +71,25 @@ function App() {
                   </ProtectedRoute>
                 } 
               />
+              
               <Route 
-              path="profiles" 
-              element={
-                <ProtectedRoute>
-                  <Profiles />
-                </ProtectedRoute>
-              } 
-            />
+                path="profiles" 
+                element={
+                  <ProtectedRoute>
+                    <Profiles />
+                  </ProtectedRoute>
+                } 
+              />
 
-<Route 
-  path="analytics" 
-  element={
-    <ProtectedRoute>
-      <Analytics />
-    </ProtectedRoute>
-  } 
-/>
+              <Route 
+                path="analytics" 
+                element={
+                  <ProtectedRoute>
+                    <Analytics />
+                  </ProtectedRoute>
+                } 
+              />
+              
               <Route 
                 path="copilot" 
                 element={
@@ -66,6 +99,10 @@ function App() {
                 } 
               />
             </Route>
+
+            {/* Catch-all route to redirect any unknown URLs back to the dashboard */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+            
           </Routes>
         </BrowserRouter>
       </AuthProvider>

@@ -478,14 +478,26 @@ Return ONLY valid JSON (no markdown formatting, no backticks, no comments):
         console.log("✅ Groq Succeeded!");
 
       } catch (err2) {
-        // FIXED: Replaced err4 with err2, and removed the broken syntax
-        console.error("All APIs failed:", err2.message);
-        alert("AI Generation failed across all networks. Please try again later.");
-        setGeneratingAI(false); 
-        return;
+        console.warn("Groq Failed:", err2.message);
+        try {
+          // 🟠 TIER 3: Gemini Fallback
+          console.log("Attempting Gemini AI (Tier 3)...");
+          const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
+          if (!geminiKey) throw new Error("VITE_GEMINI_API_KEY is missing");
+
+          const genAI = new GoogleGenerativeAI(geminiKey);
+          const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+          jsonText = (await model.generateContent(prompt)).response.text();
+          console.log("✅ Gemini Succeeded!");
+          
+        } catch (err3) {
+          console.error("All APIs failed:", err3.message);
+          alert("AI Generation failed across all networks. Please try again later.");
+          setGeneratingAI(false); 
+          return;
+        }
       }
     }
-
     // FIXED: Restored the code that actually parses the AI's response and updates your resume!
     try {
       const parsed = JSON.parse(jsonText.replace(/```json/gi, '').replace(/```/g, '').trim());

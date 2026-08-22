@@ -22,7 +22,7 @@ export default function Settings() {
   const { theme, setTheme } = useTheme();
   const fileInputRef = useRef(null);
   
-  const [activeTab, setActiveTab] = useState('notifications');
+  const [activeTab, setActiveTab] = useState('profiles');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
