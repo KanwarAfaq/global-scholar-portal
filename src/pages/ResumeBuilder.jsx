@@ -390,22 +390,18 @@ export default function ResumeBuilder() {
 
   // 3-Tier AI Generator (Feeds 100% of profile context to the AI)
   // 4-Tier "Unbreakable" AI Generator
+  // 4-Tier "Unbreakable" AI Generator (CGU Primary)
   const handleGenerateAI = async () => {
     setGeneratingAI(true);
 
     const prompt = `You are an elite ATS resume optimizer.
     
-CANDIDATE FULL CONTEXT:
+CANDIDATE DATA:
 Name: ${resumeData.personal.fullName}
-Current Summary: ${resumeData.summary.text}
+Summary: ${resumeData.summary.text}
 Skills: ${resumeData.skills.map(s => s.name).join(', ')}
 Experience: ${JSON.stringify(resumeData.experience)}
 Projects: ${JSON.stringify(resumeData.projects)}
-Education: ${JSON.stringify(resumeData.education)}
-Publications: ${JSON.stringify(resumeData.publications)}
-Awards/Honors: ${JSON.stringify(resumeData.awards)}
-Certifications: ${JSON.stringify(resumeData.certifications)}
-Languages: ${JSON.stringify(resumeData.languages)}
 
 TARGET OPPORTUNITY:
 Position: ${selectedApp?.title || 'General Position'}
@@ -416,7 +412,6 @@ TASK:
 1. Write a masterful 3-sentence summary highlighting why this candidate is perfect for this specific role.
 2. Rewrite the Experience and Projects bullet points to align with the target opportunity requirements. Use strong action verbs.
 3. Extract and organize the most relevant Skills.
-(Do not alter education, awards, or publications).
 
 Return ONLY valid JSON (no markdown formatting, no backticks, no comments):
 {
@@ -430,77 +425,68 @@ Return ONLY valid JSON (no markdown formatting, no backticks, no comments):
     let jsonText = "";
 
     try {
-      // 🟢 TIER 1: Primary Gemini Key
-      console.log("Attempting Gemini AI (Key 1)...");
-      const genAI1 = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
-      jsonText = (await genAI1.getGenerativeModel({ model: "gemini-2.5-flash" }).generateContent(prompt)).response.text();
-    
-    } catch (err1) {
-      try {
-        // 🟡 TIER 2: Secondary Gemini Key
-        console.log("Attempting Gemini AI (Key 2)...");
-        if (!import.meta.env.VITE_GEMINI_API_KEY2) throw new Error("Secondary Gemini key not found");
-        
-        const genAI2 = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY2);
-        jsonText = (await genAI2.getGenerativeModel({ model: "gemini-2.5-flash" }).generateContent(prompt)).response.text();
-      
-      } catch (err2) {
-        try {
-          // 🟠 TIER 3: Groq Fallback
-          console.log("Attempting Groq AI...");
-          const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-            method: 'POST', 
-            headers: { 
-              'Content-Type': 'application/json', 
-              'Authorization': `Bearer ${import.meta.env.VITE_GROQ_API_KEY}` 
-            },
-            body: JSON.stringify({ 
-              model: "groq/compound", // Using the robust model from your terminal list
-              messages: [
-                { role: "system", content: "You output JSON only." }, 
-                { role: "user", content: prompt }
-              ],
-              response_format: { type: "json_object" } 
-            })
-          });
-          
-          if (!groqRes.ok) throw new Error(await groqRes.text());
-          jsonText = (await groqRes.json()).choices[0].message.content;
-        
-        } catch (err3) {
-          try {
-            // 🔴 TIER 4: OpenAI Ultimate Fallback
-            console.log("Attempting OpenAI Fallback...");
-            const openAIRes = await fetch('https://api.openai.com/v1/chat/completions', {
-              method: 'POST', 
-              headers: { 
-                'Content-Type': 'application/json', 
-                'Authorization': `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}` 
-              },
-              body: JSON.stringify({ 
-                model: "gpt-4o", // Using the highly stable GPT-4o model from your list
-                messages: [
-                  { role: "system", content: "You output JSON only." }, 
-                  { role: "user", content: prompt }
-                ],
-                response_format: { type: "json_object" } 
-              })
-            });
-            
-            if (!openAIRes.ok) throw new Error(await openAIRes.text());
-            jsonText = (await openAIRes.json()).choices[0].message.content;
+      // 🟢 TIER 1: CGU Institutional Gateway (GPT-4o)
+      console.log("Attempting CGU Gateway (Tier 1)...");
+      const cguKey = import.meta.env.VITE_CGU_API_KEY;
+      if (!cguKey) throw new Error("VITE_CGU_API_KEY is not defined in .env");
 
-          } catch (err4) {
-            console.error("All APIs failed:", err4);
-            alert("AI Generation failed. All networks are currently busy or rate-limited. Please try again in 1 minute.");
-            setGeneratingAI(false); 
-            return;
-          }
-        }
+      const cguRes = await fetch('https://air.cgu.edu.tw/cgullmapi/v1/chat/completions', {
+        method: 'POST', 
+        headers: { 
+          'Content-Type': 'application/json', 
+          'Authorization': `Bearer ${cguKey}` 
+        },
+        body: JSON.stringify({ 
+          model: "gpt-4o", 
+          messages: [
+            { role: "system", content: "You output valid JSON only." }, 
+            { role: "user", content: prompt }
+          ],
+          response_format: { type: "json_object" } 
+        })
+      });
+      
+      if (!cguRes.ok) throw new Error(await cguRes.text());
+      jsonText = (await cguRes.json()).choices[0].message.content;
+      console.log("✅ CGU Gateway Succeeded!");
+
+    } catch (err1) {
+      console.warn("CGU Gateway Failed:", err1.message);
+      try {
+        // 🟡 TIER 2: Groq Fallback
+        console.log("Attempting Groq AI (Tier 2)...");
+        const groqKey = import.meta.env.VITE_GROQ_API_KEY;
+        if (!groqKey) throw new Error("VITE_GROQ_API_KEY is not defined in .env");
+
+        const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST', 
+          headers: { 
+            'Content-Type': 'application/json', 
+            'Authorization': `Bearer ${groqKey}` 
+          },
+          body: JSON.stringify({ 
+            model: "openai/gpt-oss-20b", 
+            messages: [
+              { role: "system", content: "You output valid JSON only. Do not wrap in markdown. Do not include introductory text. Begin immediately with {" }, 
+              { role: "user", content: prompt }
+            ]
+          })
+        });
+        
+        if (!groqRes.ok) throw new Error(await groqRes.text());
+        jsonText = (await groqRes.json()).choices[0].message.content;
+        console.log("✅ Groq Succeeded!");
+
+      } catch (err2) {
+        // FIXED: Replaced err4 with err2, and removed the broken syntax
+        console.error("All APIs failed:", err2.message);
+        alert("AI Generation failed across all networks. Please try again later.");
+        setGeneratingAI(false); 
+        return;
       }
     }
 
-    // Merge the AI optimizations with the rest of the preserved profile data
+    // FIXED: Restored the code that actually parses the AI's response and updates your resume!
     try {
       const parsed = JSON.parse(jsonText.replace(/```json/gi, '').replace(/```/g, '').trim());
       
@@ -514,8 +500,8 @@ Return ONLY valid JSON (no markdown formatting, no backticks, no comments):
       }));
       
     } catch (e) {
-      console.error(e, jsonText);
-      alert("AI returned a malformed format. Please click generate again.");
+      console.error("JSON parsing error:", e, jsonText);
+      alert("AI returned invalid JSON. Please try generating again.");
     } finally {
       setGeneratingAI(false);
     }

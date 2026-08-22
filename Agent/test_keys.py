@@ -124,7 +124,7 @@ if __name__ == "__main__":
     print("-" * 60)
     
     # Fetching keys directly from the .env file
-    openai_key = os.getenv("VITE_OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
+    openai_key = os.getenv("VITE_OPENAI_API_KEY3") or os.getenv("OPENAI_API_KEY")
     groq_key = os.getenv("VITE_GROQ_API_KEY") or os.getenv("GROQ_API_KEY")
     gemini_key = os.getenv("VITE_GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY")
 
