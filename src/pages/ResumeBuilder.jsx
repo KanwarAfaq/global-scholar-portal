@@ -548,7 +548,7 @@ Return ONLY valid JSON (no markdown formatting, no backticks, no comments):
   );
 
   return (
-    <div className="h-[calc(100vh-5.5rem)] flex flex-col lg:flex-row gap-6 p-4 lg:p-6 bg-slate-900 text-slate-100">
+    <div className="flex flex-col lg:flex-row gap-6 lg:h-[calc(100vh-5.5rem)] min-h-screen lg:min-h-0 p-4 lg:p-6 bg-slate-900 text-slate-100">
       
       {/* 🛠️ LEFT PANEL: CONTROLS & CHECKBOXES */}
       <div className="w-full lg:w-5/12 bg-slate-800/80 border border-slate-700/60 rounded-3xl p-5 overflow-y-auto space-y-5 shrink-0 shadow-xl scrollbar-none">

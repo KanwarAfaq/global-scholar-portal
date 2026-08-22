@@ -188,10 +188,10 @@ Key Requirements/Tags: ${(selectedApp.tags || []).join(', ')}`;
   };
 
   return (
-    <div className="h-[calc(100vh-8rem)] flex flex-col md:flex-row gap-6 pb-10">
+    <div className="flex flex-col lg:flex-row gap-6 lg:h-[calc(100vh-8rem)] min-h-screen lg:min-h-0 pb-10">
       
       {/* 📱 Left Sidebar: Application Selection */}
-      <div className="w-full md:w-80 flex flex-col bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shrink-0 shadow-sm">
+      <div className="w-full lg:w-80 flex flex-col bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shrink-0 shadow-sm max-h-[35vh] lg:max-h-none">
         <div className="p-5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
           <h2 className="font-extrabold text-lg text-slate-900 dark:text-white flex items-center gap-2">
             <FileText className="w-5 h-5 text-indigo-500" />
