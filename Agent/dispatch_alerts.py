@@ -49,7 +49,11 @@ def format_opportunity_message(user_name, matched_items):
         if link:
             body += f"   🔗 Link: {link}\n"
 
-    footer = "\n✨ Log in to ScholarPortal to run full AI fit assessments and save these to your tracker."
+    # --- UPDATED FOOTER WITH WEBSITE LINK ---
+    footer = (
+        "\n✨ Log in to ScholarPortal to run full AI fit assessments and save these to your tracker.\n\n"
+        "🌐 Go to website: https://scholarportal.site"
+    )
     return header + body + footer
 
 

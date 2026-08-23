@@ -88,9 +88,14 @@ def build_html_email_template(user_name, matched_items):
             <!-- Cards -->
             {items_html}
 
-            <!-- Footer -->
+            <!-- Footer (UPDATED WITH BUTTON) -->
             <div style="text-align: center; margin-top: 35px; padding-top: 20px; border-top: 1px solid #1e293b; color: #64748b; font-size: 12px;">
-                <p style="margin: 0 0 8px 0;">Log in to ScholarPortal to perform live AI fit analyses or manage your notification preferences.</p>
+                <p style="margin: 0 0 16px 0; font-size: 14px;">Ready to run a live AI fit analysis?</p>
+                
+                <a href="https://scholarportal.site" target="_blank" style="display: inline-block; background-color: #06b6d4; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 700; margin-bottom: 24px;">
+                    Open ScholarPortal
+                </a>
+                
                 <p style="margin: 0;">© 2026 ScholarPortal Inc. All rights reserved.</p>
             </div>
             
