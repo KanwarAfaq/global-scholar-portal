@@ -2,6 +2,7 @@ name: Daily Copilot Scraper
 
 on:
   schedule:
+    # Runs daily at 00:00 UTC (08:00 AM Taiwan Time)
     - cron: '0 0 * * *'
   workflow_dispatch:
 
@@ -31,6 +32,9 @@ jobs:
           VITE_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.VITE_SUPABASE_SERVICE_ROLE_KEY }}
           SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_SERVICE_ROLE_KEY }}
+          # 🟢 Added CGU API Key
+          VITE_CGU_API_KEY: ${{ secrets.VITE_CGU_API_KEY }}
+          CGU_API_KEY: ${{ secrets.VITE_CGU_API_KEY }}
           VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
           VITE_GROQ_API_KEY: ${{ secrets.VITE_GROQ_API_KEY }}
           LINE_ACCESS_TOKEN: ${{ secrets.LINE_ACCESS_TOKEN }}
