@@ -26,7 +26,6 @@ export default function Copilot() {
   const [resultText, setResultText] = useState('');
   const [copied, setCopied] = useState(false);
   
-  // Default to cover letter since Resume was moved to a separate tool
   const [promptType, setPromptType] = useState('cover_letter'); 
 
   useEffect(() => {
@@ -78,7 +77,7 @@ export default function Copilot() {
 
   const activeProfile = profiles.find(p => p.id === selectedProfileId);
 
-  // 3-Tier AI Generator for Cover Letters & Emails
+  // 4-Tier Waterfall AI Generator (CGU 4o -> CGU Local 20b -> Groq -> Gemini)
   const handleGenerate = async () => {
     if (!selectedApp) return;
     setGenerating(true);
@@ -107,13 +106,13 @@ Key Requirements/Tags: ${(selectedApp.tags || []).join(', ')}`;
     const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
     let finalOutput = "";
 
+    // 🟢 TIER 1A: CGU Institutional Gateway (GPT-4o)
     try {
-      // 🟢 TIER 1: CGU Institutional Gateway (GPT-4o)
-      console.log("Attempting CGU Gateway (Tier 1)...");
+      console.log("Attempting CGU Gateway GPT-4o (Tier 1A)...");
       const cguKey = import.meta.env.VITE_CGU_API_KEY;
       if (!cguKey) throw new Error("VITE_CGU_API_KEY is missing");
 
-      const cguRes = await fetch('https://air.cgu.edu.tw/cgullmapi/v1/chat/completions', {
+      const cguRes = await fetch('/cgullmapi/v1/chat/completions', {
         method: 'POST', 
         headers: { 
           'Content-Type': 'application/json', 
@@ -131,48 +130,75 @@ Key Requirements/Tags: ${(selectedApp.tags || []).join(', ')}`;
       if (!cguRes.ok) throw new Error(await cguRes.text());
       finalOutput = (await cguRes.json()).choices[0].message.content;
 
-    } catch (err1) {
-      console.warn("CGU Gateway Failed:", err1.message);
+    } catch (err1a) {
+      console.warn("CGU GPT-4o Failed, attempting CGU Local Model (Tier 1B)...", err1a.message);
+      
+      // 🟢 TIER 1B: CGU Local Model (gpt-oss:20b - Free Quota)
       try {
-        // 🟡 TIER 2: Groq Fallback
-        console.log("Attempting Groq AI (Tier 2)...");
-        const groqKey = import.meta.env.VITE_GROQ_API_KEY;
-        if (!groqKey) throw new Error("VITE_GROQ_API_KEY is missing");
+        const cguKey = import.meta.env.VITE_CGU_API_KEY;
+        if (!cguKey) throw new Error("VITE_CGU_API_KEY is missing");
 
-        const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        const cguLocalRes = await fetch('https://air.cgu.edu.tw/cgullmapi/v1/chat/completions', {
           method: 'POST', 
           headers: { 
             'Content-Type': 'application/json', 
-            'Authorization': `Bearer ${groqKey}` 
+            'Authorization': `Bearer ${cguKey}` 
           },
           body: JSON.stringify({ 
-            model: "openai/gpt-oss-20b", 
+            model: "gpt-oss:20b", 
             messages: [
               { role: "system", content: "You are an expert career writer. Output clean text without markdown code blocks." }, 
               { role: "user", content: fullPrompt }
             ]
           })
         });
-        
-        if (!groqRes.ok) throw new Error(await groqRes.text());
-        finalOutput = (await groqRes.json()).choices[0].message.content;
 
-      } catch (err2) {
-        console.warn("Groq Failed:", err2.message);
+        if (!cguLocalRes.ok) throw new Error(await cguLocalRes.text());
+        finalOutput = (await cguLocalRes.json()).choices[0].message.content;
+
+      } catch (err1b) {
+        console.warn("CGU Local Model Failed, attempting Groq (Tier 2)...", err1b.message);
+        
+        // 🟡 TIER 2: Groq Fallback
         try {
-          // 🟠 TIER 3: Gemini Fallback
-          console.log("Attempting Gemini AI (Tier 3)...");
-          const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
-          if (!geminiKey) throw new Error("VITE_GEMINI_API_KEY is missing");
+          const groqKey = import.meta.env.VITE_GROQ_API_KEY;
+          if (!groqKey) throw new Error("VITE_GROQ_API_KEY is missing");
 
-          const genAI = new GoogleGenerativeAI(geminiKey);
-          const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
-          const result = await model.generateContent(fullPrompt);
-          finalOutput = result.response.text();
-        
-        } catch (err3) {
-          console.error("All APIs failed:", err3.message);
-          finalOutput = "AI Generation failed across all networks. Please try again later.";
+          const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST', 
+            headers: { 
+              'Content-Type': 'application/json', 
+              'Authorization': `Bearer ${groqKey}` 
+            },
+            body: JSON.stringify({ 
+              model: "openai/gpt-oss-120b", 
+              messages: [
+                { role: "system", content: "You are an expert career writer. Output clean text without markdown code blocks." }, 
+                { role: "user", content: fullPrompt }
+              ]
+            })
+          });
+          
+          if (!groqRes.ok) throw new Error(await groqRes.text());
+          finalOutput = (await groqRes.json()).choices[0].message.content;
+
+        } catch (err2) {
+          console.warn("Groq Failed, attempting Gemini (Tier 3)...", err2.message);
+          
+          // 🟠 TIER 3: Gemini Fallback
+          try {
+            const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
+            if (!geminiKey) throw new Error("VITE_GEMINI_API_KEY is missing");
+
+            const genAI = new GoogleGenerativeAI(geminiKey);
+            const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+            const result = await model.generateContent(fullPrompt);
+            finalOutput = result.response.text();
+          
+          } catch (err3) {
+            console.error("All AI tiers failed:", err3.message);
+            finalOutput = "AI Generation failed across all networks. Please try again later.";
+          }
         }
       }
     }
@@ -190,18 +216,18 @@ Key Requirements/Tags: ${(selectedApp.tags || []).join(', ')}`;
   return (
     <div className="flex flex-col lg:flex-row gap-6 lg:h-[calc(100vh-8rem)] min-h-screen lg:min-h-0 pb-10">
       
-      {/* 📱 Left Sidebar: Application Selection */}
-      <div className="w-full lg:w-80 flex flex-col bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shrink-0 shadow-sm max-h-[35vh] lg:max-h-none">
-        <div className="p-5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
-          <h2 className="font-extrabold text-lg text-slate-900 dark:text-white flex items-center gap-2">
-            <FileText className="w-5 h-5 text-indigo-500" />
+      {/* Left Sidebar: Application Selection */}
+      <div className="w-full lg:w-80 flex flex-col bg-slate-900/90 border border-slate-800 rounded-3xl overflow-hidden shrink-0 shadow-xl backdrop-blur-xl max-h-[35vh] lg:max-h-none">
+        <div className="p-5 border-b border-slate-800 bg-slate-800/40">
+          <h2 className="font-extrabold text-base text-white flex items-center gap-2">
+            <FileText className="w-5 h-5 text-indigo-400" />
             Select Application
           </h2>
         </div>
         
         <div className="flex-1 overflow-y-auto p-3 space-y-2 scrollbar-none">
           {loadingApps ? (
-            <div className="flex justify-center p-4"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>
+            <div className="flex justify-center p-4"><Loader2 className="w-6 h-6 animate-spin text-slate-500" /></div>
           ) : applications.length === 0 ? (
             <p className="text-sm text-slate-500 text-center p-4">No saved applications found.</p>
           ) : (
@@ -211,16 +237,16 @@ Key Requirements/Tags: ${(selectedApp.tags || []).join(', ')}`;
                 onClick={() => { setSelectedApp(app); setResultText(''); }}
                 className={`w-full text-left p-4 rounded-2xl transition-all ${
                   selectedApp?.appId === app.appId 
-                    ? 'bg-indigo-50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-500/30 border' 
-                    : 'bg-transparent border-transparent border hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                    ? 'bg-indigo-600/15 border-indigo-500/40 border text-white shadow-sm' 
+                    : 'bg-transparent border-transparent border hover:bg-slate-800/50 text-slate-300'
                 }`}
               >
-                <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 mb-1 block">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400 mb-1 block">
                   {app.type}
                 </span>
-                <h3 className="font-bold text-slate-900 dark:text-white text-sm line-clamp-1 mb-1">{app.title}</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 truncate flex items-center gap-1">
-                  <Building2 className="w-3 h-3" /> {app.organization}
+                <h3 className="font-bold text-sm text-white line-clamp-1 mb-1">{app.title}</h3>
+                <p className="text-xs text-slate-400 truncate flex items-center gap-1">
+                  <Building2 className="w-3 h-3 text-slate-500" /> {app.organization}
                 </p>
               </button>
             ))
@@ -228,34 +254,42 @@ Key Requirements/Tags: ${(selectedApp.tags || []).join(', ')}`;
         </div>
       </div>
 
-      {/* 🖥️ Right Content Workspace */}
-      <div className="flex-1 flex flex-col bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm">
+      {/* Right Content Workspace */}
+      <div className="flex-1 flex flex-col bg-slate-900/90 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-xl">
         {selectedApp ? (
           <>
             {/* Header Info */}
-            <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-800 shrink-0">
-              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mb-2">{selectedApp.title}</h1>
-              <div className="flex flex-wrap items-center gap-4 text-sm font-medium text-slate-500 dark:text-slate-400">
-                <span className="flex items-center gap-1"><Building2 className="w-4 h-4" /> {selectedApp.organization}</span>
-                <span className="flex items-center gap-1"><MapPin className="w-4 h-4" /> {selectedApp.country}</span>
+            <div className="p-5 sm:p-6 border-b border-slate-800 shrink-0 bg-slate-800/20">
+              <h1 className="text-xl sm:text-2xl font-bold text-white mb-2">{selectedApp.title}</h1>
+              <div className="flex flex-wrap items-center gap-4 text-sm font-medium text-slate-400">
+                <span className="flex items-center gap-1.5"><Building2 className="w-4 h-4 text-indigo-400" /> {selectedApp.organization}</span>
+                <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4 text-emerald-400" /> {selectedApp.country}</span>
               </div>
             </div>
 
             {/* Controls Toolbar */}
-            <div className="p-4 sm:p-6 bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800 shrink-0 flex flex-col gap-4">
+            <div className="p-4 sm:p-6 bg-slate-800/40 border-b border-slate-800 shrink-0 flex flex-col gap-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 
                 {/* Mode Toggles */}
-                <div className="flex bg-slate-200/50 dark:bg-slate-800 p-1 rounded-xl w-full sm:w-auto">
+                <div className="flex bg-slate-800/80 p-1 rounded-xl border border-slate-700/50 w-full sm:w-auto">
                   <button 
                     onClick={() => setPromptType('cover_letter')}
-                    className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold transition-all ${promptType === 'cover_letter' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                    className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                      promptType === 'cover_letter' 
+                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30' 
+                        : 'text-slate-400 hover:text-white'
+                    }`}
                   >
                     Cover Letter
                   </button>
                   <button 
                     onClick={() => setPromptType('cold_email')}
-                    className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold transition-all ${promptType === 'cold_email' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                    className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                      promptType === 'cold_email' 
+                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30' 
+                        : 'text-slate-400 hover:text-white'
+                    }`}
                   >
                     Cold Email
                   </button>
@@ -267,7 +301,7 @@ Key Requirements/Tags: ${(selectedApp.tags || []).join(', ')}`;
                     <select 
                       value={selectedProfileId}
                       onChange={(e) => setSelectedProfileId(e.target.value)}
-                      className="flex-1 sm:flex-none bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm font-bold rounded-xl py-2 px-3 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm cursor-pointer"
+                      className="flex-1 sm:flex-none bg-slate-800 border border-slate-700 text-slate-200 text-xs font-bold rounded-xl py-2.5 px-3.5 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm cursor-pointer"
                     >
                       {profiles.map(p => <option key={p.id} value={p.id}>{p.profile_name}</option>)}
                     </select>
@@ -276,44 +310,44 @@ Key Requirements/Tags: ${(selectedApp.tags || []).join(', ')}`;
                   <button 
                     onClick={handleGenerate}
                     disabled={generating}
-                    className="flex-1 sm:flex-none flex justify-center items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white px-6 py-2.5 rounded-xl font-bold transition-all shadow-md shadow-indigo-500/20 whitespace-nowrap"
+                    className="flex-1 sm:flex-none flex justify-center items-center gap-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50 text-white px-6 py-2.5 rounded-xl font-bold text-xs transition-all shadow-lg shadow-indigo-600/30 whitespace-nowrap"
                   >
                     {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                    {generating ? 'Drafting...' : 'Generate'}
+                    {generating ? 'Drafting...' : 'Generate with AI'}
                   </button>
                 </div>
               </div>
             </div>
 
             {/* Output Display Area */}
-            <div className="flex-1 p-4 sm:p-6 overflow-y-auto bg-slate-50/30 dark:bg-[#0B0F19]/50 relative">
+            <div className="flex-1 p-4 sm:p-6 overflow-y-auto bg-slate-950/40 relative">
               {resultText ? (
                 <div className="max-w-3xl mx-auto group">
-                  <div className="flex justify-end gap-2 mb-4 sticky top-0 bg-slate-50/80 dark:bg-[#0B0F19]/80 backdrop-blur-sm p-2 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm z-10">
+                  <div className="flex justify-end gap-2 mb-4 sticky top-0 bg-slate-900/90 backdrop-blur-md p-2 rounded-xl border border-slate-800 shadow-sm z-10">
                     <button 
                       onClick={copyToClipboard}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm text-sm font-medium"
+                      className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:text-white hover:bg-slate-700 transition-colors shadow-sm text-xs font-semibold"
                     >
-                      {copied ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                      {copied ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
                       {copied ? 'Copied!' : 'Copy Text'}
                     </button>
                   </div>
-                  <div className="prose prose-slate dark:prose-invert max-w-none whitespace-pre-wrap text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
+                  <div className="prose prose-invert max-w-none whitespace-pre-wrap text-slate-200 leading-relaxed text-sm font-medium">
                     {resultText}
                   </div>
                 </div>
               ) : (
-                <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 text-center px-4">
+                <div className="h-full flex flex-col items-center justify-center text-slate-500 text-center px-4">
                   <Sparkles className="w-12 h-12 mb-4 opacity-20" />
-                  <p className="font-medium">Select a profile and click generate to draft your content.</p>
+                  <p className="font-medium text-sm">Select an active profile and click Generate to draft tailored content.</p>
                 </div>
               )}
             </div>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 text-center px-4">
+          <div className="flex-1 flex flex-col items-center justify-center text-slate-500 text-center px-4">
             <FileText className="w-12 h-12 mb-4 opacity-20" />
-            <p className="font-medium text-lg">Select an application from the left to start drafting.</p>
+            <p className="font-medium text-base">Select an opportunity from the sidebar to start drafting.</p>
           </div>
         )}
       </div>

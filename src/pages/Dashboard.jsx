@@ -7,7 +7,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { 
   Search, Sparkles, MapPin, Building2, Calendar, 
   DollarSign, ChevronRight, ChevronLeft, X, ExternalLink, Tag,
-  UserCheck, Brain, Loader2, RefreshCw, CheckCircle2
+  UserCheck, Brain, Loader2, RefreshCw
 } from 'lucide-react';
 
 // Initialize Supabase
@@ -15,56 +15,54 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY;
-
-// --- DYNAMIC COLOR BADGE HELPERS ---
+// --- REFINED VIBRANT BADGE STYLES ---
 const getLevelBadgeStyle = (type = '') => {
   const normalized = type.toLowerCase();
   if (normalized.includes('phd') || normalized.includes('doctor')) {
-    return 'bg-purple-500/10 text-purple-400 border-purple-500/30';
+    return 'bg-purple-500/15 text-purple-300 border-purple-500/30';
   }
   if (normalized.includes('mphil')) {
-    return 'bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/30';
+    return 'bg-fuchsia-500/15 text-fuchsia-300 border-fuchsia-500/30';
   }
   if (normalized.includes('master')) {
-    return 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30';
+    return 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30';
   }
   if (normalized.includes('bachelor') || normalized.includes('undergrad')) {
-    return 'bg-sky-500/10 text-sky-400 border-sky-500/30';
+    return 'bg-sky-500/15 text-sky-300 border-sky-500/30';
   }
   if (normalized.includes('internship')) {
-    return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
+    return 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30';
   }
   if (normalized.includes('course') || normalized.includes('fellowship')) {
-    return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
+    return 'bg-amber-500/15 text-amber-300 border-amber-500/30';
   }
-  return 'bg-slate-500/10 text-slate-300 border-slate-500/30';
+  return 'bg-slate-700/30 text-slate-300 border-slate-600/30';
 };
 
 const getCountryBadgeStyle = (country = '') => {
   const normalized = country.toLowerCase();
   if (normalized.includes('uk') || normalized.includes('united kingdom')) {
-    return 'bg-rose-500/10 text-rose-300 border-rose-500/20';
+    return 'bg-rose-500/15 text-rose-300 border-rose-500/30';
   }
   if (normalized.includes('usa') || normalized.includes('united states')) {
-    return 'bg-blue-500/10 text-blue-300 border-blue-500/20';
+    return 'bg-blue-500/15 text-blue-300 border-blue-500/30';
   }
   if (normalized.includes('canada')) {
-    return 'bg-red-500/10 text-red-300 border-red-500/20';
+    return 'bg-red-500/15 text-red-300 border-red-500/30';
   }
   if (normalized.includes('australia')) {
-    return 'bg-amber-500/10 text-amber-300 border-amber-500/20';
+    return 'bg-amber-500/15 text-amber-300 border-amber-500/30';
   }
-  if (normalized.includes('taiwan') || normalized.includes('asia') || normalized.includes('japan')) {
-    return 'bg-teal-500/10 text-teal-300 border-teal-500/20';
+  if (normalized.includes('taiwan') || normalized.includes('japan') || normalized.includes('korea')) {
+    return 'bg-teal-500/15 text-teal-300 border-teal-500/30';
   }
-  if (normalized.includes('europe') || normalized.includes('germany') || normalized.includes('france')) {
-    return 'bg-indigo-500/10 text-indigo-300 border-indigo-500/20';
+  if (normalized.includes('europe') || normalized.includes('germany') || normalized.includes('switzerland') || normalized.includes('finland')) {
+    return 'bg-violet-500/15 text-violet-300 border-violet-500/30';
   }
-  return 'bg-slate-800/80 text-slate-300 border-slate-700/50';
+  return 'bg-slate-800 text-slate-300 border-slate-700/50';
 };
 
-// --- EXPIRATION FILTER (Deadline + 5 days grace period) ---
+// --- EXPIRATION FILTER ---
 const isOpportunityActive = (deadlineStr) => {
   if (!deadlineStr) return true;
   const lower = deadlineStr.toLowerCase();
@@ -95,14 +93,14 @@ export default function Dashboard() {
   const [saving, setSaving] = useState(false);
   const [matchMyProfileOnly, setMatchMyProfileOnly] = useState(false);
 
-  // --- AI Matchmaker States ---
-  const [aiAnalysisMap, setAiAnalysisMap] = useState({}); // Stores cache per opportunity ID
+  // AI Matchmaker States
+  const [aiAnalysisMap, setAiAnalysisMap] = useState({});
   const [analyzingAi, setAnalyzingAi] = useState(false);
   const [aiError, setAiError] = useState(null);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 10;
+  const ITEMS_PER_PAGE = 9;
 
   // URL Parameters for Global Filtering
   const [searchParams, setSearchParams] = useSearchParams();
@@ -110,7 +108,6 @@ export default function Dashboard() {
   const activeCountry = searchParams.get('country') || 'All';
   const activeField = searchParams.get('field') || 'All';
 
-  // Dynamically generate filter lists based on actual database content
   const availableCountries = useMemo(() => {
     const countries = opportunities.map(o => o.country).filter(Boolean);
     return ['All', ...new Set(countries)].sort();
@@ -185,8 +182,7 @@ export default function Dashboard() {
     }
   }
 
-  // --- LIVE AI MATCHMAKER CALL ---
- // --- LIVE AI MATCHMAKER CALL (3-TIER SYSTEM) ---
+  // --- 4-TIER AI MATCHMAKER CALL (CGU 4o -> CGU Local 20b -> Groq -> Gemini) ---
   const handleGenerateAiAnalysis = async (opportunity) => {
     if (!opportunity) return;
     setAnalyzingAi(true);
@@ -224,13 +220,13 @@ Format strictly as 3 bullet points starting with actionable emojis (e.g., âœ¨, ð
     const fullPrompt = `[OPPORTUNITY DETAILS]:\n${oppDetails}\n\n[CANDIDATE CONTEXT]:\n${userContext}`;
     let generatedText = "";
 
+    // ðŸŸ¢ TIER 1A: CGU Gateway (GPT-4o)
     try {
-      // ðŸŸ¢ TIER 1: CGU Institutional Gateway (GPT-4o)
-      console.log("Attempting CGU Gateway (Tier 1)...");
+      console.log("Attempting CGU Gateway GPT-4o (Tier 1A)...");
       const cguKey = import.meta.env.VITE_CGU_API_KEY;
       if (!cguKey) throw new Error("VITE_CGU_API_KEY is missing");
 
-      const cguRes = await fetch('https://air.cgu.edu.tw/cgullmapi/v1/chat/completions', {
+      const cguRes = await fetch('/cgullmapi/v1/chat/completions', {
         method: 'POST', 
         headers: { 
           'Content-Type': 'application/json', 
@@ -248,50 +244,77 @@ Format strictly as 3 bullet points starting with actionable emojis (e.g., âœ¨, ð
       if (!cguRes.ok) throw new Error(await cguRes.text());
       generatedText = (await cguRes.json()).choices[0].message.content;
 
-    } catch (err1) {
-      console.warn("CGU Gateway Failed:", err1.message);
+    } catch (err1a) {
+      console.warn("CGU GPT-4o Failed, attempting CGU Local Model (Tier 1B)...", err1a.message);
+      
+      // ðŸŸ¢ TIER 1B: CGU Local Model (gpt-oss:20b - Free Quota)
       try {
-        // ðŸŸ¡ TIER 2: Groq Fallback
-        console.log("Attempting Groq AI (Tier 2)...");
-        const groqKey = import.meta.env.VITE_GROQ_API_KEY;
-        if (!groqKey) throw new Error("VITE_GROQ_API_KEY is missing");
+        const cguKey = import.meta.env.VITE_CGU_API_KEY;
+        if (!cguKey) throw new Error("VITE_CGU_API_KEY is missing");
 
-        const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        const cguLocalRes = await fetch('https://air.cgu.edu.tw/cgullmapi/v1/chat/completions', {
           method: 'POST', 
           headers: { 
             'Content-Type': 'application/json', 
-            'Authorization': `Bearer ${groqKey}` 
+            'Authorization': `Bearer ${cguKey}` 
           },
           body: JSON.stringify({ 
-            model: "openai/gpt-oss-20b", 
+            model: "gpt-oss:20b", 
             messages: [
               { role: "system", content: systemPrompt }, 
               { role: "user", content: fullPrompt }
             ]
           })
         });
-        
-        if (!groqRes.ok) throw new Error(await groqRes.text());
-        generatedText = (await groqRes.json()).choices[0].message.content;
 
-      } catch (err2) {
-        console.warn("Groq Failed:", err2.message);
+        if (!cguLocalRes.ok) throw new Error(await cguLocalRes.text());
+        generatedText = (await cguLocalRes.json()).choices[0].message.content;
+
+      } catch (err1b) {
+        console.warn("CGU Local Model Failed, attempting Groq (Tier 2)...", err1b.message);
+        
+        // ðŸŸ¡ TIER 2: Groq Fallback
         try {
-          // ðŸŸ  TIER 3: Gemini Fallback
-          console.log("Attempting Gemini AI (Tier 3)...");
-          const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
-          if (!geminiKey) throw new Error("VITE_GEMINI_API_KEY is missing");
+          const groqKey = import.meta.env.VITE_GROQ_API_KEY;
+          if (!groqKey) throw new Error("VITE_GROQ_API_KEY is missing");
 
-          const genAI = new GoogleGenerativeAI(geminiKey);
-          const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
-          const result = await model.generateContent(`${systemPrompt}\n\n${fullPrompt}`);
-          generatedText = result.response.text();
-        
-        } catch (err3) {
-          console.error("All APIs failed:", err3.message);
-          setAiError("AI Generation failed across all networks. Please try again later.");
-          setAnalyzingAi(false);
-          return;
+          const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST', 
+            headers: { 
+              'Content-Type': 'application/json', 
+              'Authorization': `Bearer ${groqKey}` 
+            },
+            body: JSON.stringify({ 
+              model: "openai/gpt-oss-120b", 
+              messages: [
+                { role: "system", content: systemPrompt }, 
+                { role: "user", content: fullPrompt }
+              ]
+            })
+          });
+          
+          if (!groqRes.ok) throw new Error(await groqRes.text());
+          generatedText = (await groqRes.json()).choices[0].message.content;
+
+        } catch (err2) {
+          console.warn("Groq Failed, attempting Gemini (Tier 3)...", err2.message);
+          
+          // ðŸŸ  TIER 3: Gemini Fallback
+          try {
+            const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
+            if (!geminiKey) throw new Error("VITE_GEMINI_API_KEY is missing");
+
+            const genAI = new GoogleGenerativeAI(geminiKey);
+            const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+            const result = await model.generateContent(`${systemPrompt}\n\n${fullPrompt}`);
+            generatedText = result.response.text();
+          
+          } catch (err3) {
+            console.error("All AI tiers failed:", err3.message);
+            setAiError("AI Generation failed across all networks. Please try again later.");
+            setAnalyzingAi(false);
+            return;
+          }
         }
       }
     }
@@ -331,6 +354,7 @@ Format strictly as 3 bullet points starting with actionable emojis (e.g., âœ¨, ð
       setSaving(false);
     }
   };
+
   const handleFilterChange = (key, value) => {
     setSearchParams(prev => {
       if (value === 'All') prev.delete(key);
@@ -379,20 +403,20 @@ Format strictly as 3 bullet points starting with actionable emojis (e.g., âœ¨, ð
     <div className="space-y-10 pb-12">
       
       {/* --- HERO BANNER --- */}
-      <div className="relative overflow-hidden rounded-[2.5rem] bg-slate-900 border border-slate-800 shadow-2xl">
+      <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-slate-900 via-slate-900/90 to-indigo-950/50 border border-slate-800/80 shadow-2xl backdrop-blur-2xl">
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-          <div className="absolute -top-24 -left-24 w-96 h-96 bg-indigo-600/30 rounded-full blur-3xl opacity-50" />
-          <div className="absolute bottom-0 right-0 w-96 h-96 bg-violet-600/20 rounded-full blur-3xl opacity-50" />
+          <div className="absolute -top-24 -left-24 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl" />
+          <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-cyan-600/15 rounded-full blur-3xl" />
         </div>
 
         <div className="relative z-10 px-6 py-14 sm:px-12 sm:py-20 md:text-center flex flex-col md:items-center">
           <motion.div 
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-indigo-300 text-xs font-bold uppercase tracking-widest mb-6 backdrop-blur-md"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-bold uppercase tracking-widest mb-6 backdrop-blur-md"
           >
-            <Sparkles className="w-3.5 h-3.5" />
-            Global AI Portal
+            <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+            Global AI Scholarship Radar
           </motion.div>
           
           <motion.h1 
@@ -400,16 +424,16 @@ Format strictly as 3 bullet points starting with actionable emojis (e.g., âœ¨, ð
             animate={{ opacity: 1, y: 0 }}
             className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white tracking-tight mb-6"
           >
-            Find Your Next <br className="hidden sm:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-sky-400 to-cyan-400">
-              Global Opportunity
+            Discover Fully-Funded <br className="hidden sm:block" />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-sky-400 to-teal-300">
+              Global Opportunities
             </span>
           </motion.h1>
 
           <motion.div 
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            className="w-full max-w-3xl bg-white/10 backdrop-blur-xl border border-white/20 p-2 rounded-2xl sm:rounded-full flex flex-col sm:flex-row gap-2 shadow-xl"
+            className="w-full max-w-3xl bg-slate-900/80 backdrop-blur-xl border border-slate-700/60 p-2 rounded-2xl sm:rounded-full flex flex-col sm:flex-row gap-2 shadow-2xl"
           >
             <div className="relative flex-1 flex items-center">
               <Search className="absolute left-4 w-5 h-5 text-slate-400" />
@@ -417,11 +441,11 @@ Format strictly as 3 bullet points starting with actionable emojis (e.g., âœ¨, ð
                 type="text" 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by topic, degree, university, country, or tags..." 
+                placeholder="Search by degree, discipline, university, country, or tags..." 
                 className="w-full bg-transparent border-none text-white placeholder:text-slate-400 pl-12 pr-4 py-3 focus:outline-none focus:ring-0 text-sm sm:text-base"
               />
             </div>
-            <button className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-3 rounded-xl sm:rounded-full font-bold transition-all flex justify-center items-center gap-2">
+            <button className="bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white px-8 py-3 rounded-xl sm:rounded-full font-bold text-sm transition-all shadow-lg shadow-indigo-600/30 flex justify-center items-center gap-2">
               Explore <ChevronRight className="w-4 h-4" />
             </button>
           </motion.div>
@@ -429,22 +453,22 @@ Format strictly as 3 bullet points starting with actionable emojis (e.g., âœ¨, ð
       </div>
 
       {/* --- CONTROLS & FILTER SECTION --- */}
-      <div className="flex flex-col space-y-4">
+      <div className="flex flex-col space-y-5">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           
           <div className="flex items-center gap-3">
-            <h2 className="text-2xl font-extrabold text-white tracking-tight">Active Postings</h2>
-            <span className="text-xs font-semibold px-2.5 py-1 bg-white/10 rounded-full text-indigo-300 border border-white/5">
-              {filteredData.length} available
+            <h2 className="text-2xl font-extrabold text-white tracking-tight">Active Opportunities</h2>
+            <span className="text-xs font-bold px-3 py-1 bg-indigo-500/15 rounded-full text-indigo-300 border border-indigo-500/30">
+              {filteredData.length} Live Postings
             </span>
           </div>
 
-          {/* Right Controls */}
+          {/* Filter Dropdowns */}
           <div className="flex flex-wrap items-center gap-3">
             <select
               value={activeField}
               onChange={(e) => handleFilterChange('field', e.target.value)}
-              className="bg-[#111827]/80 text-gray-300 text-xs font-bold px-3.5 py-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-indigo-500 cursor-pointer appearance-none"
+              className="bg-slate-900/90 text-slate-300 text-xs font-bold px-3.5 py-2.5 rounded-xl border border-slate-700/70 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 cursor-pointer shadow-sm"
             >
               <option value="All">All Disciplines</option>
               {availableFields.filter(f => f !== 'All').map(field => (
@@ -455,7 +479,7 @@ Format strictly as 3 bullet points starting with actionable emojis (e.g., âœ¨, ð
             <select
               value={activeTab}
               onChange={(e) => handleFilterChange('type', e.target.value)}
-              className="bg-[#111827]/80 text-gray-300 text-xs font-bold px-3.5 py-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-indigo-500 cursor-pointer appearance-none"
+              className="bg-slate-900/90 text-slate-300 text-xs font-bold px-3.5 py-2.5 rounded-xl border border-slate-700/70 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 cursor-pointer shadow-sm"
             >
               <option value="All">All Levels</option>
               {availableTypes.filter(t => t !== 'All').map(type => (
@@ -466,7 +490,7 @@ Format strictly as 3 bullet points starting with actionable emojis (e.g., âœ¨, ð
             <select
               value={activeCountry}
               onChange={(e) => handleFilterChange('country', e.target.value)}
-              className="bg-[#111827]/80 text-gray-300 text-xs font-bold px-3.5 py-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-indigo-500 cursor-pointer appearance-none"
+              className="bg-slate-900/90 text-slate-300 text-xs font-bold px-3.5 py-2.5 rounded-xl border border-slate-700/70 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 cursor-pointer shadow-sm"
             >
               <option value="All">All Countries</option>
               {availableCountries.filter(c => c !== 'All').map(country => (
@@ -477,14 +501,14 @@ Format strictly as 3 bullet points starting with actionable emojis (e.g., âœ¨, ð
             {userProfile && (
               <button
                 onClick={() => setMatchMyProfileOnly(!matchMyProfileOnly)}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all border ${
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all border ${
                   matchMyProfileOnly
-                    ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-500/20'
-                    : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'
+                    ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-600/30'
+                    : 'bg-slate-900/80 border-slate-700/70 text-slate-300 hover:bg-slate-800'
                 }`}
               >
-                <UserCheck className="w-4 h-4" />
-                Match Profile
+                <UserCheck className="w-4 h-4 text-indigo-400" />
+                Match My Profile
               </button>
             )}
           </div>
@@ -494,15 +518,15 @@ Format strictly as 3 bullet points starting with actionable emojis (e.g., âœ¨, ð
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="bg-white/5 rounded-3xl p-6 border border-white/10 animate-pulse h-64"></div>
+              <div key={i} className="bg-slate-900/60 rounded-3xl p-6 border border-slate-800 animate-pulse h-64"></div>
             ))}
           </div>
         ) : paginatedData.length === 0 ? (
-          <div className="text-center py-20 bg-white/5 rounded-3xl border border-white/10">
+          <div className="text-center py-20 bg-slate-900/60 rounded-3xl border border-slate-800 backdrop-blur-md">
             <Sparkles className="w-10 h-10 text-slate-500 mx-auto mb-4" />
             <h3 className="text-lg font-bold text-white">No active opportunities found</h3>
             <p className="text-slate-400 text-sm mt-1">
-              Try adjusting your search criteria or toggling off the profile match filter.
+              Try broadening your filters or turning off profile matching.
             </p>
           </div>
         ) : (
@@ -512,14 +536,14 @@ Format strictly as 3 bullet points starting with actionable emojis (e.g., âœ¨, ð
                 layoutId={`card-${item.id}`}
                 onClick={() => setActiveItem(item)}
                 key={item.id}
-                className="group relative flex flex-col justify-between p-6 h-full rounded-3xl bg-[#111827]/70 border border-white/10 backdrop-blur-md cursor-pointer transition-all duration-300 hover:-translate-y-1.5 hover:bg-white/10 hover:border-indigo-500/40 hover:shadow-[0_12px_35px_rgba(99,102,241,0.18)]"
+                className="group relative flex flex-col justify-between p-6 h-full rounded-3xl bg-slate-900/80 border border-slate-800/80 backdrop-blur-xl cursor-pointer transition-all duration-300 hover:-translate-y-1.5 hover:bg-slate-850 hover:border-indigo-500/40 hover:shadow-[0_12px_30px_rgba(99,102,241,0.15)] shadow-lg"
               >
                 <div>
                   <div className="flex justify-between items-center mb-4 gap-2">
-                    <span className={`px-3 py-1 text-xs font-semibold rounded-full border ${getLevelBadgeStyle(item.type)}`}>
+                    <span className={`px-3 py-1 text-xs font-bold rounded-full border ${getLevelBadgeStyle(item.type)}`}>
                       {item.type || 'Opportunity'}
                     </span>
-                    <span className={`text-xs px-2.5 py-1 rounded-full border flex items-center ${getCountryBadgeStyle(item.country)}`}>
+                    <span className={`text-xs px-2.5 py-1 rounded-full border flex items-center font-medium ${getCountryBadgeStyle(item.country)}`}>
                       <MapPin className="w-3 h-3 mr-1" /> {item.country || 'Global'}
                     </span>
                   </div>
@@ -527,19 +551,19 @@ Format strictly as 3 bullet points starting with actionable emojis (e.g., âœ¨, ð
                   <h3 className="text-lg font-bold text-white leading-snug mb-2 group-hover:text-indigo-200 transition-colors line-clamp-2">
                     {item.title}
                   </h3>
-                  <p className="flex items-center gap-1.5 text-sm font-medium text-gray-400 mb-4 line-clamp-1">
-                    <Building2 className="w-4 h-4 shrink-0" /> {item.organization}
+                  <p className="flex items-center gap-1.5 text-xs font-medium text-slate-400 mb-4 line-clamp-1">
+                    <Building2 className="w-3.5 h-3.5 text-slate-500" /> {item.organization}
                   </p>
 
                   {item.tags && item.tags.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mb-4">
                       {item.tags.slice(0, 3).map((tag, idx) => (
-                        <span key={idx} className="px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-gray-300 bg-white/5 rounded-md border border-white/5">
+                        <span key={idx} className="px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-300 bg-slate-800/90 rounded-md border border-slate-700/60">
                           {tag}
                         </span>
                       ))}
                       {item.tags.length > 3 && (
-                        <span className="px-2 py-0.5 text-[10px] text-gray-400 bg-black/20 rounded-md border border-white/5">
+                        <span className="px-2 py-0.5 text-[10px] text-slate-400 bg-slate-800/50 rounded-md border border-slate-700/40">
                           +{item.tags.length - 3}
                         </span>
                       )}
@@ -547,12 +571,12 @@ Format strictly as 3 bullet points starting with actionable emojis (e.g., âœ¨, ð
                   )}
                 </div>
 
-                <div className="space-y-2 pt-4 border-t border-white/10 mt-4 text-xs font-medium">
-                  <p className="text-emerald-400/90 flex items-center truncate">
+                <div className="space-y-2 pt-4 border-t border-slate-800/80 mt-4 text-xs font-medium">
+                  <p className="text-emerald-400 flex items-center truncate">
                     <DollarSign className="w-4 h-4 mr-1.5 shrink-0" />
                     <span className="truncate">{item.funding_details || 'Funding Unspecified'}</span>
                   </p>
-                  <p className="text-orange-400/90 flex items-center">
+                  <p className="text-amber-400 flex items-center">
                     <Calendar className="w-4 h-4 mr-1.5 shrink-0" />
                     <span>Deadline: {item.deadline || 'Ongoing'}</span>
                   </p>
@@ -564,8 +588,8 @@ Format strictly as 3 bullet points starting with actionable emojis (e.g., âœ¨, ð
 
         {/* --- PAGINATION --- */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between pt-6 border-t border-white/10">
-            <p className="text-xs text-gray-400">
+          <div className="flex items-center justify-between pt-6 border-t border-slate-800">
+            <p className="text-xs text-slate-400">
               Showing page <span className="text-white font-bold">{currentPage}</span> of{' '}
               <span className="text-white font-bold">{totalPages}</span>
             </p>
@@ -574,7 +598,7 @@ Format strictly as 3 bullet points starting with actionable emojis (e.g., âœ¨, ð
               <button
                 onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
                 disabled={currentPage === 1}
-                className="p-2 rounded-xl bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                className="p-2 rounded-xl bg-slate-800/80 border border-slate-700 text-slate-300 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
@@ -586,7 +610,7 @@ Format strictly as 3 bullet points starting with actionable emojis (e.g., âœ¨, ð
                   className={`w-8 h-8 rounded-xl text-xs font-bold transition-all ${
                     currentPage === page
                       ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
-                      : 'bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10'
+                      : 'bg-slate-800/60 border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700'
                   }`}
                 >
                   {page}
@@ -596,7 +620,7 @@ Format strictly as 3 bullet points starting with actionable emojis (e.g., âœ¨, ð
               <button
                 onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
                 disabled={currentPage === totalPages}
-                className="p-2 rounded-xl bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                className="p-2 rounded-xl bg-slate-800/80 border border-slate-700 text-slate-300 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -614,19 +638,19 @@ Format strictly as 3 bullet points starting with actionable emojis (e.g., âœ¨, ð
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setActiveItem(null)}
-              className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md"
+              className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md"
             />
             
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 pointer-events-none">
               <motion.div
                 layoutId={`card-${activeItem.id}`}
-                className="w-full max-w-2xl bg-[#0F172A] rounded-[2rem] shadow-2xl overflow-hidden pointer-events-auto border border-white/15 flex flex-col max-h-[90vh]"
+                className="w-full max-w-2xl bg-slate-900 rounded-[2rem] shadow-2xl overflow-hidden pointer-events-auto border border-slate-800 flex flex-col max-h-[90vh]"
               >
                 {/* Header */}
-                <div className="p-6 border-b border-white/10 bg-white/5 shrink-0 relative">
+                <div className="p-6 border-b border-slate-800 bg-slate-850/60 shrink-0 relative">
                   <button 
                     onClick={() => setActiveItem(null)}
-                    className="absolute top-6 right-6 p-2 bg-white/10 rounded-full text-gray-300 hover:text-white transition-colors"
+                    className="absolute top-6 right-6 p-2 bg-slate-800 border border-slate-700 rounded-full text-slate-300 hover:text-white transition-colors"
                   >
                     <X className="w-5 h-5" />
                   </button>
@@ -636,7 +660,7 @@ Format strictly as 3 bullet points starting with actionable emojis (e.g., âœ¨, ð
                   <h2 className="text-2xl font-extrabold text-white pr-10 leading-tight">
                     {activeItem.title}
                   </h2>
-                  <p className="text-gray-400 font-medium mt-3 flex items-center gap-1.5 text-sm">
+                  <p className="text-slate-400 font-medium mt-3 flex items-center gap-1.5 text-sm">
                     <Building2 className="w-4 h-4 text-indigo-400" />
                     {activeItem.organization} â€¢ {activeItem.country}
                   </p>
@@ -651,29 +675,27 @@ Format strictly as 3 bullet points starting with actionable emojis (e.g., âœ¨, ð
                 {/* Body */}
                 <div className="p-6 overflow-y-auto space-y-6">
                   
-                  {/* --- LIVE AI MATCHMAKER HERO BOX --- */}
-                  <div className="p-5 rounded-2xl bg-gradient-to-br from-indigo-950/60 via-slate-900 to-purple-950/40 border border-indigo-500/30 relative overflow-hidden shadow-lg">
+                  {/* LIVE AI MATCHMAKER HERO BOX */}
+                  <div className="p-5 rounded-2xl bg-gradient-to-br from-indigo-950/70 via-slate-900 to-purple-950/50 border border-indigo-500/30 relative overflow-hidden shadow-lg">
                     <div className="flex items-center justify-between gap-4 mb-3">
                       <div className="flex items-center gap-2.5">
                         <div className="p-2 rounded-xl bg-indigo-600/30 text-indigo-400 border border-indigo-500/30">
                           <Brain className="w-5 h-5" />
                         </div>
                         <div>
-                          <h4 className="text-sm font-extrabold text-white flex items-center gap-2">
-                            AI Analysis
-                          
+                          <h4 className="text-sm font-extrabold text-white">
+                            AI Fit Assessment
                           </h4>
                           <p className="text-xs text-slate-400">
-                            Evaluates fit based on your active AI Profile.
+                            Evaluated against your active candidate profile.
                           </p>
                         </div>
                       </div>
 
-                      {/* Trigger / Re-generate button */}
                       <button
                         onClick={() => handleGenerateAiAnalysis(activeItem)}
                         disabled={analyzingAi}
-                        className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-indigo-600/30 shrink-0"
+                        className="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-indigo-600/30 shrink-0"
                       >
                         {analyzingAi ? (
                           <>
@@ -706,25 +728,25 @@ Format strictly as 3 bullet points starting with actionable emojis (e.g., âœ¨, ð
                         {aiError}
                       </p>
                     ) : aiAnalysisMap[activeItem.id] ? (
-                      <div className="mt-3 pt-3 border-t border-white/10 text-xs sm:text-sm text-slate-200 leading-relaxed whitespace-pre-line space-y-2">
+                      <div className="mt-3 pt-3 border-t border-slate-800 text-xs sm:text-sm text-slate-200 leading-relaxed whitespace-pre-line space-y-2">
                         {aiAnalysisMap[activeItem.id]}
                       </div>
                     ) : (
                       <p className="text-xs text-slate-400 mt-1 italic">
-                        Click "Analyze Fit" to get a tailored review of why this opportunity matches your background and key skills to emphasize.
+                        Click "Analyze Fit" to get tailored feedback on alignment, key strengths, and application strategies.
                       </p>
                     )}
                   </div>
 
                   {/* Funding & Deadline cards */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
-                      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Funding Details</p>
+                    <div className="p-4 rounded-2xl bg-slate-800/60 border border-slate-700/60">
+                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Funding Details</p>
                       <p className="text-sm font-semibold text-emerald-400">{activeItem.funding_details || 'Not specified'}</p>
                     </div>
-                    <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
-                      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Application Deadline</p>
-                      <p className="text-sm font-semibold text-orange-400">{activeItem.deadline || 'Ongoing'}</p>
+                    <div className="p-4 rounded-2xl bg-slate-800/60 border border-slate-700/60">
+                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Application Deadline</p>
+                      <p className="text-sm font-semibold text-amber-400">{activeItem.deadline || 'Ongoing'}</p>
                     </div>
                   </div>
 
@@ -732,7 +754,7 @@ Format strictly as 3 bullet points starting with actionable emojis (e.g., âœ¨, ð
                   {activeItem.description && (
                     <div>
                       <h4 className="text-sm font-bold text-white mb-2">Overview</h4>
-                      <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-line">
+                      <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-line font-medium">
                         {activeItem.description}
                       </p>
                     </div>
@@ -756,21 +778,20 @@ Format strictly as 3 bullet points starting with actionable emojis (e.g., âœ¨, ð
                 </div>
 
                 {/* Footer */}
-                <div className="p-6 border-t border-white/10 shrink-0 bg-white/5 flex flex-col sm:flex-row gap-4">
+                <div className="p-6 border-t border-slate-800 shrink-0 bg-slate-850/60 flex flex-col sm:flex-row gap-4">
                   <button 
                     onClick={() => handleSaveApplication(activeItem)}
                     disabled={saving}
-                    className="flex-1 py-3.5 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold transition-all disabled:opacity-50"
+                    className="flex-1 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition-all disabled:opacity-50 border border-slate-700"
                   >
                     {saving ? 'Saving...' : 'Save to My Applications'}
                   </button>
                   
-          
                   <a
                     href={activeItem.url || '#'}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition-all shadow-lg shadow-indigo-600/30"
+                    className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white font-bold text-xs transition-all shadow-lg shadow-indigo-600/30"
                   >
                     Apply Now <ExternalLink className="w-4 h-4" />
                   </a>

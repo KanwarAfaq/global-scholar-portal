@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/cgullmapi/:match*",
+      "destination": "https://air.cgu.edu.tw/cgullmapi/:match*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

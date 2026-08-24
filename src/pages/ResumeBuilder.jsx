@@ -391,6 +391,7 @@ export default function ResumeBuilder() {
   // 3-Tier AI Generator (Feeds 100% of profile context to the AI)
   // 4-Tier "Unbreakable" AI Generator
   // 4-Tier "Unbreakable" AI Generator (CGU Primary)
+  // 4-Tier AI Generator (CGU 4o -> CGU Local 20b -> Groq -> Gemini)
   const handleGenerateAI = async () => {
     setGeneratingAI(true);
 
@@ -424,13 +425,13 @@ Return ONLY valid JSON (no markdown formatting, no backticks, no comments):
 
     let jsonText = "";
 
+    // 🟢 TIER 1A: CGU Institutional Gateway (GPT-4o)
     try {
-      // 🟢 TIER 1: CGU Institutional Gateway (GPT-4o)
-      console.log("Attempting CGU Gateway (Tier 1)...");
+      console.log("Attempting CGU Gateway GPT-4o (Tier 1A)...");
       const cguKey = import.meta.env.VITE_CGU_API_KEY;
       if (!cguKey) throw new Error("VITE_CGU_API_KEY is not defined in .env");
 
-      const cguRes = await fetch('https://air.cgu.edu.tw/cgullmapi/v1/chat/completions', {
+      const cguRes = await fetch('/cgullmapi/v1/chat/completions', {
         method: 'POST', 
         headers: { 
           'Content-Type': 'application/json', 
@@ -448,57 +449,85 @@ Return ONLY valid JSON (no markdown formatting, no backticks, no comments):
       
       if (!cguRes.ok) throw new Error(await cguRes.text());
       jsonText = (await cguRes.json()).choices[0].message.content;
-      console.log("✅ CGU Gateway Succeeded!");
+      console.log("✅ CGU Gateway GPT-4o Succeeded!");
 
-    } catch (err1) {
-      console.warn("CGU Gateway Failed:", err1.message);
+    } catch (err1a) {
+      console.warn("CGU GPT-4o Failed, attempting CGU Local Model (Tier 1B)...", err1a.message);
+      
+      // 🟢 TIER 1B: CGU Local Model (gpt-oss:20b - Free Quota)
       try {
-        // 🟡 TIER 2: Groq Fallback
-        console.log("Attempting Groq AI (Tier 2)...");
-        const groqKey = import.meta.env.VITE_GROQ_API_KEY;
-        if (!groqKey) throw new Error("VITE_GROQ_API_KEY is not defined in .env");
+        const cguKey = import.meta.env.VITE_CGU_API_KEY;
+        if (!cguKey) throw new Error("VITE_CGU_API_KEY is not defined in .env");
 
-        const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        const cguLocalRes = await fetch('https://air.cgu.edu.tw/cgullmapi/v1/chat/completions', {
           method: 'POST', 
           headers: { 
             'Content-Type': 'application/json', 
-            'Authorization': `Bearer ${groqKey}` 
+            'Authorization': `Bearer ${cguKey}` 
           },
           body: JSON.stringify({ 
-            model: "openai/gpt-oss-20b", 
+            model: "gpt-oss:20b", 
             messages: [
-              { role: "system", content: "You output valid JSON only. Do not wrap in markdown. Do not include introductory text. Begin immediately with {" }, 
+              { role: "system", content: "You output valid JSON only." }, 
               { role: "user", content: prompt }
             ]
           })
         });
+
+        if (!cguLocalRes.ok) throw new Error(await cguLocalRes.text());
+        jsonText = (await cguLocalRes.json()).choices[0].message.content;
+        console.log("✅ CGU Local Model Succeeded!");
+
+      } catch (err1b) {
+        console.warn("CGU Local Model Failed, attempting Groq (Tier 2)...", err1b.message);
         
-        if (!groqRes.ok) throw new Error(await groqRes.text());
-        jsonText = (await groqRes.json()).choices[0].message.content;
-        console.log("✅ Groq Succeeded!");
-
-      } catch (err2) {
-        console.warn("Groq Failed:", err2.message);
+        // 🟡 TIER 2: Groq Fallback
         try {
-          // 🟠 TIER 3: Gemini Fallback
-          console.log("Attempting Gemini AI (Tier 3)...");
-          const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
-          if (!geminiKey) throw new Error("VITE_GEMINI_API_KEY is missing");
+          const groqKey = import.meta.env.VITE_GROQ_API_KEY;
+          if (!groqKey) throw new Error("VITE_GROQ_API_KEY is not defined in .env");
 
-          const genAI = new GoogleGenerativeAI(geminiKey);
-          const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
-          jsonText = (await model.generateContent(prompt)).response.text();
-          console.log("✅ Gemini Succeeded!");
+          const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST', 
+            headers: { 
+              'Content-Type': 'application/json', 
+              'Authorization': `Bearer ${groqKey}` 
+            },
+            body: JSON.stringify({ 
+              model: "openai/gpt-oss-120b", 
+              messages: [
+                { role: "system", content: "You output valid JSON only. Do not wrap in markdown. Begin immediately with {" }, 
+                { role: "user", content: prompt }
+              ]
+            })
+          });
           
-        } catch (err3) {
-          console.error("All APIs failed:", err3.message);
-          alert("AI Generation failed across all networks. Please try again later.");
-          setGeneratingAI(false); 
-          return;
+          if (!groqRes.ok) throw new Error(await groqRes.text());
+          jsonText = (await groqRes.json()).choices[0].message.content;
+          console.log("✅ Groq Succeeded!");
+
+        } catch (err2) {
+          console.warn("Groq Failed, attempting Gemini (Tier 3)...", err2.message);
+          
+          // 🟠 TIER 3: Gemini Fallback
+          try {
+            const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
+            if (!geminiKey) throw new Error("VITE_GEMINI_API_KEY is missing");
+
+            const genAI = new GoogleGenerativeAI(geminiKey);
+            const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+            jsonText = (await model.generateContent(prompt)).response.text();
+            console.log("✅ Gemini Succeeded!");
+            
+          } catch (err3) {
+            console.error("All APIs failed:", err3.message);
+            alert("AI Generation failed across all networks. Please try again later.");
+            setGeneratingAI(false); 
+            return;
+          }
         }
       }
     }
-    // FIXED: Restored the code that actually parses the AI's response and updates your resume!
+
     try {
       const parsed = JSON.parse(jsonText.replace(/```json/gi, '').replace(/```/g, '').trim());
       
@@ -591,7 +620,7 @@ Return ONLY valid JSON (no markdown formatting, no backticks, no comments):
 
         <button onClick={handleGenerateAI} disabled={generatingAI || !selectedApp} className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white py-3 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/30 transition-all disabled:opacity-50">
           {generatingAI ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-          {generatingAI ? 'Gemini is tailoring resume...' : '✨ Tailor Resume to Selected Opportunity'}
+          {generatingAI ? 'AI is tailoring resume...' : '✨ Tailor Resume to Selected Opportunity'}
         </button>
 
         {/* ===================================== */}
