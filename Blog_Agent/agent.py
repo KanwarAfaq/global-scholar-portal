@@ -1,5 +1,6 @@
 import os
 import json
+import random
 import requests
 import concurrent.futures
 from bs4 import BeautifulSoup
@@ -18,6 +19,18 @@ load_dotenv()
 supabase: Client = create_client(os.getenv("VITE_SUPABASE_URL"), os.getenv("SUPABASE_SERVICE_ROLE_KEY"))
 groq_client = Groq(api_key=os.getenv("VITE_GROQ_API_KEY"))
 gemini_client = genai.Client(api_key=os.getenv("VITE_GEMINI_API_KEY"))
+
+CURATED_IMAGES = [
+    "https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&q=80&w=800", # Campus students
+    "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&q=80&w=800", # University building
+    "https://images.unsplash.com/photo-1498243691581-b145c3f54a5a?auto=format&fit=crop&q=80&w=800", # Library study
+    "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&q=80&w=800", # Graduation cap
+    "https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?auto=format&fit=crop&q=80&w=800", # Collaborative study
+]
+
+def get_verified_image():
+    """Returns a random valid academic photo URL."""
+    return random.choice(CURATED_IMAGES)
 
 # --- 1. DYNAMIC SEARCH ---
 def get_dynamic_urls(query, max_results=10):
@@ -152,6 +165,7 @@ if __name__ == "__main__":
             
             if blog_data:
                 try:
+                    blog_data['image'] = get_verified_image()
                     # Save to database
                     supabase.table('blog_posts').insert(blog_data).execute()
                     print(f"💾 Saved '{blog_data.get('title')}' to Supabase!")

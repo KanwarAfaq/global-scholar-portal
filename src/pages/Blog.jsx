@@ -67,10 +67,14 @@ export default function Blog() {
               {/* Image */}
               <div className="h-48 overflow-hidden relative">
                 <img 
-                  src={post.image || 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&q=80&w=800'} 
-                  alt={post.title} 
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
+  src={post.image || 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&q=80&w=1200'} 
+  alt={post.title} 
+  onError={(e) => {
+    e.target.onerror = null;
+    e.target.src = 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&q=80&w=1200';
+  }}
+  className="w-full h-full object-cover" 
+/>
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900 to-transparent" />
               </div>
 
