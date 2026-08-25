@@ -154,6 +154,11 @@ export default function Auth() {
             {isSignUp ? 'Already have an account? Log In' : "Don't have an account? Sign Up"}
           </button>
         </div>
+        <div className="text-right mt-2">
+  <a href="/reset-password" className="text-xs text-indigo-400 hover:underline font-medium">
+    Forgot password?
+  </a>
+</div>
       </motion.div>
     </div>
   );

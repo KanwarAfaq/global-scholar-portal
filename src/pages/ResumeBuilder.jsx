@@ -388,10 +388,7 @@ export default function ResumeBuilder() {
     if (chosen) populateFromProfile(chosen);
   };
 
-  // 3-Tier AI Generator (Feeds 100% of profile context to the AI)
-  // 4-Tier "Unbreakable" AI Generator
-  // 4-Tier "Unbreakable" AI Generator (CGU Primary)
-  // 4-Tier AI Generator (CGU 4o -> CGU Local 20b -> Groq -> Gemini)
+  // 4-Tier AI Generator with 40-Second Timeout Integration
   const handleGenerateAI = async () => {
     setGeneratingAI(true);
 
@@ -425,9 +422,9 @@ Return ONLY valid JSON (no markdown formatting, no backticks, no comments):
 
     let jsonText = "";
 
-    // 🟢 TIER 1A: CGU Institutional Gateway (GPT-4o)
+    // 🟢 TIER 1A: CGU Institutional Gateway (GPT-4o) with 40s Timeout
     try {
-      console.log("Attempting CGU Gateway GPT-4o (Tier 1A)...");
+      console.log("Attempting CGU Gateway GPT-4o (Tier 1A) with 40s timeout...");
       const cguKey = import.meta.env.VITE_CGU_API_KEY;
       if (!cguKey) throw new Error("VITE_CGU_API_KEY is not defined in .env");
 
@@ -444,7 +441,8 @@ Return ONLY valid JSON (no markdown formatting, no backticks, no comments):
             { role: "user", content: prompt }
           ],
           response_format: { type: "json_object" } 
-        })
+        }),
+        signal: AbortSignal.timeout(40000) // 40-second timeout limit
       });
       
       if (!cguRes.ok) throw new Error(await cguRes.text());
@@ -452,9 +450,9 @@ Return ONLY valid JSON (no markdown formatting, no backticks, no comments):
       console.log("✅ CGU Gateway GPT-4o Succeeded!");
 
     } catch (err1a) {
-      console.warn("CGU GPT-4o Failed, attempting CGU Local Model (Tier 1B)...", err1a.message);
+      console.warn("CGU GPT-4o Failed or timed out after 40s, attempting CGU Local Model (Tier 1B)...", err1a.message);
       
-      // 🟢 TIER 1B: CGU Local Model (gpt-oss:20b - Free Quota)
+      // 🟢 TIER 1B: CGU Local Model (gpt-oss:20b - Free Quota) with 40s Timeout
       try {
         const cguKey = import.meta.env.VITE_CGU_API_KEY;
         if (!cguKey) throw new Error("VITE_CGU_API_KEY is not defined in .env");
@@ -471,7 +469,8 @@ Return ONLY valid JSON (no markdown formatting, no backticks, no comments):
               { role: "system", content: "You output valid JSON only." }, 
               { role: "user", content: prompt }
             ]
-          })
+          }),
+          signal: AbortSignal.timeout(40000) // 40-second timeout limit
         });
 
         if (!cguLocalRes.ok) throw new Error(await cguLocalRes.text());
@@ -479,9 +478,9 @@ Return ONLY valid JSON (no markdown formatting, no backticks, no comments):
         console.log("✅ CGU Local Model Succeeded!");
 
       } catch (err1b) {
-        console.warn("CGU Local Model Failed, attempting Groq (Tier 2)...", err1b.message);
+        console.warn("CGU Local Model Failed or timed out after 40s, attempting Groq (Tier 2)...", err1b.message);
         
-        // 🟡 TIER 2: Groq Fallback
+        // 🟡 TIER 2: Groq Fallback with 40s Timeout
         try {
           const groqKey = import.meta.env.VITE_GROQ_API_KEY;
           if (!groqKey) throw new Error("VITE_GROQ_API_KEY is not defined in .env");
@@ -498,7 +497,8 @@ Return ONLY valid JSON (no markdown formatting, no backticks, no comments):
                 { role: "system", content: "You output valid JSON only. Do not wrap in markdown. Begin immediately with {" }, 
                 { role: "user", content: prompt }
               ]
-            })
+            }),
+            signal: AbortSignal.timeout(40000) // 40-second timeout limit
           });
           
           if (!groqRes.ok) throw new Error(await groqRes.text());
@@ -506,7 +506,7 @@ Return ONLY valid JSON (no markdown formatting, no backticks, no comments):
           console.log("✅ Groq Succeeded!");
 
         } catch (err2) {
-          console.warn("Groq Failed, attempting Gemini (Tier 3)...", err2.message);
+          console.warn("Groq Failed or timed out after 40s, attempting Gemini (Tier 3)...", err2.message);
           
           // 🟠 TIER 3: Gemini Fallback
           try {
@@ -519,8 +519,8 @@ Return ONLY valid JSON (no markdown formatting, no backticks, no comments):
             console.log("✅ Gemini Succeeded!");
             
           } catch (err3) {
-            console.error("All APIs failed:", err3.message);
-            alert("AI Generation failed across all networks. Please try again later.");
+            console.error("All APIs failed or timed out:", err3.message);
+            alert("AI Generation failed or timed out across all networks. Please try again later.");
             setGeneratingAI(false); 
             return;
           }
@@ -624,7 +624,7 @@ Return ONLY valid JSON (no markdown formatting, no backticks, no comments):
         </button>
 
         {/* ===================================== */}
-        {/* NEW: GRANULAR CONTACT & BASIC TOGGLES */}
+        {/* GRANULAR CONTACT & BASIC TOGGLES */}
         {/* ===================================== */}
         <div className="space-y-3 bg-slate-900/40 p-4 rounded-2xl border border-slate-700/40">
           <h2 className="text-xs font-extrabold uppercase tracking-wider text-indigo-400 flex items-center gap-1">

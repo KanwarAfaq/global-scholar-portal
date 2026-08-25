@@ -1,44 +1,32 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Menu, Moon, Sun, GraduationCap, MapPin, BookOpen, Tag } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useLocation, Link } from 'react-router-dom';
 import { useTheme } from 'next-themes';
-import { useSearchParams, Link } from 'react-router-dom';
 import { createClient } from '@supabase/supabase-js';
 import { useAuth } from '../../context/AuthContext'; 
+import { 
+  Menu, Moon, Sun, GraduationCap, 
+  BookOpen, LayoutDashboard, Sparkles, LogOut, User 
+} from 'lucide-react';
 
-// Initialize Supabase for the Navbar
+// Initialize Supabase for avatar fetching
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function Navbar({ toggleSidebar }) {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const { theme, setTheme } = useTheme();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [opportunities, setOpportunities] = useState([]);
+  const location = useLocation();
   const [avatarUrl, setAvatarUrl] = useState(null);
 
-  // Read current filters from URL
-  const currentCountry = searchParams.get('country') || 'All';
-  const currentType = searchParams.get('type') || 'All';
-  const currentField = searchParams.get('field') || 'All';
+  // Top Header Navigation Links (Always visible)
+  const navLinks = [
+    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+    { name: 'AI Copilot', path: '/copilot', icon: Sparkles },
+    { name: 'Blog', path: '/blog', icon: BookOpen },
+  ];
 
-  // 1. Fetch Dynamic Dropdown Data
-  useEffect(() => {
-    async function fetchFilterOptions() {
-      try {
-        const { data, error } = await supabase
-          .from('global_opportunities')
-          .select('country, type, field'); // Added 'field' to fetch disciplines
-          
-        if (!error && data) setOpportunities(data);
-      } catch (err) {
-        console.error('Navbar failed to load dynamic filters:', err);
-      }
-    }
-    fetchFilterOptions();
-  }, []);
-
-  // 2. Fetch User's Avatar Picture
+  // Fetch User's Avatar Picture
   useEffect(() => {
     if (user) {
       async function fetchAvatar() {
@@ -59,129 +47,98 @@ export default function Navbar({ toggleSidebar }) {
     }
   }, [user]);
 
-  // Dynamically generate unique filter lists
-  const availableCountries = useMemo(() => ['All', ...new Set(opportunities.map(o => o.country).filter(Boolean))].sort(), [opportunities]);
-  const availableTypes = useMemo(() => ['All', ...new Set(opportunities.map(o => o.type).filter(Boolean))].sort(), [opportunities]);
-  const availableFields = useMemo(() => ['All', ...new Set(opportunities.map(o => o.field).filter(Boolean))].sort(), [opportunities]);
-
-  const handleFilterChange = (key, value) => {
-    setSearchParams(prev => {
-      if (value === 'All') prev.delete(key);
-      else prev.set(key, value);
-      return prev;
-    });
-  };
-
   return (
-    <nav className="fixed top-0 z-50 w-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 transition-colors print:hidden">
-      <div className="px-4 py-3 lg:px-6">
-        <div className="flex items-center justify-between gap-4">
+    <nav className="sticky top-0 z-50 w-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 transition-colors print:hidden">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
           
-          {/* --- LEFT: Logo & Mobile Menu --- */}
+          {/* --- LEFT: Logo & Mobile Toggle --- */}
           <div className="flex items-center shrink-0">
-            <button
-              onClick={toggleSidebar}
-              className="p-2 mr-3 rounded-lg lg:hidden hover:bg-slate-100 dark:hover:bg-slate-800 focus:outline-none text-slate-600 dark:text-slate-300 transition-colors"
-            >
-              <Menu className="w-6 h-6" />
-            </button>
-            <Link to="/" className="flex items-center gap-2 lg:mr-6 group">
-              <div className="bg-indigo-600 p-1.5 rounded-lg group-hover:bg-indigo-500 transition-colors">
+            {toggleSidebar && (
+              <button
+                onClick={toggleSidebar}
+                className="p-2 mr-3 rounded-lg lg:hidden hover:bg-slate-100 dark:hover:bg-slate-800 focus:outline-none text-slate-600 dark:text-slate-300 transition-colors"
+                aria-label="Toggle navigation menu"
+              >
+                <Menu className="w-6 h-6" />
+              </button>
+            )}
+            <Link to="/" className="flex items-center gap-2 group">
+              <div className="bg-indigo-600 p-1.5 rounded-lg group-hover:bg-indigo-500 transition-colors shadow-sm">
                 <GraduationCap className="w-5 h-5 text-white" />
               </div>
-              <span className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white hidden sm:block">
+              <span className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">
                 Scholar<span className="text-indigo-600 dark:text-indigo-400">Portal</span>
               </span>
             </Link>
           </div>
           
-          {/* --- CENTER: Global Filters (Matches Dashboard Styling) --- */}
-          <div className="hidden md:flex items-center gap-3 flex-1 max-w-3xl px-4">
-            
-            {/* Discipline/Field Filter */}
-            <div className="relative flex-1 group">
-              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                <Tag className="w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
-              </div>
-              <select 
-                value={currentField}
-                onChange={(e) => handleFilterChange('field', e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700/70 text-slate-900 dark:text-slate-300 text-xs font-bold rounded-xl focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 block pl-10 pr-8 py-2.5 appearance-none cursor-pointer outline-none transition-all shadow-sm"
-              >
-                <option value="All">All Disciplines</option>
-                {availableFields.filter(f => f !== 'All').map(field => (
-                  <option key={field} value={field}>{field}</option>
-                ))}
-              </select>
-              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-              </div>
-            </div>
+          {/* --- CENTER: Permanent Navigation Links --- */}
+          <div className="flex items-center gap-1 sm:gap-2">
+            {navLinks.map((link) => {
+              const isActive = link.path === '/dashboard' 
+                ? (location.pathname === '/' || location.pathname === '/dashboard')
+                : location.pathname.startsWith(link.path);
+              const Icon = link.icon;
 
-            {/* Type/Level Filter */}
-            <div className="relative flex-1 group">
-              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                <BookOpen className="w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
-              </div>
-              <select 
-                value={currentType}
-                onChange={(e) => handleFilterChange('type', e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700/70 text-slate-900 dark:text-slate-300 text-xs font-bold rounded-xl focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 block pl-10 pr-8 py-2.5 appearance-none cursor-pointer outline-none transition-all shadow-sm"
-              >
-                <option value="All">All Levels</option>
-                {availableTypes.filter(t => t !== 'All').map(type => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
-              </select>
-              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-              </div>
-            </div>
-
-            {/* Country/Region Filter */}
-            <div className="relative flex-1 group">
-              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                <MapPin className="w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
-              </div>
-              <select 
-                value={currentCountry}
-                onChange={(e) => handleFilterChange('country', e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700/70 text-slate-900 dark:text-slate-300 text-xs font-bold rounded-xl focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 block pl-10 pr-8 py-2.5 appearance-none cursor-pointer outline-none transition-all shadow-sm"
-              >
-                <option value="All">All Regions</option>
-                {availableCountries.filter(c => c !== 'All').map(country => (
-                  <option key={country} value={country}>{country}</option>
-                ))}
-              </select>
-              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-              </div>
-            </div>
+              return (
+                <Link
+                  key={link.name}
+                  to={link.path}
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                    isActive 
+                      ? 'bg-indigo-600/10 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 shadow-sm' 
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/50'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span>{link.name}</span>
+                </Link>
+              );
+            })}
           </div>
 
-          {/* --- RIGHT: Profile & Theme Toggle --- */}
-          <div className="flex items-center gap-3 shrink-0">
+          {/* --- RIGHT: Theme & Account Actions --- */}
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="p-2.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors border border-transparent dark:border-slate-700/50"
+              className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors border border-transparent dark:border-slate-700/50"
               title="Toggle Theme"
+              aria-label="Toggle theme mode"
             >
-              {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
             
-            <Link 
-              to="/settings" 
-              className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700 transition-all overflow-hidden flex items-center justify-center border-2 border-transparent hover:border-indigo-500 shadow-sm" 
-              title="Command Center"
-            >
-              {avatarUrl ? (
-                <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
-              ) : (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                </svg>
-              )}
-            </Link>
+            {user ? (
+              <div className="flex items-center gap-2">
+                <Link 
+                  to="/settings" 
+                  className="w-9 h-9 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700 transition-all overflow-hidden flex items-center justify-center border border-slate-300 dark:border-slate-700 hover:border-indigo-500 shadow-sm" 
+                  title="Settings"
+                >
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <User className="w-4 h-4 text-slate-400" />
+                  )}
+                </Link>
+                <button 
+                  onClick={signOut}
+                  className="hidden sm:flex items-center gap-1.5 px-3 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 dark:text-rose-400 border border-rose-500/20 rounded-xl text-xs font-bold transition-all"
+                  title="Sign Out"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Logout</span>
+                </button>
+              </div>
+            ) : (
+              <Link 
+                to="/auth" 
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md shadow-indigo-600/30 transition-all"
+              >
+                Sign In
+              </Link>
+            )}
           </div>
           
         </div>

@@ -77,7 +77,7 @@ export default function Copilot() {
 
   const activeProfile = profiles.find(p => p.id === selectedProfileId);
 
-  // 4-Tier Waterfall AI Generator (CGU 4o -> CGU Local 20b -> Groq -> Gemini)
+  // 4-Tier Waterfall AI Generator with 40-Second Timeout Integration
   const handleGenerate = async () => {
     if (!selectedApp) return;
     setGenerating(true);
@@ -106,9 +106,9 @@ Key Requirements/Tags: ${(selectedApp.tags || []).join(', ')}`;
     const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
     let finalOutput = "";
 
-    // 🟢 TIER 1A: CGU Institutional Gateway (GPT-4o)
+    // 🟢 TIER 1A: CGU Institutional Gateway (GPT-4o) with 40s Timeout
     try {
-      console.log("Attempting CGU Gateway GPT-4o (Tier 1A)...");
+      console.log("Attempting CGU Gateway GPT-4o (Tier 1A) with 40s timeout...");
       const cguKey = import.meta.env.VITE_CGU_API_KEY;
       if (!cguKey) throw new Error("VITE_CGU_API_KEY is missing");
 
@@ -124,16 +124,17 @@ Key Requirements/Tags: ${(selectedApp.tags || []).join(', ')}`;
             { role: "system", content: "You are an expert career writer. Output clean text without markdown code blocks." }, 
             { role: "user", content: fullPrompt }
           ]
-        })
+        }),
+        signal: AbortSignal.timeout(40000) // 40-second timeout limit
       });
       
       if (!cguRes.ok) throw new Error(await cguRes.text());
       finalOutput = (await cguRes.json()).choices[0].message.content;
 
     } catch (err1a) {
-      console.warn("CGU GPT-4o Failed, attempting CGU Local Model (Tier 1B)...", err1a.message);
+      console.warn("CGU GPT-4o Failed or timed out after 40s, attempting CGU Local Model (Tier 1B)...", err1a.message);
       
-      // 🟢 TIER 1B: CGU Local Model (gpt-oss:20b - Free Quota)
+      // 🟢 TIER 1B: CGU Local Model (gpt-oss:20b - Free Quota) with 40s Timeout
       try {
         const cguKey = import.meta.env.VITE_CGU_API_KEY;
         if (!cguKey) throw new Error("VITE_CGU_API_KEY is missing");
@@ -150,16 +151,17 @@ Key Requirements/Tags: ${(selectedApp.tags || []).join(', ')}`;
               { role: "system", content: "You are an expert career writer. Output clean text without markdown code blocks." }, 
               { role: "user", content: fullPrompt }
             ]
-          })
+          }),
+          signal: AbortSignal.timeout(40000) // 40-second timeout limit
         });
 
         if (!cguLocalRes.ok) throw new Error(await cguLocalRes.text());
         finalOutput = (await cguLocalRes.json()).choices[0].message.content;
 
       } catch (err1b) {
-        console.warn("CGU Local Model Failed, attempting Groq (Tier 2)...", err1b.message);
+        console.warn("CGU Local Model Failed or timed out after 40s, attempting Groq (Tier 2)...", err1b.message);
         
-        // 🟡 TIER 2: Groq Fallback
+        // 🟡 TIER 2: Groq Fallback with 40s Timeout
         try {
           const groqKey = import.meta.env.VITE_GROQ_API_KEY;
           if (!groqKey) throw new Error("VITE_GROQ_API_KEY is missing");
@@ -176,14 +178,15 @@ Key Requirements/Tags: ${(selectedApp.tags || []).join(', ')}`;
                 { role: "system", content: "You are an expert career writer. Output clean text without markdown code blocks." }, 
                 { role: "user", content: fullPrompt }
               ]
-            })
+            }),
+            signal: AbortSignal.timeout(40000) // 40-second timeout limit
           });
           
           if (!groqRes.ok) throw new Error(await groqRes.text());
           finalOutput = (await groqRes.json()).choices[0].message.content;
 
         } catch (err2) {
-          console.warn("Groq Failed, attempting Gemini (Tier 3)...", err2.message);
+          console.warn("Groq Failed or timed out after 40s, attempting Gemini (Tier 3)...", err2.message);
           
           // 🟠 TIER 3: Gemini Fallback
           try {
@@ -196,8 +199,8 @@ Key Requirements/Tags: ${(selectedApp.tags || []).join(', ')}`;
             finalOutput = result.response.text();
           
           } catch (err3) {
-            console.error("All AI tiers failed:", err3.message);
-            finalOutput = "AI Generation failed across all networks. Please try again later.";
+            console.error("All AI tiers failed or timed out:", err3.message);
+            finalOutput = "AI Generation failed or timed out across all networks. Please try again later.";
           }
         }
       }

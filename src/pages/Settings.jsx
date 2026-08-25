@@ -107,7 +107,7 @@ export default function Settings() {
     return Math.floor(100000 + Math.random() * 900000).toString();
   };
 
- const handleSettingsChange = async (e) => {
+  const handleSettingsChange = async (e) => {
     const { name, value, type, checked } = e.target;
     
     // Special handling for the LINE toggle
@@ -520,19 +520,25 @@ export default function Settings() {
                       <h3 className="text-sm font-bold text-white">Email Address</h3>
                       <p className="text-sm text-gray-400 mt-1">{user?.email}</p>
                     </div>
-                    <button type="button" className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-bold transition-colors">
-                      Change Email
-                    </button>
+                    <a 
+                      href="/change-email" 
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all border border-slate-700"
+                    >
+                      Change Email Address
+                    </a>
                   </div>
 
                   <div className="p-6 bg-white/5 border border-white/10 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div>
                       <h3 className="text-sm font-bold text-white">Password</h3>
-                      <p className="text-sm text-gray-400 mt-1">Last updated recently</p>
+                      <p className="text-sm text-gray-400 mt-1">Manage your secure credentials</p>
                     </div>
-                    <button type="button" className="px-4 py-2 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 border border-indigo-500/30 rounded-lg text-sm font-bold transition-colors">
+                    <a 
+                      href="/reset-password" 
+                      className="px-4 py-2 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 border border-indigo-500/30 rounded-lg text-sm font-bold transition-colors inline-block"
+                    >
                       Reset Password
-                    </button>
+                    </a>
                   </div>
                 </motion.div>
               )}
