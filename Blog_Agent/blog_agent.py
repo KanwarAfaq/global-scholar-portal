@@ -106,6 +106,28 @@ def process_with_waterfall(prompt):
     return None
 
 def send_line_notification(day_name, published_titles):
+    print("\n📲 Preparing LINE notification...")
+    token = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
+    user_id = os.getenv("LINE_USER_ID")
+    
+    if not token or not user_id:
+        print("   ⚠️ Skipped: LINE credentials (Token or User ID) are missing!")
+        return
+    
+    count = len(published_titles)
+    titles_str = "\n".join([f"✅ {t}" for t in published_titles]) if count > 0 else "No new posts today."
+    message = f"🎉 *ScholarPortal Regional Dispatch*\n📅 {day_name} Batch\n\nPublished {count} new reports:\n\n{titles_str}"
+
+    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {token}"}
+    
+    try:
+        response = requests.post("https://api.line.me/v2/bot/message/push", headers=headers, json={"to": user_id, "messages": [{"type": "text", "text": message}]})
+        if response.status_code == 200:
+            print("   ✅ LINE message sent successfully!")
+        else:
+            print(f"   ❌ LINE API Error: {response.status_code} - {response.text}")
+    except Exception as e:
+        print(f"   ❌ Failed to connect to LINE API: {e}")
     token = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
     user_id = os.getenv("LINE_USER_ID")
     if not token or not user_id:
@@ -118,7 +140,7 @@ def send_line_notification(day_name, published_titles):
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {token}"}
     requests.post("https://api.line.me/v2/bot/message/push", headers=headers, json={"to": user_id, "messages": [{"type": "text", "text": message}]})
 
-def ping_google_sitemap():
+
     try:
         urllib.request.urlopen("https://www.google.com/ping?sitemap=https://scholarportal.site/sitemap.xml")
         print("🌍 Google successfully notified of sitemap update.")
@@ -204,5 +226,5 @@ if __name__ == "__main__":
     send_line_notification(day_name, successfully_published)
     if len(successfully_published) > 0:
         create_sitemap()
-        ping_google_sitemap()
+       
  
