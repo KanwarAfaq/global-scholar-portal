@@ -104,7 +104,6 @@ def process_with_waterfall(prompt):
             continue
             
     return None
-
 def send_line_notification(day_name, published_titles):
     print("\n📲 Preparing LINE notification...")
     token = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
@@ -128,24 +127,6 @@ def send_line_notification(day_name, published_titles):
             print(f"   ❌ LINE API Error: {response.status_code} - {response.text}")
     except Exception as e:
         print(f"   ❌ Failed to connect to LINE API: {e}")
-    token = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
-    user_id = os.getenv("LINE_USER_ID")
-    if not token or not user_id:
-        return
-    
-    count = len(published_titles)
-    titles_str = "\n".join([f"✅ {t}" for t in published_titles]) if count > 0 else "No new posts today."
-    message = f"🎉 *ScholarPortal Regional Dispatch*\n📅 {day_name} Batch\n\nPublished {count} new reports:\n\n{titles_str}"
-
-    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {token}"}
-    requests.post("https://api.line.me/v2/bot/message/push", headers=headers, json={"to": user_id, "messages": [{"type": "text", "text": message}]})
-
-
-    try:
-        urllib.request.urlopen("https://www.google.com/ping?sitemap=https://scholarportal.site/sitemap.xml")
-        print("🌍 Google successfully notified of sitemap update.")
-    except Exception as e:
-        print(f"❌ Google ping failed: {e}")
 if __name__ == "__main__":
     now = datetime.now()
     day_index = now.weekday()
@@ -226,5 +207,4 @@ if __name__ == "__main__":
     send_line_notification(day_name, successfully_published)
     if len(successfully_published) > 0:
         create_sitemap()
-       
- 
+        
