@@ -1,0 +1,49 @@
+name: Daily Regional Blog Agent
+
+on:
+  schedule:
+    # Runs at 00:00 UTC (8:00 AM CST) every single day
+    - cron: '0 0 * * *'
+  workflow_dispatch: # Gives you a "Run workflow" button in GitHub to trigger it manually
+
+jobs:
+  run-agent:
+    runs-on: ubuntu-latest
+    
+    # Grants permissions for the bot to push the sitemap back to your repo
+    permissions:
+      contents: write 
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          
+      - name: Install Dependencies
+        run: |
+          pip install groq google-genai supabase beautifulsoup4 requests python-dotenv ddgs
+
+      - name: Run Regional Blog Agent
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          VITE_GROQ_API_KEY: ${{ secrets.VITE_GROQ_API_KEY }}
+          VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
+        # Tells GitHub to run the script from inside the Blog_Agent folder
+        working-directory: ./Blog_Agent
+        run: python blog_agent.py
+
+      - name: Commit and Push Updated Sitemap
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          # Target the public folder where the sitemap is saved
+          git add public/sitemap.xml
+          # Only commit if the sitemap actually changed today
+          git diff --quiet && git diff --staged --quiet || (git commit -m "🤖 Auto-updated sitemap.xml" && git push)
