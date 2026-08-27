@@ -3,6 +3,7 @@ import sys
 import json
 import time
 import requests
+import random # NEW ADDITION: For selecting blog images
 from dotenv import load_dotenv
 import re
 from datetime import datetime, date
@@ -45,52 +46,26 @@ ALLOWED_TYPES = {
     "Internship", "Course", "Workshop", "Scholarship"
 }
 
+# NEW ADDITION: Curated verified image pool
+VERIFIED_IMAGES = [
+    "https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1498243691581-b145c3f54a5a?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?auto=format&fit=crop&q=80&w=800"
+]
+
 # ---------------------------------------------------------
 # 7-DAY SCHEDULED REGIONS (High-Stipend Global Rotation)
 # ---------------------------------------------------------
 SCHEDULED_REGIONS_BY_DAY = {
-    # Monday: East Asia Hubs
-    0: [
-        "Taiwan (MOE/NSTC, TIGP) and Macau (Macao SAR Fellowships)",
-        "Japan (MEXT, JASSO, ADB-JSP) and South Korea (GKS/KGSP, POSCO)",
-        "Hong Kong (HKPFS PhD Fellowships, University Grants)"
-    ],
-    # Tuesday: Asia-Pacific & High-Income Southeast Asia
-    1: [
-        "Singapore (SINGA, A*STAR, NUS/NTU Research Scholarships)",
-        "China (CSC Chinese Government Scholarships, Silk Road, Schwarzman)",
-        "Malaysia (MIS / MTCP) and Brunei Darussalam (BDGS Government Scholarship)"
-    ],
-    # Wednesday: Gulf & High-Stipend Middle East Hubs
-    2: [
-        "Saudi Arabia (KAUST Full Fellowships, KFUPM, KAU)",
-        "United Arab Emirates (MBZUAI AI Fellowships, Khalifa University)",
-        "Qatar (HBKU Scholarships, Qatar University Graduate Fellowships)"
-    ],
-    # Thursday: Western & Central European Excellence Hubs
-    3: [
-        "Switzerland (ETH Zurich, EPFL, Swiss Government Excellence Scholarships)",
-        "Germany (DAAD, Heinrich Böll, Konrad Adenauer, Max Planck Fellowships)",
-        "Austria (Ernst Mach), Luxembourg (Gov/Uni Scholarships), and France (Eiffel Excellence)"
-    ],
-    # Friday: Nordic & Southern European Funded Systems
-    4: [
-        "Finland (EDUFI, University Waivers) and Sweden (Swedish Institute SI Grants)",
-        "Norway and Denmark (Government Full Tuition & Salaried PhD Positions)",
-        "Spain (Carolina Foundation, Severo Ochoa) and Portugal (FCT PhD Fellowships)"
-    ],
-    # Saturday: UK, Ireland & North America
-    5: [
-        "United Kingdom (Chevening, Commonwealth, Gates Cambridge, Rhodes) and Ireland (GOI-IES)",
-        "United States (Fulbright, NSF, High-Stipend Graduate Teaching/Research Assistantships)",
-        "Canada (Vanier CGS, McCall MacBain, Banting Fellowships, Trudeu)"
-    ],
-    # Sunday: Oceania, Central/Eastern Europe & Global Bodies
-    6: [
-        "Australia (Research Training Program RTP, Australia Awards) and New Zealand (Manaaki)",
-        "Hungary (Stipendium Hungaricum), Poland (NAWA Banach/Ulam), and Czech Republic (Government Grants)",
-        "Global & International Bodies (Erasmus Mundus, UNESCO, World Bank, Rotary Peace)"
-    ]
+    0: ["Taiwan (MOE/NSTC, TIGP) and Macau (Macao SAR Fellowships)", "Japan (MEXT, JASSO, ADB-JSP) and South Korea (GKS/KGSP, POSCO)", "Hong Kong (HKPFS PhD Fellowships, University Grants)"],
+    1: ["Singapore (SINGA, A*STAR, NUS/NTU Research Scholarships)", "China (CSC Chinese Government Scholarships, Silk Road, Schwarzman)", "Malaysia (MIS / MTCP) and Brunei Darussalam (BDGS Government Scholarship)"],
+    2: ["Saudi Arabia (KAUST Full Fellowships, KFUPM, KAU)", "United Arab Emirates (MBZUAI AI Fellowships, Khalifa University)", "Qatar (HBKU Scholarships, Qatar University Graduate Fellowships)"],
+    3: ["Switzerland (ETH Zurich, EPFL, Swiss Government Excellence Scholarships)", "Germany (DAAD, Heinrich Böll, Konrad Adenauer, Max Planck Fellowships)", "Austria (Ernst Mach), Luxembourg (Gov/Uni Scholarships), and France (Eiffel Excellence)"],
+    4: ["Finland (EDUFI, University Waivers) and Sweden (Swedish Institute SI Grants)", "Norway and Denmark (Government Full Tuition & Salaried PhD Positions)", "Spain (Carolina Foundation, Severo Ochoa) and Portugal (FCT PhD Fellowships)"],
+    5: ["United Kingdom (Chevening, Commonwealth, Gates Cambridge, Rhodes) and Ireland (GOI-IES)", "United States (Fulbright, NSF, High-Stipend Graduate Teaching/Research Assistantships)", "Canada (Vanier CGS, McCall MacBain, Banting Fellowships, Trudeu)"],
+    6: ["Australia (Research Training Program RTP, Australia Awards) and New Zealand (Manaaki)", "Hungary (Stipendium Hungaricum), Poland (NAWA Banach/Ulam), and Czech Republic (Government Grants)", "Global & International Bodies (Erasmus Mundus, UNESCO, World Bank, Rotary Peace)"]
 }
 
 def get_extraction_prompt(region: str) -> str:
@@ -129,6 +104,29 @@ Return ONLY a valid JSON object with a single key "scholarships" containing an a
 }}
 """
 
+# NEW ADDITION: Prompt for generating the dedicated blog post
+def get_opportunity_blog_prompt(opp_data: dict) -> str:
+    """Transforms verified opportunity data into an SEO HTML blog post."""
+    return f"""
+    You are an elite academic career strategist and SEO content writer. 
+    Turn the following verified scholarship details into a complete, engaging blog post.
+    
+    Return ONLY a strictly valid JSON object. Do not include markdown formatting like ```json.
+    
+    {{
+        "title": "A catchy, SEO-friendly title based on: {opp_data.get('title')}",
+        "slug": "url-friendly-lowercase-title-with-dashes",
+        "excerpt": "A punchy 2-sentence summary.",
+        "content": "Full blog post content in HTML. Use <h3> for sections (Eligibility, Benefits, Deadline), <ul> and <li> for lists, and <strong> for emphasis. Use single quotes for HTML attributes.",
+        "tags": ["{opp_data.get('country')}", "{opp_data.get('type')}", "Fully Funded"],
+        "read_time": "3 min read",
+        "original_link": "{opp_data.get('url')}"
+    }}
+    
+    OPPORTUNITY DATA:
+    {json.dumps(opp_data)}
+    """
+
 def clean_json_response(raw_text: str) -> str:
     """Sanitizes raw LLM output to extract pure JSON."""
     cleaned = raw_text.strip()
@@ -153,7 +151,6 @@ def validate_opportunity(opp: dict) -> tuple[bool, str]:
     if len(org) < 2:
         return False, f"Organization missing for '{title}'"
 
-    # URL Validation
     raw_url = (opp.get("url") or "").strip()
     parsed = urlparse(raw_url)
     if not (parsed.scheme in ("http", "https") and bool(parsed.netloc)):
@@ -161,12 +158,10 @@ def validate_opportunity(opp: dict) -> tuple[bool, str]:
     if "example.com" in raw_url or raw_url.endswith("#"):
         return False, f"Placeholder URL detected: '{raw_url}'"
 
-    # Degree / Type Validation
     opp_type = (opp.get("type") or "").strip()
     if opp_type not in ALLOWED_TYPES:
         return False, f"Invalid type '{opp_type}'. Must be one of {ALLOWED_TYPES}"
 
-    # Country & Field Validation
     country = (opp.get("country") or "").strip()
     if not country:
         return False, "Missing country field"
@@ -175,7 +170,6 @@ def validate_opportunity(opp: dict) -> tuple[bool, str]:
     if not field:
         return False, "Missing academic field/discipline"
 
-    # Deadline & Expiration Validation
     deadline = (opp.get("deadline") or "").strip()
     if not deadline:
         return False, "Missing deadline"
@@ -191,11 +185,29 @@ def validate_opportunity(opp: dict) -> tuple[bool, str]:
         except ValueError:
             return False, f"Invalid calendar date '{deadline}'"
 
-    # Description Quality Check
     desc = (opp.get("description") or "").strip()
     if len(desc) < 20:
         return False, f"Description incomplete or too short ({len(desc)} chars)"
 
+    return True, "Valid"
+
+# NEW ADDITION: Blog Validator
+def validate_blog_post(blog: dict) -> tuple[bool, str]:
+    """Ensures the generated blog post meets UI and structural standards."""
+    if not isinstance(blog, dict):
+        return False, "Blog data is not a valid JSON dictionary."
+    
+    title = (blog.get("title") or "").strip()
+    if len(title) < 10:
+        return False, "Blog title is missing or too short."
+        
+    content = (blog.get("content") or "").strip()
+    if len(content) < 150:
+        return False, "Blog content is too short to be a dedicated post."
+        
+    if "<h" not in content and "<p" not in content and "<ul" not in content:
+        return False, "Blog content is missing HTML formatting."
+        
     return True, "Valid"
 
 # ---------------------------------------------------------
@@ -316,7 +328,7 @@ def extract_with_gemini(prompt: str) -> str:
 # ---------------------------------------------------------
 # ADMIN NOTIFICATION
 # ---------------------------------------------------------
-def send_line_notification(day_name, total, inserted, duplicates, rejected, inserted_titles):
+def send_line_notification(day_name, total, inserted, duplicates, rejected, blogs_created, inserted_titles):
     """Sends a detailed push notification to the Admin LINE account."""
     line_token = os.environ.get('LINE_ACCESS_TOKEN')
     line_user = os.environ.get('LINE_USER_ID')
@@ -332,15 +344,21 @@ def send_line_notification(day_name, total, inserted, duplicates, rejected, inse
     }
     
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M")
-    msg_text = f"🤖 ScholarPortal Daily Dispatch\n📅 {day_name} Batch ({current_time})\n\n"
-    msg_text += f"📊 Scrape Summary:\n"
-    msg_text += f"• 📥 Total Fetched: {total}\n"
-    msg_text += f"• ✅ New Added: {inserted}\n"
-    msg_text += f"• ⏩ Duplicates: {duplicates}\n"
-    msg_text += f"• ❌ Rejected (Quality): {rejected}\n"
+    msg_text = (
+        f"🌎 *ScholarPortal Exec Report*\n"
+        f"📅 {day_name} Batch ({current_time})\n"
+        f"───────────────\n"
+        f"📊 *Scrape Summary:*\n"
+        f"📥 Fetched: {total}\n"
+        f"✅ Valid Added: {inserted}\n"
+        f"✍️ Blogs Authored: {blogs_created}\n"
+        f"───────────────\n"
+        f"⏭️ Duplicates: {duplicates}\n"
+        f"❌ Rejected: {rejected}\n"
+    )
     
     if inserted > 0 and inserted_titles:
-        msg_text += "\n✨ New Opportunities Added:\n"
+        msg_text += "\n✨ *Top Opportunities:*\n"
         for title in inserted_titles[:10]:
             msg_text += f"- {title}\n"
         if len(inserted_titles) > 10:
@@ -377,6 +395,7 @@ def run_agent():
     total_inserted = 0
     total_duplicates = 0
     total_rejected = 0
+    total_blogs_created = 0
     all_inserted_titles = []
 
     for idx, region in enumerate(todays_targets, start=1):
@@ -440,10 +459,51 @@ def run_agent():
             }
 
             try:
-                supabase.table("global_opportunities").insert(payload).execute()
+                # 1. Insert Opportunity and capture ID
+                db_response = supabase.table("global_opportunities").insert(payload).execute()
+                inserted_opp_id = db_response.data[0]['id']
+                
                 print(f"✅ Verified & Inserted: {payload['title']} ({payload['country']})")
                 total_inserted += 1
                 all_inserted_titles.append(f"{payload['title']} ({payload['country']})")
+                
+                # ---------------------------------------------------------
+                # 2. Immediately generate the dedicated Blog Post
+                # ---------------------------------------------------------
+                print(f"   ✍️ Generating dedicated blog post for: {payload['title']}...")
+                blog_prompt = get_opportunity_blog_prompt(payload)
+                blog_raw_text = None
+                
+                try:
+                    blog_raw_text = extract_with_groq(blog_prompt)
+                except Exception as e_groq:
+                    print(f"   ⚠️ Groq blog generation failed, trying Gemini: {e_groq}")
+                    try:
+                        blog_raw_text = extract_with_gemini(blog_prompt)
+                    except Exception as e_gem:
+                        print(f"   ❌ Blog generation failed: {e_gem}")
+                
+                if blog_raw_text:
+                    try:
+                        blog_json = json.loads(clean_json_response(blog_raw_text))
+                        
+                        # 3. Validate Blog Post Structure
+                        is_blog_valid, blog_reason = validate_blog_post(blog_json)
+                        if is_blog_valid:
+                            # 4. Link Foreign Key & Save to opportunity_blogs
+                            blog_json['opportunity_id'] = inserted_opp_id 
+                            blog_json['image'] = random.choice(VERIFIED_IMAGES)
+                            
+                            supabase.table("opportunity_blogs").insert(blog_json).execute()
+                            print(f"   💾 Saved Dedicated Blog: {blog_json.get('title')}")
+                            total_blogs_created += 1
+                        else:
+                            print(f"   ⚠️ Blog generation rejected: {blog_reason}")
+                            
+                    except Exception as parse_err:
+                        print(f"   🛑 Failed to parse blog JSON: {parse_err}")
+                # ---------------------------------------------------------
+
             except Exception as e:
                 err_str = str(e)
                 if "23505" in err_str or "duplicate" in err_str.lower():
@@ -467,6 +527,7 @@ def run_agent():
         inserted=total_inserted,
         duplicates=total_duplicates,
         rejected=total_rejected,
+        blogs_created=total_blogs_created,
         inserted_titles=all_inserted_titles
     )
 

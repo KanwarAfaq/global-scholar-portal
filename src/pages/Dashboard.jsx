@@ -2,12 +2,12 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { createClient } from '@supabase/supabase-js';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams,useNavigate } from 'react-router-dom';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { 
   Search, Sparkles, MapPin, Building2, Calendar, 
   DollarSign, ChevronRight, ChevronLeft, X, ExternalLink, Tag,
-  UserCheck, Brain, Loader2, RefreshCw
+  UserCheck, Brain, Loader2, RefreshCw, BookOpen,
 } from 'lucide-react';
 
 // Initialize Supabase
@@ -91,7 +91,9 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeItem, setActiveItem] = useState(null);
   const [saving, setSaving] = useState(false);
+  const navigate = useNavigate();
   const [matchMyProfileOnly, setMatchMyProfileOnly] = useState(false);
+ 
 
   // AI Matchmaker States
   const [aiAnalysisMap, setAiAnalysisMap] = useState({});
@@ -781,24 +783,35 @@ Format strictly as 3 bullet points starting with actionable emojis (e.g., âœ¨, ð
                 </div>
 
                 {/* Footer */}
-                <div className="p-6 border-t border-slate-800 shrink-0 bg-slate-850/60 flex flex-col sm:flex-row gap-4">
-                  <button 
-                    onClick={() => handleSaveApplication(activeItem)}
-                    disabled={saving}
-                    className="flex-1 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition-all disabled:opacity-50 border border-slate-700"
-                  >
-                    {saving ? 'Saving...' : 'Save to My Applications'}
-                  </button>
-                  
-                  <a
-                    href={activeItem.url || '#'}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white font-bold text-xs transition-all shadow-lg shadow-indigo-600/30"
-                  >
-                    Apply Now <ExternalLink className="w-4 h-4" />
-                  </a>
-                </div>
+<div className="p-6 border-t border-slate-800 shrink-0 bg-slate-850/60 flex flex-col gap-3">
+  {/* Primary Actions Row */}
+  <div className="flex flex-col sm:flex-row gap-3">
+    <button 
+      onClick={() => handleSaveApplication(activeItem)}
+      disabled={saving}
+      className="flex-1 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition-all disabled:opacity-50 border border-slate-700"
+    >
+      {saving ? 'Saving...' : 'Save to My Applications'}
+    </button>
+    
+    <a
+      href={activeItem.url || '#'}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white font-bold text-xs transition-all shadow-lg shadow-indigo-600/30"
+    >
+      Apply Now <ExternalLink className="w-4 h-4" />
+    </a>
+  </div>
+
+  {/* Secondary Action: Read Blog */}
+  <button
+    onClick={() => navigate(`/opportunity/${activeItem.id}/blog`)}
+    className="w-full py-3 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 font-bold text-xs border border-indigo-500/20 transition-all flex justify-center items-center gap-2"
+  >
+    <BookOpen className="w-4 h-4" /> Read AI Deep Dive
+  </button>
+</div>
               </motion.div>
             </div>
           </>

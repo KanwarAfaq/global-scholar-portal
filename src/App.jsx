@@ -5,7 +5,7 @@ import { ThemeProvider } from './components/ThemeProvider';
 import { AuthProvider } from './context/AuthContext';
 import MainLayout from './components/layout/MainLayout';
 import ProtectedRoute from './components/ProtectedRoute';
-
+import OpportunityBlog from './pages/OpportunityBlog';
 import Analytics from './pages/Analytics';
 import Dashboard from './pages/Dashboard';
 import Settings from './pages/Settings';
@@ -33,7 +33,7 @@ export default function App() {
                 <Route path="reset-password" element={<PasswordReset />} />
                 <Route path="blog" element={<Blog />} />
                 <Route path="blog/:slug" element={<BlogPost />} />
-
+                <Route path="/opportunity/:id/blog" element={<OpportunityBlog />} />
                 {/* --- PROTECTED ROUTES --- */}
                 <Route 
                   index 

@@ -1,0 +1,44 @@
+name: Daily ScholarPortal Agent
+
+on:
+  schedule:
+    # Runs at 00:00 UTC every day, which triggers at exactly 8:00 AM local time in Taiwan.
+    - cron: '0 0 * * *'
+  
+  # This allows you to click a "Run workflow" button in GitHub to test it manually!
+  workflow_dispatch: 
+
+jobs:
+  run-hunter-agent:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        working-directory: ./Agent
+        # Assuming you put requirements.txt in the root directory
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Opportunity Hunter & Blog Writer
+        # We tell GitHub to navigate into your Agent folder first
+         
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.VITE_SUPABASE_SERVICE_ROLE_KEY }}
+          VITE_CGU_API_KEY: ${{ secrets.VITE_CGU_API_KEY }}
+          VITE_GROQ_API_KEY: ${{ secrets.VITE_GROQ_API_KEY }}
+          VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
+          LINE_ACCESS_TOKEN: ${{ secrets.LINE_ACCESS_TOKEN }}
+          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
+        run: |
+          python agent.py
