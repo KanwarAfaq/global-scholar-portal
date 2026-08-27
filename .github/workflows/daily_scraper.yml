@@ -33,8 +33,8 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           VITE_GROQ_API_KEY: ${{ secrets.VITE_GROQ_API_KEY }}
           VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
-          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
-          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
+          LINE_CHANNEL_ACCESS_TOKEN_blog: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN_blog }}
+          LINE_USER_ID_blog: ${{ secrets.LINE_USER_ID_blog }}
         # Tells GitHub to run the script from inside the Blog_Agent folder
         working-directory: ./Blog_Agent
         run: python blog_agent.py
