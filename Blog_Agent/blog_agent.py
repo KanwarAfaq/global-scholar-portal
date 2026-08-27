@@ -106,8 +106,8 @@ def process_with_waterfall(prompt):
     return None
 def send_line_notification(day_name, published_titles):
     print("\n📲 Preparing LINE notification...")
-    token = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
-    user_id = os.getenv("LINE_USER_ID")
+    token = os.getenv("LINE_CHANNEL_ACCESS_TOKEN_blog")
+    user_id = os.getenv("LINE_USER_ID_blog")
     
     if not token or not user_id:
         print("   ⚠️ Skipped: LINE credentials (Token or User ID) are missing!")
@@ -115,7 +115,7 @@ def send_line_notification(day_name, published_titles):
     
     count = len(published_titles)
     titles_str = "\n".join([f"✅ {t}" for t in published_titles]) if count > 0 else "No new posts today."
-    message = f"🎉 *ScholarPortal Regional Dispatch*\n📅 {day_name} Batch\n\nPublished {count} new reports:\n\n{titles_str}"
+    message = f"🎉 *ScholarPortal Blog Dispatch*\n📅 {day_name} Batch\n\nPublished {count} new reports:\n\n{titles_str}"
 
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {token}"}
     
