@@ -47,9 +47,14 @@ jobs:
           # 1. Stage ONLY the sitemap
           git add public/sitemap.xml
           
-          # 2. Check ONLY if staged files have changed. If yes, commit and push. If no, just print a message.
+          # 2. Check ONLY if staged files have changed.
           if ! git diff --staged --quiet; then
             git commit -m "🤖 Auto-updated sitemap.xml"
+            
+            # 3. Pull any new changes that happened while the script was running
+            git pull --rebase origin main
+            
+            # 4. Push safely
             git push
           else
             echo "No new sitemap updates today. Skipping commit."
