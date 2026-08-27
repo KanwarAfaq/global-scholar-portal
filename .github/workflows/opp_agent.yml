@@ -23,7 +23,7 @@ jobs:
           cache: 'pip'
 
       - name: Install Dependencies
-        
+        working-directory: ./Agent
         # Assuming you put requirements.txt in the root directory
         run: |
           python -m pip install --upgrade pip
