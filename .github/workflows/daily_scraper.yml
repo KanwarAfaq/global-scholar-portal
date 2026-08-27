@@ -2,8 +2,8 @@ name: Daily Regional Blog Agent
 
 on:
   schedule:
-    # Runs at 00:00 UTC (8:00 AM CST) every single day
-    - cron: '0 0 * * *'
+    # Runs at 00:00 UTC (9:00 AM CST) every single day
+    - cron: '0 1 * * *'
   workflow_dispatch: # Gives you a "Run workflow" button in GitHub to trigger it manually
 
 jobs:
@@ -43,7 +43,14 @@ jobs:
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          # Target the public folder where the sitemap is saved
+          
+          # 1. Stage ONLY the sitemap
           git add public/sitemap.xml
-          # Only commit if the sitemap actually changed today
-          git diff --quiet && git diff --staged --quiet || (git commit -m "🤖 Auto-updated sitemap.xml" && git push)
+          
+          # 2. Check ONLY if staged files have changed. If yes, commit and push. If no, just print a message.
+          if ! git diff --staged --quiet; then
+            git commit -m "🤖 Auto-updated sitemap.xml"
+            git push
+          else
+            echo "No new sitemap updates today. Skipping commit."
+          fi

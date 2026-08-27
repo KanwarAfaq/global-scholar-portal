@@ -10,7 +10,7 @@ SUPABASE_URL = os.getenv("VITE_SUPABASE_URL")
 SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
 # Set your actual production domain here (or add it to your .env)
-FRONTEND_URL = os.getenv("FRONTEND_URL", "https://yourdomain.com")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://scholarportal.site")
 
 # Initialize Database
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
