@@ -2,10 +2,9 @@ name: Daily ScholarPortal Agent
 
 on:
   schedule:
-    # Runs at 00:00 UTC every day, which triggers at exactly 8:00 AM local time in Taiwan.
+    # Runs at 00:00 UTC every day (8:00 AM in Taiwan)
     - cron: '0 0 * * *'
   
-  # This allows you to click a "Run workflow" button in GitHub to test it manually!
   workflow_dispatch: 
 
 jobs:
@@ -24,21 +23,44 @@ jobs:
 
       - name: Install Dependencies
         working-directory: ./Agent
-        # Assuming you put requirements.txt in the root directory
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Run Opportunity Hunter & Blog Writer
-        # We tell GitHub to navigate into your Agent folder first
         working-directory: ./Agent 
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.VITE_SUPABASE_SERVICE_ROLE_KEY }}
-          VITE_CGU_API_KEY: ${{ secrets.VITE_CGU_API_KEY }}
-          VITE_GROQ_API_KEY: ${{ secrets.VITE_GROQ_API_KEY }}
-          VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
+          # LINE Setup
           LINE_ACCESS_TOKEN: ${{ secrets.LINE_ACCESS_TOKEN }}
           LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+          LINE_CHANNEL_SECRET: ${{ secrets.LINE_CHANNEL_SECRET }}
+
+          # Supabase Setup
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.VITE_SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+
+          # Cloudinary
+          VITE_CLOUDINARY_CLOUD_NAME: ${{ secrets.VITE_CLOUDINARY_CLOUD_NAME }}
+          VITE_CLOUDINARY_UPLOAD_PRESET: ${{ secrets.VITE_CLOUDINARY_UPLOAD_PRESET }}
+
+          # AI Gateways
+          VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
+          VITE_GEMINI_API_KEY2: ${{ secrets.VITE_GEMINI_API_KEY2 }}
+          VITE_GROQ_API_KEY: ${{ secrets.VITE_GROQ_API_KEY }}
+          VITE_GROQ_API_KEY2: ${{ secrets.VITE_GROQ_API_KEY2 }}
+          VITE_OPENAI_API_KEY: ${{ secrets.VITE_OPENAI_API_KEY }}
+          VITE_OPENAI_API_KEY2: ${{ secrets.VITE_OPENAI_API_KEY2 }}
+          CGU_API_KEY: ${{ secrets.CGU_API_KEY }}
+
+          # SMTP Email Setup
+          SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
         run: |
           python agent.py
