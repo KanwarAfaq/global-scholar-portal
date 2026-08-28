@@ -3,7 +3,7 @@ import sys
 import json
 import time
 import requests
-import random # NEW ADDITION: For selecting blog images
+import random
 from dotenv import load_dotenv
 import re
 from datetime import datetime, date
@@ -46,7 +46,7 @@ ALLOWED_TYPES = {
     "Internship", "Course", "Workshop", "Scholarship"
 }
 
-# NEW ADDITION: Curated verified image pool
+# Curated verified image pool
 VERIFIED_IMAGES = [
     "https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&q=80&w=800",
     "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&q=80&w=800",
@@ -59,13 +59,61 @@ VERIFIED_IMAGES = [
 # 7-DAY SCHEDULED REGIONS (High-Stipend Global Rotation)
 # ---------------------------------------------------------
 SCHEDULED_REGIONS_BY_DAY = {
-    0: ["Taiwan (MOE/NSTC, TIGP) and Macau (Macao SAR Fellowships)", "Japan (MEXT, JASSO, ADB-JSP) and South Korea (GKS/KGSP, POSCO)", "Hong Kong (HKPFS PhD Fellowships, University Grants)"],
-    1: ["Singapore (SINGA, A*STAR, NUS/NTU Research Scholarships)", "China (CSC Chinese Government Scholarships, Silk Road, Schwarzman)", "Malaysia (MIS / MTCP) and Brunei Darussalam (BDGS Government Scholarship)"],
-    2: ["Saudi Arabia (KAUST Full Fellowships, KFUPM, KAU)", "United Arab Emirates (MBZUAI AI Fellowships, Khalifa University)", "Qatar (HBKU Scholarships, Qatar University Graduate Fellowships)"],
-    3: ["Switzerland (ETH Zurich, EPFL, Swiss Government Excellence Scholarships)", "Germany (DAAD, Heinrich Böll, Konrad Adenauer, Max Planck Fellowships)", "Austria (Ernst Mach), Luxembourg (Gov/Uni Scholarships), and France (Eiffel Excellence)"],
-    4: ["Finland (EDUFI, University Waivers) and Sweden (Swedish Institute SI Grants)", "Norway and Denmark (Government Full Tuition & Salaried PhD Positions)", "Spain (Carolina Foundation, Severo Ochoa) and Portugal (FCT PhD Fellowships)"],
-    5: ["United Kingdom (Chevening, Commonwealth, Gates Cambridge, Rhodes) and Ireland (GOI-IES)", "United States (Fulbright, NSF, High-Stipend Graduate Teaching/Research Assistantships)", "Canada (Vanier CGS, McCall MacBain, Banting Fellowships, Trudeu)"],
-    6: ["Australia (Research Training Program RTP, Australia Awards) and New Zealand (Manaaki)", "Hungary (Stipendium Hungaricum), Poland (NAWA Banach/Ulam), and Czech Republic (Government Grants)", "Global & International Bodies (Erasmus Mundus, UNESCO, World Bank, Rotary Peace)"]
+    # Monday: East Asia & Pacific Rim
+    0: [
+        "Taiwan (MOE Taiwan Scholarship, NSTC International Fellowships, Academia Sinica TIGP)",
+        "Japan (MEXT Embassy & University Recommendation, JASSO, ADB-JSP)",
+        "South Korea (Global Korea Scholarship GKS, KAIST, UNIST Graduate Fellowships)",
+        "Hong Kong & Macau (Hong Kong PhD Fellowship Scheme HKPFS, University Fellowships)"
+    ],
+
+    # Tuesday: Southeast Asia & Greater China
+    1: [
+        "Singapore (SINGA PhD Award, NUS/NTU Research Scholarships, A*STAR Grants)",
+        "China (Chinese Government Scholarship CSC, Belt and Road, Schwarzman Scholars)",
+        "Malaysia & Brunei (MIS Malaysian International Scholarship, Brunei Darussalam Gov Award)",
+        "Thailand & Vietnam (AIT King's Scholarships, Chulalongkorn Graduate Waivers)"
+    ],
+
+    # Wednesday: Middle East, Central Asia & South Asia
+    2: [
+        "Saudi Arabia (KAUST Fellowship, KFUPM Full MS/PhD, King Saud University)",
+        "United Arab Emirates & Qatar (MBZUAI AI Fellowships, Qatar University Graduate Scholarships)",
+        "Turkey & Central Asia (Türkiye Bursları Government Scholarships, IsDB Scholarships)",
+        "South Asia (ICCR Scholarships, SAARC Fellowships, PIEAS/HEC International Stream)"
+    ],
+
+    # Thursday: Western & Central Europe (DACH & Benelux)
+    3: [
+        "Germany (DAAD Helmut Schmidt, Development-Related Postgraduate Courses EPOS, Max Planck)",
+        "Switzerland & Austria (ETH Zurich Excellence, EPFL Fellowships, Swiss Gov Excellence, Ernst Mach)",
+        "France & Benelux (Eiffel Excellence Scholarship, Holland Scholarship, Ghent University Grants)",
+        "Central Europe (Visegrad Scholarship, Stipendium Hungaricum, Czech Republic Gov Awards)"
+    ],
+
+    # Friday: Nordics & Southern Europe
+    4: [
+        "Finland & Sweden (EDUFI Fellowships, Swedish Institute SI Scholarships, University Tuition Waivers)",
+        "Norway & Denmark (Salaried PhD Fellowships, Danish Government Cultural Agreements)",
+        "Italy (DSU Regional Grants, Invest Your Talent in Italy, Politecnico di Milano Fellowships)",
+        "Spain & Portugal (Fundación Carolina Grants, Severo Ochoa PhD, FCT Portugal Fellowships)"
+    ],
+
+    # Saturday: North America & United Kingdom
+    5: [
+        "United States (Fulbright Foreign Student Program, Knight-Hennessy, Humphrey Fellowship)",
+        "Canada (Vanier Canada Graduate Scholarships, Banting Fellowships, Lester B. Pearson)",
+        "United Kingdom (Chevening Scholarships, Commonwealth Grants, Gates Cambridge, Rhodes Trust)",
+        "Ireland (Government of Ireland Postgraduate GOIPG, Trinity & UCD Global Excellence)"
+    ],
+
+    # Sunday: Oceania, Latin America & Global Consortia
+    6: [
+        "Australia & New Zealand (Australia Awards, Research Training Program RTP, Manaaki New Zealand)",
+        "Global Pan-European (Erasmus Mundus Joint Masters EMJM, Marie Skłodowska-Curie Actions MSCA)",
+        "Latin America & Caribbean (OAS Academic Scholarships, Rotary Peace Fellowships)",
+        "African Regional Bodies (African Union Mwalimu Nyerere, Mandela Washington Fellowship)"
+    ]
 }
 
 def get_extraction_prompt(region: str) -> str:
@@ -79,13 +127,13 @@ CRITICAL INSTRUCTIONS:
 2. 'country': Standard short country name (e.g., "USA", "UK", "Canada", "Germany", "Taiwan", "Japan", "Finland", "South Korea", "China", "Saudi Arabia", "Singapore", "Switzerland"). If worldwide/remote, output "Global".
 3. 'field': The specific academic discipline or subject area (e.g., "Computer Science", "Engineering", "Mathematics", "Medicine", "Multidisciplinary").
 4. 'funding_details': Precise financial value (e.g., "Full tuition + $1500/month", "Full scholarship + housing", "CHF 2000/month", "Fully Funded"). Output null if not specified.
-5. 'deadline': Must be strictly in "YYYY-MM-DD" format. If rolling/ongoing, output "Rolling". Do NOT include expired opportunities.
+5. 'deadline': Must be strictly in "YYYY-MM-DD" format. If rolling/ongoing, output "Rolling". Target active and upcoming intakes with deadlines on or after {datetime.now().strftime('%Y-%m-%d')}. Do NOT include expired opportunities.
 6. 'description': Detailed summary outlining the research area, eligibility criteria (who it is suitable for), and specific required documents (e.g., "Requires IELTS/TOEFL, CV, and a research proposal.").
 7. 'tags': Array of 3-5 keywords for database filtering (e.g., ["Fully Funded", "AI", "IELTS Required"]).
 8. 'url': Direct application or official website URL strictly starting with http or https.
 
 OUTPUT REQUIREMENT:
-Return ONLY a valid JSON object with a single key "scholarships" containing an array of the extracted data.
+Return ONLY a valid JSON object with a single key "scholarships" containing an array of 3-5 extracted opportunities.
 {{
   "scholarships": [
     {{
@@ -104,7 +152,6 @@ Return ONLY a valid JSON object with a single key "scholarships" containing an a
 }}
 """
 
-# NEW ADDITION: Prompt for generating the dedicated blog post
 def get_opportunity_blog_prompt(opp_data: dict) -> str:
     """Transforms verified opportunity data into an SEO HTML blog post."""
     return f"""
@@ -191,7 +238,6 @@ def validate_opportunity(opp: dict) -> tuple[bool, str]:
 
     return True, "Valid"
 
-# NEW ADDITION: Blog Validator
 def validate_blog_post(blog: dict) -> tuple[bool, str]:
     """Ensures the generated blog post meets UI and structural standards."""
     if not isinstance(blog, dict):
@@ -239,25 +285,25 @@ def call_cgu_endpoint(model_name: str, prompt: str, timeout: int = 60) -> str:
 def extract_with_cgu(prompt: str) -> str:
     """Tier 1 CGU Internal Waterfall (o3-deep-research -> gpt-4o -> gpt-oss:20b)."""
     if not cgu_key:
-        raise ValueError("CGU API key not configured.")
+        raise ValueError("CGU API key not configured in environment.")
 
     try:
-        print("🟢 [CGU Tier 1A] Attempting o3-deep-research...")
+        print("   🟢 [CGU Tier 1A] Attempting o3-deep-research...")
         return call_cgu_endpoint("o3-deep-research", prompt, timeout=90)
     except Exception as e1:
-        print(f"   ⚠️ CGU o3-deep-research failed: {e1}")
+        print(f"      ⚠️ CGU o3-deep-research failed: {e1}")
 
     try:
-        print("🟢 [CGU Tier 1B] Falling back to gpt-4o...")
+        print("   🟢 [CGU Tier 1B] Falling back to gpt-4o...")
         return call_cgu_endpoint("gpt-4o", prompt, timeout=45)
     except Exception as e2:
-        print(f"   ⚠️ CGU gpt-4o failed: {e2}")
+        print(f"      ⚠️ CGU gpt-4o failed: {e2}")
 
     try:
-        print("🟢 [CGU Tier 1C] Falling back to CGU Local Model (gpt-oss:20b)...")
+        print("   🟢 [CGU Tier 1C] Falling back to CGU Local Model (gpt-oss:20b)...")
         return call_cgu_endpoint("gpt-oss:20b", prompt, timeout=60)
     except Exception as e3:
-        print(f"   ⚠️ CGU Local Model failed: {e3}")
+        print(f"      ⚠️ CGU Local Model failed: {e3}")
         raise RuntimeError("All internal CGU models failed.")
 
 # ---------------------------------------------------------
@@ -266,9 +312,9 @@ def extract_with_cgu(prompt: str) -> str:
 def extract_with_groq(prompt: str) -> str:
     """Tier 2: Groq Fast Fallback"""
     if not groq_key:
-        raise ValueError("Groq API key not configured.")
+        raise ValueError("Groq API key not configured in environment.")
     
-    print("🟡 [Tier 2] Attempting Groq AI...")
+    print("   🟡 [Tier 2] Attempting Groq AI...")
     model_name = "openai/gpt-oss-120b"
     
     if groq_client:
@@ -278,6 +324,8 @@ def extract_with_groq(prompt: str) -> str:
                 {"role": "system", "content": "You are a factual data parser. Output ONLY a valid JSON object. Do not include any explanations or markdown."},
                 {"role": "user", "content": prompt}
             ],
+            response_format={"type": "json_object"},
+            max_tokens=4096,
             temperature=0.1
         )
         return completion.choices[0].message.content
@@ -293,6 +341,8 @@ def extract_with_groq(prompt: str) -> str:
                 {"role": "system", "content": "You are a factual data parser. Output ONLY a valid JSON object."},
                 {"role": "user", "content": prompt}
             ],
+            "response_format": {"type": "json_object"},
+            "max_tokens": 4096,
             "temperature": 0.1
         }
         res = requests.post(url, headers=headers, json=payload, timeout=30)
@@ -302,13 +352,14 @@ def extract_with_groq(prompt: str) -> str:
 def extract_with_gemini(prompt: str) -> str:
     """Tier 3: Gemini Search-Grounded Fallback"""
     if not gemini_client:
-        raise ValueError("Gemini API key not configured.")
+        raise ValueError("Gemini API key not configured in environment.")
     
-    print("🟠 [Tier 3] Attempting Gemini with Live Google Search...")
+    print("   🟠 [Tier 3] Attempting Gemini with Live Google Search...")
     chat = gemini_client.chats.create(
         model="gemini-2.5-flash",
         config=types.GenerateContentConfig(
             tools=[{"google_search": {}}],
+            response_mime_type="application/json",
             temperature=0.1
         )
     )
@@ -320,10 +371,43 @@ def extract_with_gemini(prompt: str) -> str:
             return response.text
         except Exception as e:
             if "503" in str(e) and attempt < max_retries - 1:
-                print(f"   ⚠️ Gemini server busy (503). Retrying in 5 seconds... (Attempt {attempt + 1}/{max_retries})")
+                print(f"      ⚠️ Gemini server busy (503). Retrying in 5 seconds... (Attempt {attempt + 1}/{max_retries})")
                 time.sleep(5)
             else:
                 raise e
+
+# ---------------------------------------------------------
+# UNIFIED WATERFALL GATEWAY (CGU -> Groq -> Gemini)
+# ---------------------------------------------------------
+def process_with_waterfall(prompt: str):
+    """
+    Cascades through CGU -> Groq -> Gemini.
+    Validates JSON integrity inside the loop before accepting the response.
+    """
+    models = [
+        ("CGU Gateway", extract_with_cgu),
+        ("Groq AI", extract_with_groq),
+        ("Gemini AI", extract_with_gemini)
+    ]
+    
+    for model_name, model_func in models:
+        try:
+            raw_text = model_func(prompt)
+            if not raw_text or not raw_text.strip():
+                raise ValueError("Received empty string response")
+            
+            cleaned = clean_json_response(raw_text)
+            parsed_data = json.loads(cleaned)
+            
+            print(f"   ✅ {model_name} Succeeded and validated JSON structure!")
+            return parsed_data
+
+        except Exception as e:
+            print(f"   ⚠️ {model_name} failed or produced malformed JSON: {e}")
+            continue
+            
+    print("   ❌ All AI tiers failed to return valid JSON.")
+    return None
 
 # ---------------------------------------------------------
 # ADMIN NOTIFICATION
@@ -404,37 +488,17 @@ def run_agent():
         print(f"========================================================")
 
         prompt = get_extraction_prompt(region)
-        raw_text = None
-
-        # Execute Waterfall: CGU (Internal 3-tier) -> Groq -> Gemini
-        try:
-            raw_text = extract_with_cgu(prompt)
-            print("✅ CGU Gateway Succeeded!")
-        except Exception as err1:
-            print(f"⚠️ CGU Gateway Failed: {err1}")
-            try:
-                raw_text = extract_with_groq(prompt)
-                print("✅ Groq Succeeded!")
-            except Exception as err2:
-                print(f"⚠️ Groq Failed: {err2}")
-                try:
-                    raw_text = extract_with_gemini(prompt)
-                    print("✅ Gemini Succeeded!")
-                except Exception as err3:
-                    print(f"❌ All AI tiers failed for region '{region}': {err3}")
-                    continue
-
-        # Sanitize and Parse JSON
-        cleaned_json = clean_json_response(raw_text)
-        try:
-            opportunities = json.loads(cleaned_json)
-            if isinstance(opportunities, dict) and "scholarships" in opportunities:
-                opportunities = opportunities["scholarships"]
-            print(f"🧩 Decoded {len(opportunities)} raw items for {region}.")
-            total_fetched += len(opportunities)
-        except Exception as e:
-            print(f"🛑 JSON parsing error for {region}: {e}")
+        
+        # Execute Unified Waterfall with JSON verification
+        data = process_with_waterfall(prompt)
+        
+        if not data:
+            print(f"🛑 Skipping region '{region}' because all AI tiers failed.")
             continue
+
+        opportunities = data.get("scholarships", []) if isinstance(data, dict) else []
+        print(f"🧩 Decoded {len(opportunities)} raw items for {region}.")
+        total_fetched += len(opportunities)
 
         # Strict Validation & Database Upsert
         for opp in opportunities:
@@ -472,36 +536,23 @@ def run_agent():
                 # ---------------------------------------------------------
                 print(f"   ✍️ Generating dedicated blog post for: {payload['title']}...")
                 blog_prompt = get_opportunity_blog_prompt(payload)
-                blog_raw_text = None
+                blog_json = process_with_waterfall(blog_prompt)
                 
-                try:
-                    blog_raw_text = extract_with_groq(blog_prompt)
-                except Exception as e_groq:
-                    print(f"   ⚠️ Groq blog generation failed, trying Gemini: {e_groq}")
-                    try:
-                        blog_raw_text = extract_with_gemini(blog_prompt)
-                    except Exception as e_gem:
-                        print(f"   ❌ Blog generation failed: {e_gem}")
-                
-                if blog_raw_text:
-                    try:
-                        blog_json = json.loads(clean_json_response(blog_raw_text))
+                if blog_json and isinstance(blog_json, dict):
+                    # 3. Validate Blog Post Structure
+                    is_blog_valid, blog_reason = validate_blog_post(blog_json)
+                    if is_blog_valid:
+                        # 4. Link Foreign Key & Save to opportunity_blogs
+                        blog_json['opportunity_id'] = inserted_opp_id 
+                        blog_json['image'] = random.choice(VERIFIED_IMAGES)
                         
-                        # 3. Validate Blog Post Structure
-                        is_blog_valid, blog_reason = validate_blog_post(blog_json)
-                        if is_blog_valid:
-                            # 4. Link Foreign Key & Save to opportunity_blogs
-                            blog_json['opportunity_id'] = inserted_opp_id 
-                            blog_json['image'] = random.choice(VERIFIED_IMAGES)
-                            
-                            supabase.table("opportunity_blogs").insert(blog_json).execute()
-                            print(f"   💾 Saved Dedicated Blog: {blog_json.get('title')}")
-                            total_blogs_created += 1
-                        else:
-                            print(f"   ⚠️ Blog generation rejected: {blog_reason}")
-                            
-                    except Exception as parse_err:
-                        print(f"   🛑 Failed to parse blog JSON: {parse_err}")
+                        supabase.table("opportunity_blogs").insert(blog_json).execute()
+                        print(f"   💾 Saved Dedicated Blog: {blog_json.get('title')}")
+                        total_blogs_created += 1
+                    else:
+                        print(f"   ⚠️ Blog generation rejected: {blog_reason}")
+                else:
+                    print(f"   ❌ Blog generation failed across all AI tiers.")
                 # ---------------------------------------------------------
 
             except Exception as e:
