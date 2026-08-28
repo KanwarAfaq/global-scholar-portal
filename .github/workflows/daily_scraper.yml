@@ -52,7 +52,7 @@ jobs:
             git commit -m "🤖 Auto-updated sitemap.xml"
             
             # 3. Pull any new changes that happened while the script was running
-            git pull --rebase origin main
+            git pull --rebase --autostash origin main
             
             # 4. Push safely
             git push
