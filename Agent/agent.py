@@ -35,9 +35,13 @@ supabase_key = os.environ.get("VITE_SUPABASE_SERVICE_ROLE_KEY") or os.environ.ge
 cgu_key = os.environ.get("VITE_CGU_API_KEY") or os.environ.get("CGU_API_KEY")
 groq_key = os.environ.get("VITE_GROQ_API_KEY") or os.environ.get("VITE_GROQ_API_KEY2")
 gemini_key = os.environ.get("VITE_GEMINI_API_KEY") or os.environ.get("VITE_GEMINI_API_KEY2")
-cloud_name=os.environ.get("CLOUDINARY_CLOUD_NAME"),
-api_key=os.environ.get("CLOUDINARY_API_KEY"),
-api_secret=os.environ.get("CLOUDINARY_API_SECRET"),
+hf_token = os.environ.get("HF_API_KEY") or os.environ.get("HF_API_KEY2")
+cloudinary.config(
+    cloud_name=os.environ.get("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.environ.get("CLOUDINARY_API_KEY"),
+    api_secret=os.environ.get("CLOUDINARY_API_SECRET"),
+    secure=True
+)
 secure=True
 if not supabase_url or not supabase_key:
     print("❌ ERROR: Missing Supabase environment variables!")
@@ -440,18 +444,51 @@ def extract_with_gemini(prompt: str) -> str:
             else:
                 raise e
 
+
+def extract_with_huggingface(prompt: str) -> str:
+    """Tier 4: Hugging Face Router Fallback (High-capacity Open Weights)."""
+    if not hf_token:
+        raise ValueError("Hugging Face API key not configured in environment.")
+
+    print("   🟣 [Tier 4] Attempting Hugging Face Router (gpt-oss-120b)...")
+    url = "https://router.huggingface.co/v1/chat/completions"
+    
+    headers = {
+        "Authorization": f"Bearer {hf_token}",
+        "Content-Type": "application/json"
+    }
+    
+    # You can easily toggle between "openai/gpt-oss-120b" and "zai-org/GLM-5.3-Flash"
+    payload = {
+        "model": "openai/gpt-oss-120b",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a real-time scholarship data extractor. Output ONLY a valid JSON object matching the requested schema without markdown."
+            },
+            {"role": "user", "content": prompt}
+        ],
+        "temperature": 0.1,
+        "max_tokens": 4096
+    }
+    
+    response = requests.post(url, headers=headers, json=payload, timeout=60)
+    response.raise_for_status()
+    data = response.json()
+    return data["choices"][0]["message"]["content"]
 # ---------------------------------------------------------
 # UNIFIED WATERFALL GATEWAY (CGU -> Groq -> Gemini)
 # ---------------------------------------------------------
 def process_with_waterfall(prompt: str):
     """
-    Cascades through CGU -> Groq -> Gemini.
+    Cascades through CGU -> Groq -> Gemini -> Hugging Face.
     Validates JSON integrity inside the loop before accepting the response.
     """
     models = [
         ("CGU Gateway", extract_with_cgu),
         ("Groq AI", extract_with_groq),
-        ("Gemini AI", extract_with_gemini)
+        ("Gemini AI", extract_with_gemini),
+        ("Hugging Face Router", extract_with_huggingface)
     ]
     
     for model_name, model_func in models:
