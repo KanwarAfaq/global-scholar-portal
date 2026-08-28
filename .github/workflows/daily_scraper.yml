@@ -3,7 +3,7 @@ name: Daily Regional Blog Agent
 on:
   schedule:
     # Runs at 00:00 UTC (9:00 AM CST) every single day
-    - cron: '0 1 * * *'
+    - cron: '17 1 * * *'
   workflow_dispatch: # Gives you a "Run workflow" button in GitHub to trigger it manually
 
 jobs:

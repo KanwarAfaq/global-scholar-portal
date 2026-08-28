@@ -3,7 +3,7 @@ name: Daily ScholarPortal Agent
 on:
   schedule:
     # Runs at 00:00 UTC every day (8:00 AM in Taiwan)
-    - cron: '0 0 * * *'
+    - cron: '17 0 * * *'
   
   workflow_dispatch: 
 
