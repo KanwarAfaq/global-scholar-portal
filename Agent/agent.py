@@ -8,6 +8,10 @@ from dotenv import load_dotenv
 import re
 from datetime import datetime, date
 from urllib.parse import urlparse
+import urllib.parse
+from bs4 import BeautifulSoup
+import cloudinary
+import cloudinary.uploader
 
 # Optional local imports for post-scrape alerts
 try:
@@ -29,9 +33,12 @@ load_dotenv()
 supabase_url = os.environ.get("VITE_SUPABASE_URL") or os.environ.get("SUPABASE_URL")
 supabase_key = os.environ.get("VITE_SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY")
 cgu_key = os.environ.get("VITE_CGU_API_KEY") or os.environ.get("CGU_API_KEY")
-groq_key = os.environ.get("VITE_GROQ_API_KEY") or os.environ.get("GROQ_API_KEY")
-gemini_key = os.environ.get("VITE_GEMINI_API_KEY") or os.environ.get("GEMINI_API_KEY")
-
+groq_key = os.environ.get("VITE_GROQ_API_KEY") or os.environ.get("VITE_GROQ_API_KEY2")
+gemini_key = os.environ.get("VITE_GEMINI_API_KEY") or os.environ.get("VITE_GEMINI_API_KEY2")
+cloud_name=os.environ.get("CLOUDINARY_CLOUD_NAME"),
+api_key=os.environ.get("CLOUDINARY_API_KEY"),
+api_secret=os.environ.get("CLOUDINARY_API_SECRET"),
+secure=True
 if not supabase_url or not supabase_key:
     print("❌ ERROR: Missing Supabase environment variables!")
     sys.exit(1)
@@ -152,6 +159,62 @@ Return ONLY a valid JSON object with a single key "scholarships" containing an a
 }}
 """
 
+
+
+def get_official_image(url: str) -> str:
+    """Attempts to scrape the official OpenGraph banner image from the URL."""
+    try:
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+        response = requests.get(url, headers=headers, timeout=10)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        # Look for <meta property="og:image" content="...">
+        og_image = soup.find('meta', property='og:image')
+        if og_image and og_image.get('content'):
+            img_url = og_image['content']
+            if img_url.startswith('http'):
+                return img_url
+    except Exception as e:
+        print(f"      ⚠️ Failed to scrape official image: {e}")
+    return None
+
+def get_ai_generated_image(title: str, country: str) -> str:
+    """Generates an AI image using a free, keyless API based on the opportunity."""
+    clean_title = re.sub(r'[^a-zA-Z0-9\s]', '', title)
+    prompt = f"Professional university campus banner, academic scholarship concept, {clean_title} in {country}, cinematic lighting, photorealistic, no text"
+    encoded_prompt = urllib.parse.quote(prompt)
+    
+    # Pollinations.ai generates images on the fly via URL
+    return f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=800&height=400&nologo=true"
+
+def fetch_and_upload_image(source_url: str, title: str, country: str) -> str:
+    """Pipelines the image from source (or AI) to Cloudinary and returns the secure URL."""
+    # 1. Try scraping the official image
+    target_img_url = get_official_image(source_url)
+    source_type = "Official"
+    
+    # 2. Fallback to AI generation
+    if not target_img_url:
+        target_img_url = get_ai_generated_image(title, country)
+        source_type = "AI-Generated"
+        
+    try:
+        # 3. Upload to Cloudinary directly from the URL
+        upload_result = cloudinary.uploader.upload(
+            target_img_url,
+            folder="scholarships",
+            transformation=[
+                {"width": 800, "height": 400, "crop": "fill", "gravity": "auto"}
+            ]
+        )
+        print(f"      🖼️ Image secured via {source_type} and uploaded to Cloudinary.")
+        return upload_result.get("secure_url")
+    except Exception as e:
+        print(f"      ⚠️ Cloudinary/AI upload failed: {e}")
+        # 4. Absolute fallback: guaranteed high-quality Unsplash image
+        fallback_img = random.choice(VERIFIED_IMAGES)
+        print("      🔄 Using guaranteed fallback image from VERIFIED_IMAGES.")
+        return fallback_img
 def get_opportunity_blog_prompt(opp_data: dict) -> str:
     """Transforms verified opportunity data into an SEO HTML blog post."""
     return f"""
@@ -160,11 +223,13 @@ def get_opportunity_blog_prompt(opp_data: dict) -> str:
     
     Return ONLY a strictly valid JSON object. Do not include markdown formatting like ```json.
     
+    CRITICAL: You MUST use single quotes for all HTML attributes (e.g. <h3 class='title'>) to prevent breaking the JSON string.
+    
     {{
         "title": "A catchy, SEO-friendly title based on: {opp_data.get('title')}",
         "slug": "url-friendly-lowercase-title-with-dashes",
         "excerpt": "A punchy 2-sentence summary.",
-        "content": "Full blog post content in HTML. Use <h3> for sections (Eligibility, Benefits, Deadline), <ul> and <li> for lists, and <strong> for emphasis. Use single quotes for HTML attributes.",
+        "content": "Full blog post content in HTML. Use <h3> for sections (Eligibility, Benefits, Deadline), <ul> and <li> for lists, and <strong> for emphasis.",
         "tags": ["{opp_data.get('country')}", "{opp_data.get('type')}", "Fully Funded"],
         "read_time": "3 min read",
         "original_link": "{opp_data.get('url')}"
@@ -173,7 +238,6 @@ def get_opportunity_blog_prompt(opp_data: dict) -> str:
     OPPORTUNITY DATA:
     {json.dumps(opp_data)}
     """
-
 def clean_json_response(raw_text: str) -> str:
     """Sanitizes raw LLM output to extract pure JSON."""
     cleaned = raw_text.strip()
@@ -542,13 +606,19 @@ def run_agent():
                     # 3. Validate Blog Post Structure
                     is_blog_valid, blog_reason = validate_blog_post(blog_json)
                     if is_blog_valid:
-                        # 4. Link Foreign Key & Save to opportunity_blogs
+                        # 4. Process Dynamic Image & Save to opportunity_blogs
                         blog_json['opportunity_id'] = inserted_opp_id 
-                        blog_json['image'] = random.choice(VERIFIED_IMAGES)
                         
-                        supabase.table("opportunity_blogs").insert(blog_json).execute()
-                        print(f"   💾 Saved Dedicated Blog: {blog_json.get('title')}")
-                        total_blogs_created += 1
+                        print(f"      🔍 Searching for official image or generating AI fallback...")
+                        secure_img = fetch_and_upload_image(payload['url'], payload['title'], payload['country'])
+                        blog_json['image'] = secure_img
+                        
+                        try:
+                            supabase.table("opportunity_blogs").insert(blog_json).execute()
+                            print(f"   💾 Saved Dedicated Blog: {blog_json.get('title')}")
+                            total_blogs_created += 1
+                        except Exception as blog_err:
+                            print(f"   🛑 Database rejected blog insert. Check table columns! Error: {blog_err}")
                     else:
                         print(f"   ⚠️ Blog generation rejected: {blog_reason}")
                 else:
@@ -570,6 +640,22 @@ def run_agent():
     print(f"\n========================================================")
     print(f"📊 {day_name} Summary: {total_inserted} inserted, {total_duplicates} duplicates, {total_rejected} rejected.")
     print(f"========================================================")
+# ---------------------------------------------------------
+    # AUTOMATED PRUNING (15 Days Past Deadline)
+    # ---------------------------------------------------------
+    print("\n🧹 Running database cleanup...")
+    try:
+        from datetime import timedelta
+        threshold_date = (date.today() - timedelta(days=15)).strftime("%Y-%m-%d")
+        
+        # Deleting the parent opportunity will also delete the linked blog 
+        # as long as your Supabase foreign key has "Cascade" enabled.
+        prune_res = supabase.table("global_opportunities").delete().lt("deadline", threshold_date).execute()
+        
+        deleted_count = len(prune_res.data) if prune_res.data else 0
+        print(f"✅ Pruned {deleted_count} expired opportunities (older than {threshold_date}).")
+    except Exception as e:
+        print(f"⚠️ Failed to prune old records: {e}")
 
     # Trigger Admin Notification
     send_line_notification(
@@ -583,12 +669,12 @@ def run_agent():
     )
 
     # Trigger Subscriber Alerts
-    if run_line_matchmaker:
-        print("\n📲 Running LINE Matchmaker...")
-        run_line_matchmaker()
-    if run_email_matchmaker:
-        print("📧 Running Email Matchmaker...")
-        run_email_matchmaker()
+    #if run_line_matchmaker:
+     #   print("\n📲 Running LINE Matchmaker...")
+        #run_line_matchmaker()
+    #if run_email_matchmaker:
+      #  print("📧 Running Email Matchmaker...")
+        #run_email_matchmaker()
 
 if __name__ == "__main__":
     run_agent()
