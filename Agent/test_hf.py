@@ -1,7 +1,6 @@
 import requests
 
 # 1. Put your copied token here
-HF_TOKEN = "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" 
 
  
 
