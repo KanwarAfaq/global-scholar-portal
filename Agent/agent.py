@@ -669,12 +669,12 @@ def run_agent():
     )
 
     # Trigger Subscriber Alerts
-    #if run_line_matchmaker:
-     #   print("\n📲 Running LINE Matchmaker...")
-        #run_line_matchmaker()
-    #if run_email_matchmaker:
-      #  print("📧 Running Email Matchmaker...")
-        #run_email_matchmaker()
+    if run_line_matchmaker:
+        print("\n📲 Running LINE Matchmaker...")
+        run_line_matchmaker()
+    if run_email_matchmaker:
+        print("📧 Running Email Matchmaker...")
+        run_email_matchmaker()
 
 if __name__ == "__main__":
     run_agent()
