@@ -43,9 +43,13 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
 
-          # Cloudinary
+
+                    # Cloudinary
           VITE_CLOUDINARY_CLOUD_NAME: ${{ secrets.VITE_CLOUDINARY_CLOUD_NAME }}
           VITE_CLOUDINARY_UPLOAD_PRESET: ${{ secrets.VITE_CLOUDINARY_UPLOAD_PRESET }}
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
 
           # AI Gateways
           VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
@@ -55,6 +59,18 @@ jobs:
           VITE_OPENAI_API_KEY: ${{ secrets.VITE_OPENAI_API_KEY }}
           VITE_OPENAI_API_KEY2: ${{ secrets.VITE_OPENAI_API_KEY2 }}
           CGU_API_KEY: ${{ secrets.CGU_API_KEY }}
+          HF_API_KEY: ${{ secrets.HF_API_KEY }}
+
+          # Facebook
+          FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+          FACEBOOK_PAGE_ACCESS_TOKEN: ${{ secrets.FACEBOOK_PAGE_ACCESS_TOKEN }}
+          FACEBOOK_GRAPH_API_VERSION: ${{ secrets.FACEBOOK_GRAPH_API_VERSION }}
+          FACEBOOK_PUBLISH_ENABLED: ${{ secrets.FACEBOOK_PUBLISH_ENABLED }}
+          FACEBOOK_MAX_POSTS_PER_RUN: ${{ secrets.FACEBOOK_MAX_POSTS_PER_RUN }}
+          FACEBOOK_USE_PHOTO_POST: ${{ secrets.FACEBOOK_USE_PHOTO_POST }}
+
+          # ScholarPortal
+          SCHOLARPORTAL_BASE_URL: ${{ secrets.SCHOLARPORTAL_BASE_URL }}
 
           # SMTP Email Setup
           SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
