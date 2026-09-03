@@ -26,11 +26,6 @@ from google import genai
 from google.genai import types
 from groq import Groq
 from supabase import create_client, Client
-from facebook_publisher import publish_post, FacebookPublishError
-try:
-    from facebook_publisher import publish_photo
-except ImportError:
-    publish_photo = None
 
 # 1. Load environment variables
 load_dotenv()
@@ -56,15 +51,6 @@ if not supabase_url or not supabase_key:
 supabase: Client = create_client(supabase_url, supabase_key)
 gemini_client = genai.Client(api_key=gemini_key) if gemini_key else None
 groq_client = Groq(api_key=groq_key) if groq_key else None
-
-# Facebook / ScholarPortal publishing settings
-SCHOLARPORTAL_BASE_URL = os.environ.get("SCHOLARPORTAL_BASE_URL", "https://scholarportal.site").rstrip("/")
-FACEBOOK_PUBLISH_ENABLED = os.environ.get("FACEBOOK_PUBLISH_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
-FACEBOOK_USE_PHOTO_POST = os.environ.get("FACEBOOK_USE_PHOTO_POST", "true").strip().lower() in {"1", "true", "yes", "on"}
-try:
-    FACEBOOK_MAX_POSTS_PER_RUN = max(0, int(os.environ.get("FACEBOOK_MAX_POSTS_PER_RUN", "3")))
-except ValueError:
-    FACEBOOK_MAX_POSTS_PER_RUN = 3
 
 ALLOWED_TYPES = {
     "Bachelor", "Master", "PhD", "MPhil", "Fellowship",
@@ -525,274 +511,6 @@ def process_with_waterfall(prompt: str):
     return None
 
 # ---------------------------------------------------------
-# FACEBOOK PUBLISHING
-# ---------------------------------------------------------
-def _hashtag(value: str) -> str:
-    """Convert a label such as 'South Korea' into a safe hashtag token."""
-    cleaned = re.sub(r"[^A-Za-z0-9]", "", value or "")
-    return f"#{cleaned}" if cleaned else ""
-
-
-def _country_flag(country: str) -> str:
-    """Return a useful flag for the countries/regions commonly used by this agent."""
-    flags = {
-        "usa": "🇺🇸", "united states": "🇺🇸", "canada": "🇨🇦", "uk": "🇬🇧",
-        "united kingdom": "🇬🇧", "ireland": "🇮🇪", "germany": "🇩🇪",
-        "france": "🇫🇷", "switzerland": "🇨🇭", "austria": "🇦🇹",
-        "italy": "🇮🇹", "spain": "🇪🇸", "portugal": "🇵🇹", "finland": "🇫🇮",
-        "sweden": "🇸🇪", "norway": "🇳🇴", "denmark": "🇩🇰", "netherlands": "🇳🇱",
-        "belgium": "🇧🇪", "hungary": "🇭🇺", "czech republic": "🇨🇿",
-        "taiwan": "🇹🇼", "japan": "🇯🇵", "south korea": "🇰🇷", "korea": "🇰🇷",
-        "hong kong": "🇭🇰", "china": "🇨🇳", "singapore": "🇸🇬", "malaysia": "🇲🇾",
-        "brunei": "🇧🇳", "thailand": "🇹🇭", "vietnam": "🇻🇳", "saudi arabia": "🇸🇦",
-        "united arab emirates": "🇦🇪", "uae": "🇦🇪", "qatar": "🇶🇦", "turkey": "🇹🇷",
-        "india": "🇮🇳", "pakistan": "🇵🇰", "australia": "🇦🇺", "new zealand": "🇳🇿",
-        "global": "🌍",
-    }
-    return flags.get((country or "").strip().lower(), "🌍")
-
-
-def _format_deadline(deadline: str) -> str:
-    """Make YYYY-MM-DD friendlier for Facebook without changing the stored DB value."""
-    raw = (deadline or "").strip()
-    if not raw:
-        return "Not specified"
-    if raw.lower() == "rolling":
-        return "Rolling"
-    try:
-        return datetime.strptime(raw, "%Y-%m-%d").strftime("%B %d, %Y").replace(" 0", " ")
-    except ValueError:
-        return raw
-
-
-def _facebook_banner(opp_type: str, funding: str, tags: list) -> str:
-    """Choose a strong but factual headline. Never claim fully funded unless the data says so."""
-    opp_lower = (opp_type or "").lower()
-    funding_lower = (funding or "").lower()
-    tag_text = " ".join(str(tag) for tag in (tags or [])).lower()
-    fully_funded = "fully funded" in funding_lower or "fully funded" in tag_text
-
-    if opp_lower == "internship":
-        return "💼 PAID INTERNSHIP OPPORTUNITY" if "paid" in funding_lower else "💼 INTERNSHIP OPPORTUNITY"
-    if opp_lower == "fellowship":
-        return "🚀 FULLY FUNDED FELLOWSHIP" if fully_funded else "🚀 FELLOWSHIP OPPORTUNITY"
-    if opp_lower in {"phd", "mphil", "master", "bachelor"}:
-        level = opp_type.upper() if opp_lower == "phd" else opp_type
-        return f"🎓 FULLY FUNDED {level} OPPORTUNITY" if fully_funded else f"🎓 {level} OPPORTUNITY"
-    if opp_lower == "course":
-        return "📚 COURSE OPPORTUNITY"
-    if opp_lower == "workshop":
-        return "🧠 WORKSHOP OPPORTUNITY"
-    return "🎓 FULLY FUNDED SCHOLARSHIP" if fully_funded else "🎓 SCHOLARSHIP OPPORTUNITY"
-
-
-def _build_highlights(payload: dict) -> list[str]:
-    """Build short, factual scan-friendly highlights from fields already verified by the agent."""
-    highlights = []
-    funding = (payload.get("funding_details") or "").strip()
-    field = (payload.get("field") or "").strip()
-    tags = payload.get("tags") if isinstance(payload.get("tags"), list) else []
-    description = (payload.get("description") or "").lower()
-
-    if funding and funding.lower() not in {"not specified", "n/a", "none"}:
-        highlights.append(funding)
-    if field:
-        highlights.append(f"Field: {field}")
-    if "international" in description or any("international" in str(tag).lower() for tag in tags):
-        highlights.append("International applicants mentioned")
-
-    # Add useful agent tags without repeating what we already displayed.
-    for tag in tags:
-        clean = str(tag).strip()
-        if not clean:
-            continue
-        if any(clean.lower() in item.lower() or item.lower() in clean.lower() for item in highlights):
-            continue
-        highlights.append(clean)
-        if len(highlights) >= 4:
-            break
-
-    return highlights[:4]
-
-
-def build_facebook_message(payload: dict, blog_json: dict, article_url: str) -> str:
-    """Build a visual, scan-friendly Facebook caption that drives readers to ScholarPortal."""
-    title = (blog_json.get("title") or payload.get("title") or "Scholarship Opportunity").strip()
-    country = (payload.get("country") or "Global").strip()
-    opp_type = (payload.get("type") or "Scholarship").strip()
-    organization = (payload.get("organization") or "Not specified").strip()
-    funding = (payload.get("funding_details") or "Not specified").strip()
-    field = (payload.get("field") or "Not specified").strip()
-    deadline = _format_deadline(payload.get("deadline"))
-    excerpt = (blog_json.get("excerpt") or payload.get("description") or "").strip()
-    agent_tags = payload.get("tags") if isinstance(payload.get("tags"), list) else []
-
-    # Facebook readers scan quickly; keep the hook short and send detail traffic to ScholarPortal.
-    if len(excerpt) > 220:
-        excerpt = excerpt[:217].rstrip() + "..."
-
-    flag = _country_flag(country)
-    banner = _facebook_banner(opp_type, funding, agent_tags)
-    highlights = _build_highlights(payload)
-    highlight_block = "\n".join(f"✅ {item}" for item in highlights)
-
-    hashtags = [
-        "#ScholarPortal",
-        "#Scholarships",
-        "#StudyAbroad",
-        _hashtag(country),
-        _hashtag(opp_type),
-    ]
-    if "fully funded" in funding.lower() or any("fully funded" in str(tag).lower() for tag in agent_tags):
-        hashtags.append("#FullyFunded")
-    hashtags = " ".join(dict.fromkeys(tag for tag in hashtags if tag))
-
-    return f"""{banner} {flag}
-
-🎓 {title}
-
-{excerpt}
-
-━━━━━━━━━━━━━━━
-📌 QUICK DETAILS
-🌍 Country: {country} {flag}
-🎓 Level/Type: {opp_type}
-🏛️ Host: {organization}
-🔬 Field: {field}
-💰 Funding: {funding}
-📅 Deadline: {deadline}
-━━━━━━━━━━━━━━━
-
-✨ AT A GLANCE
-{highlight_block or '✅ Check the full opportunity details on ScholarPortal'}
-
-📖 Full eligibility, benefits, required documents & application guide:
-👉 {article_url}
-
-🌐 Discover more scholarships, fellowships and global opportunities:
-👉 {SCHOLARPORTAL_BASE_URL}
-
-🔔 Follow ScholarHub for fresh opportunities and application updates.
-
-{hashtags}""".strip()
-
-
-def send_facebook_line_notification(
-    payload: dict,
-    blog_json: dict,
-    article_url: str,
-    facebook_post_id: str,
-    post_mode: str = "Facebook post",
-) -> None:
-    """Send an immediate short LINE alert after a Facebook post succeeds."""
-    line_token = os.environ.get("LINE_ACCESS_TOKEN")
-    line_user = os.environ.get("LINE_USER_ID")
-
-    if not line_token or not line_user:
-        print("   ⚠️ LINE credentials missing; Facebook success alert skipped.")
-        return
-
-    title = (blog_json.get("title") or payload.get("title") or "Scholarship Opportunity").strip()
-    country = (payload.get("country") or "Global").strip()
-    opp_type = (payload.get("type") or "Scholarship").strip()
-    deadline = _format_deadline(payload.get("deadline"))
-
-    msg_text = (
-        "📘 Facebook Post Published\n"
-        "━━━━━━━━━━━━━━━\n"
-        f"🎓 {title}\n"
-        f"🌍 {country} | {opp_type}\n"
-        f"📅 Deadline: {deadline}\n"
-        f"🖼️ Format: {post_mode}\n"
-        f"🔗 {article_url}\n"
-        f"🆔 {facebook_post_id}"
-    )
-
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {line_token}",
-    }
-    body = {
-        "to": line_user,
-        "messages": [{"type": "text", "text": msg_text}],
-    }
-
-    try:
-        response = requests.post(
-            "https://api.line.me/v2/bot/message/push",
-            headers=headers,
-            json=body,
-            timeout=20,
-        )
-        response.raise_for_status()
-        print("   📱 LINE Facebook-success notification sent.")
-    except Exception as exc:
-        # Never fail the research/blog/Facebook pipeline just because LINE is unavailable.
-        print(f"   ⚠️ Facebook posted, but LINE success alert failed: {exc}")
-
-
-def publish_blog_to_facebook(payload: dict, blog_json: dict) -> str | None:
-    """
-    Publish a newly-created opportunity blog to Facebook.
-
-    Primary mode: publish the generated/official Cloudinary image as a Facebook
-    photo with a beautiful caption. The ScholarPortal article URL remains visible
-    and clickable inside the caption.
-
-    Fallback mode: standard feed/link post.
-    """
-    opportunity_id = blog_json.get("opportunity_id")
-    if not opportunity_id:
-        print("   ⚠️ Blog saved but no opportunity_id was available. Skipping Facebook.")
-        return None
-
-    article_url = f"{SCHOLARPORTAL_BASE_URL}/opportunity/{opportunity_id}/blog"
-    message = build_facebook_message(payload, blog_json, article_url)
-    image_url = (blog_json.get("image") or "").strip()
-
-    try:
-        post_mode = "Link post"
-
-        # Prefer a photo post because the opportunity image occupies much more feed space
-        # and makes the automated post look like a designed social card.
-        if FACEBOOK_USE_PHOTO_POST and image_url and publish_photo is not None:
-            try:
-                post_id = publish_photo(image_url=image_url, message=message)
-                post_mode = "Photo post"
-                print(f"   🖼️ Facebook photo post published: {post_id}")
-            except FacebookPublishError as photo_exc:
-                print(f"   ⚠️ Facebook photo publish failed: {photo_exc}")
-                print("   🔄 Falling back to a normal ScholarPortal link post...")
-                post_id = publish_post(message, link=article_url)
-        else:
-            if FACEBOOK_USE_PHOTO_POST and publish_photo is None:
-                print("   ℹ️ facebook_publisher.py has no publish_photo(); using link-post fallback.")
-            elif FACEBOOK_USE_PHOTO_POST and not image_url:
-                print("   ℹ️ No blog image available; using link-post fallback.")
-            post_id = publish_post(message, link=article_url)
-
-        print(f"   📘 Facebook post published: {post_id}")
-        print(f"   🔗 ScholarPortal article: {article_url}")
-
-        send_facebook_line_notification(
-            payload=payload,
-            blog_json=blog_json,
-            article_url=article_url,
-            facebook_post_id=post_id,
-            post_mode=post_mode,
-        )
-        return post_id
-
-    except FacebookPublishError as exc:
-        # The blog remains published even if Facebook is temporarily unavailable.
-        print(f"   ⚠️ Blog published, but Facebook failed: {exc}")
-        return None
-    except Exception as exc:
-        print(f"   ⚠️ Unexpected Facebook publishing error: {exc}")
-        return None
-
-
-# ---------------------------------------------------------
 # ADMIN NOTIFICATION
 # ---------------------------------------------------------
 def send_line_notification(day_name, total, inserted, duplicates, rejected, blogs_created, inserted_titles):
@@ -863,7 +581,6 @@ def run_agent():
     total_duplicates = 0
     total_rejected = 0
     total_blogs_created = 0
-    total_facebook_posts = 0
     all_inserted_titles = []
 
     for idx, region in enumerate(todays_targets, start=1):
@@ -937,19 +654,6 @@ def run_agent():
                             supabase.table("opportunity_blogs").insert(blog_json).execute()
                             print(f"   💾 Saved Dedicated Blog: {blog_json.get('title')}")
                             total_blogs_created += 1
-
-                            # 5. Publish the new ScholarPortal article to Facebook.
-                            # A per-run cap avoids flooding the Page if the research agent finds many items.
-                            if FACEBOOK_PUBLISH_ENABLED and total_facebook_posts < FACEBOOK_MAX_POSTS_PER_RUN:
-                                facebook_post_id = publish_blog_to_facebook(payload, blog_json)
-                                if facebook_post_id:
-                                    total_facebook_posts += 1
-                            elif not FACEBOOK_PUBLISH_ENABLED:
-                                print("   ℹ️ Facebook publishing is disabled by FACEBOOK_PUBLISH_ENABLED.")
-                            elif FACEBOOK_MAX_POSTS_PER_RUN == 0:
-                                print("   ℹ️ Facebook publishing cap is 0; skipping Facebook.")
-                            else:
-                                print(f"   ℹ️ Facebook cap reached ({FACEBOOK_MAX_POSTS_PER_RUN} posts this run). Blog remains published.")
                         except Exception as blog_err:
                             print(f"   🛑 Database rejected blog insert. Check table columns! Error: {blog_err}")
                     else:
@@ -971,7 +675,7 @@ def run_agent():
             time.sleep(5)
 
     print(f"\n========================================================")
-    print(f"📊 {day_name} Summary: {total_inserted} inserted, {total_duplicates} duplicates, {total_rejected} rejected, {total_blogs_created} blogs, {total_facebook_posts} Facebook posts.")
+    print(f"📊 {day_name} Summary: {total_inserted} inserted, {total_duplicates} duplicates, {total_rejected} rejected.")
     print(f"========================================================")
 # ---------------------------------------------------------
     # AUTOMATED PRUNING (15 Days Past Deadline)
