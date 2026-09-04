@@ -18,6 +18,7 @@ import PasswordReset from './pages/PasswordReset';
 import ChangeEmail from './pages/ChangeEmail';
 import Blog from './pages/Blog';
 import BlogPost from './pages/BlogPost';
+import PrivacyPolicy from './pages/PrivacyPolicy';
 
 export default function App() {
   return (
@@ -33,7 +34,9 @@ export default function App() {
                 <Route path="reset-password" element={<PasswordReset />} />
                 <Route path="blog" element={<Blog />} />
                 <Route path="blog/:slug" element={<BlogPost />} />
-                <Route path="/opportunity/:id/blog" element={<OpportunityBlog />} />
+                <Route path="/opportunity/:id/blog" element={<OpportunityBlog />} 
+                />
+                <Route path="privacy-policy" element={<PrivacyPolicy />} />
                 {/* --- PROTECTED ROUTES --- */}
                 <Route 
                   index 
