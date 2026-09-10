@@ -1,0 +1,25 @@
+{
+  "title": "The Confused Robot",
+  "scenes": [
+    {
+      "speaker": "boy1",
+      "dialogue_ur": "دیکھو! میرا روبوٹ سب کچھ کر سکتا ہے!",
+      "action": "He proudly presses the robot remote and points toward the little robot."
+    },
+    {
+      "speaker": "girl1",
+      "dialogue_ur": "سب کچھ؟ اسے سیدھا چلنا تو سکھاؤ!",
+      "action": "She points at the robot as it turns the wrong way and gives a playful surprised look."
+    },
+    {
+      "speaker": "boy2",
+      "dialogue_ur": "روبوٹ، میرے لیے جوس لے آؤ!",
+      "action": "He leans toward the robot and gives it a confident voice command."
+    },
+    {
+      "speaker": "girl2",
+      "dialogue_ur": "واہ! جوس کی جگہ پنسل! بہت ذہین روبوٹ ہے! ہاہا!",
+      "action": "She holds up the pencil the robot brought back and laughs at the silly mistake."
+    }
+  ]
+}

@@ -7,7 +7,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { 
   Search, Sparkles, MapPin, Building2, Calendar, 
   DollarSign, ChevronRight, ChevronLeft, X, ExternalLink, Tag,
-  UserCheck, Brain, Loader2, RefreshCw, BookOpen,
+  UserCheck, Brain, Loader2, RefreshCw, BookOpen, Bell 
 } from 'lucide-react';
 
 // Initialize Supabase
@@ -93,7 +93,29 @@ export default function Dashboard() {
   const [saving, setSaving] = useState(false);
   const navigate = useNavigate();
   const [matchMyProfileOnly, setMatchMyProfileOnly] = useState(false);
- 
+ // --- First-Time Welcome Banner State ---
+  const [showWelcome, setShowWelcome] = useState(false);
+
+  useEffect(() => {
+    // Check if user is logged out AND hasn't seen the banner yet
+    const hasSeenWelcome = localStorage.getItem('hasSeenWelcome');
+    
+    if (!user && !hasSeenWelcome) {
+      setShowWelcome(true);
+      
+      // Auto-hide exactly after 5 seconds
+      const timer = setTimeout(() => {
+        closeWelcomeBanner();
+      }, 10000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [user]);
+
+  const closeWelcomeBanner = () => {
+    setShowWelcome(false);
+    localStorage.setItem('hasSeenWelcome', 'true');
+  };
 
   // AI Matchmaker States
   const [aiAnalysisMap, setAiAnalysisMap] = useState({});
@@ -780,6 +802,8 @@ Format strictly as 3 bullet points starting with actionable emojis (e.g., ‚ú®, 
                       </div>
                     </div>
                   )}
+                  {/* --- FIRST-TIME WELCOME BANNER --- */}
+     
                 </div>
 
                 {/* Footer */}
@@ -815,6 +839,55 @@ Format strictly as 3 bullet points starting with actionable emojis (e.g., ‚ú®, 
               </motion.div>
             </div>
           </>
+        )}
+      </AnimatePresence>
+       <AnimatePresence>
+        {showWelcome && (
+          <motion.div 
+            initial={{ y: 50, opacity: 0, x: '-50%' }}
+            animate={{ y: 0, opacity: 1, x: '-50%' }}
+            exit={{ y: 50, opacity: 0, x: '-50%' }}
+            className="fixed bottom-6 left-1/2 z-50 w-[90%] max-w-lg bg-slate-900/95 backdrop-blur-xl border border-indigo-500/50 rounded-2xl p-5 shadow-2xl shadow-indigo-600/20"
+          >
+            <button 
+              onClick={closeWelcomeBanner}
+              className="absolute top-3 right-3 text-slate-400 hover:text-white transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-start gap-4">
+              <div className="p-3 bg-indigo-500/20 rounded-xl text-indigo-400 shrink-0">
+                <Sparkles className="w-6 h-6" />
+              </div>
+              
+              <div className="w-full">
+                <h3 className="text-lg font-bold text-white mb-1">Welcome to ScholarPortal! üåç</h3>
+                <p className="text-sm text-slate-300 mb-4 leading-relaxed">
+                  You are browsing as a guest. Create a free account to unlock your personalized AI career copilot.
+                </p>
+                
+                <ul className="text-xs text-slate-400 space-y-2 mb-5 font-medium">
+                  <li className="flex items-center gap-2">
+                    <Brain className="w-3.5 h-3.5 text-indigo-400" /> Generate custom AI Fit Assessments
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Bell className="w-3.5 h-3.5 text-emerald-400" /> Get matching alerts via Email & LINE
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <BookOpen className="w-3.5 h-3.5 text-amber-400" /> Save and track applications in your Kanban
+                  </li>
+                </ul>
+
+                <button 
+                  onClick={() => navigate('/auth')}
+                  className="w-full py-2.5 bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white font-bold text-xs rounded-xl transition-all shadow-lg shadow-indigo-600/30"
+                >
+                  Create Free Account
+                </button>
+              </div>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

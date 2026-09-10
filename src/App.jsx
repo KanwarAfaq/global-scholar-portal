@@ -37,24 +37,10 @@ export default function App() {
                 <Route path="/opportunity/:id/blog" element={<OpportunityBlog />} 
                 />
                 <Route path="privacy-policy" element={<PrivacyPolicy />} />
+                {/* Dashboard is now Public */}
+                <Route index element={<Dashboard />} />
+                <Route path="dashboard" element={<Dashboard />} />
                 {/* --- PROTECTED ROUTES --- */}
-                <Route 
-                  index 
-                  element={
-                    <ProtectedRoute>
-                      <Dashboard />
-                    </ProtectedRoute>
-                  } 
-                />
-
-                <Route 
-                  path="dashboard" 
-                  element={
-                    <ProtectedRoute>
-                      <Dashboard />
-                    </ProtectedRoute>
-                  } 
-                />
                 
                 <Route 
                   path="resume-builder" 

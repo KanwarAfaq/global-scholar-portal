@@ -169,7 +169,7 @@ export default function PrivacyPolicy() {
               <br />
               Website: https://scholarportal.site
               <br />
-              Email: YOUR_EMAIL_HERE
+              Email: kmafaq786@gmail.com
             </p>
           </section>
 
