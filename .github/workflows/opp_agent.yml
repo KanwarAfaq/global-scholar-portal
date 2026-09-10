@@ -73,11 +73,11 @@ jobs:
           FACEBOOK_GRAPH_API_VERSION: ${{ secrets.FACEBOOK_GRAPH_API_VERSION }}
           FACEBOOK_PUBLISH_ENABLED: "true"
           FACEBOOK_USE_PHOTO_POST: "true"
-          FACEBOOK_MAX_POSTS_PER_RUN: "3"
+          FACEBOOK_MAX_POSTS_PER_RUN: "6"
 
           # Cinematic Facebook video
           FACEBOOK_VIDEO_ENABLED: "true"
-          FACEBOOK_MAX_VIDEOS_PER_RUN: "1"
+          FACEBOOK_MAX_VIDEOS_PER_RUN: "4"
 
           # ScholarPortal
           SCHOLARPORTAL_BASE_URL: "https://scholarportal.site"
