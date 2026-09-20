@@ -25,7 +25,7 @@ jobs:
       - name: Generate sitemap, crawler snapshots, robots and LLM discovery
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SCHOLARPORTAL_BASE_URL: ${{ vars.SCHOLARPORTAL_BASE_URL }}
+          SCHOLARPORTAL_BASE_URL: ${{ vars.SCHOLARPORTAL_BASE_URL || 'https://scholarportal.site' }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: python Agent/indexing_agent.py
       - name: Commit search artifacts if changed

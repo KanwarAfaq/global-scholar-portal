@@ -9,7 +9,7 @@ from core import supabase
 from content_pipeline import all_rows
 
 def build(output=None):
-    base=os.getenv('SCHOLARPORTAL_BASE_URL',os.getenv('FRONTEND_URL','https://scholarportal.site')).rstrip('/')
+    base=(os.getenv('SCHOLARPORTAL_BASE_URL') or os.getenv('FRONTEND_URL') or 'https://scholarportal.site').rstrip('/')
     if urlparse(base).scheme!='https':raise ValueError('Use the public HTTPS origin')
     out=Path(output) if output else Path(__file__).resolve().parents[1]/'public'
     out.mkdir(parents=True,exist_ok=True)
@@ -73,4 +73,3 @@ if __name__=='__main__':
     result=build(args.output)
     if args.submit:result['submission']=submit(result['sitemap'])
     print(json.dumps(result,indent=2))
-
