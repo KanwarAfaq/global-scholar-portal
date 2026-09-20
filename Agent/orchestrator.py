@@ -136,7 +136,10 @@ class ChangeMonitorAgent:
             for f in map_fields:
                 nv=new.get(f)
                 if nv not in (None,'',[],{}) and nv!=opp.get(f): patch[f]=nv; changed.append(f)
-            supabase.table('opportunity_versions').insert({'opportunity_id':opp['id'],'content_hash':h,'snapshot':new,'changed_fields':changed}).execute()
+            supabase.table('opportunity_versions').upsert(
+                {'opportunity_id':opp['id'],'content_hash':h,'snapshot':new,'changed_fields':changed},
+                on_conflict='opportunity_id,content_hash',ignore_duplicates=True
+            ).execute()
             supabase.table('global_opportunities').update(patch).eq('id',opp['id']).execute()
             if changed: changes.append({'opportunity_id':opp['id'],'title':patch.get('title',opp.get('title')),'changed_fields':changed,'hash':h})
         return changes
@@ -414,12 +417,14 @@ def main():
         opp_metrics=OpportunityPipeline().run(run_id)
         inserted=opp_metrics.pop('inserted',[])
         metrics['opportunities']=opp_metrics
+        # Detail coverage is a public-route invariant, so reconcile it before
+        # independent monitoring/specialist agents can fail the run.
+        metrics['opportunity_articles']=ContentAgent().run(run_id)
         changes=ChangeMonitorAgent().run(run_id); metrics['changes']=len(changes)
         metrics['programs_verified']=ProgramDiscoveryAgent().run(run_id)
         metrics['programs_changed']=ProgramMonitorAgent().run(run_id)
         from specialists import SourceAuditor, ApplicationCompletenessAgent
         metrics['source_audit']=SourceAuditor().run(run_id)
-        metrics['opportunity_articles']=ContentAgent().run(run_id)
         metrics['application_completeness']=ApplicationCompletenessAgent().run(run_id)
         metrics['social_publications']=SocialGrowthAgent().run(inserted,run_id) if os.getenv('AGENT_ALLOW_OUTBOUND')=='true' else {'skipped':'outbound disabled'}
         notifier=NotificationAgent(); metrics['notifications']=notifier.run(run_id,changes) if os.getenv('AGENT_ALLOW_OUTBOUND')=='true' else {'skipped':'outbound disabled'}
