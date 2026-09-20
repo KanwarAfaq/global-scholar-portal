@@ -85,7 +85,7 @@ ScholarPortal is a responsive public scholarship/opportunity discovery site plus
 34. **Counselor Deadline Agent** — identifies counselor-managed deadline risks.
 35. **Growth Agent** — summarizes funnel activity.
 36. **AI Cost / Abuse Agent** — watches unusually high AI usage.
-37. **Verified Content Agent** — generates articles only from verified records.
+37. **Opportunity Content Agent** — reconciles one evidence-based detail article for every public opportunity and preserves its verification status and source limitations.
 38. **Social Growth Agent** — optionally publishes verified opportunity content.
 39. **Community Moderation Agent** — automatically hides obvious spam/suspicious community comments; admin can review/manage community data.
 

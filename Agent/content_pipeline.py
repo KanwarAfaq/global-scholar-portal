@@ -55,7 +55,10 @@ class ArticleReconciliationAgent:
     name='opportunity-article-reconciliation'
     def run(self,run_id=None,limit=4):
         count=0;failed=0
-        for row in all_rows('global_opportunities',verified=True):
+        # Every public opportunity must have a corresponding detail article.
+        # Verification state is included in the source record and article copy;
+        # it must not prevent the detail page from being created.
+        for row in all_rows('global_opportunities'):
             try:
                 if generate_article('opportunity',row['id'],row):count+=1
             except Exception as exc:failed+=1;log_event(self.name,f"Article {row['id']}: {type(exc).__name__}",'warn',run_id)
