@@ -29,7 +29,7 @@ jobs:
       - name: Run verified opportunity + monetization agents
         working-directory: ./Agent
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
+          SUPABASE_URL: https://wikbbpvhvevcbqkpnikj.supabase.co
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || secrets.SUPABASE_KEY }}
 
           # Research fallbacks (at least one is recommended; DuckDuckGo HTML is final no-key fallback)
