@@ -274,7 +274,7 @@ class CostAbuseAgent:
 
 class ContentAgent:
     name='opportunity-content-agent'
-    def run(self,run_id=None,limit=4):
+    def run(self,run_id=None,limit=100):
         from content_pipeline import ArticleReconciliationAgent
         return ArticleReconciliationAgent().run(run_id,limit)
 
