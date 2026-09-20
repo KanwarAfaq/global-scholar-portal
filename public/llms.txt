@@ -1,0 +1,13 @@
+# ScholarPortal
+
+> ScholarPortal helps students discover verified global scholarships, fellowships, internships and degree programs and prepare evidence-based applications.
+
+## Public resources
+- [Opportunity directory](https://scholarportal.site/): verified opportunity discovery and official-source links
+- [Application guides](https://scholarportal.site/blog): scholarship and application research
+- [Degree programs](https://scholarportal.site/programs): verified academic program comparisons
+- [Terms](https://scholarportal.site/terms)
+- [Privacy](https://scholarportal.site/privacy-policy)
+
+Official source pages linked from each record remain authoritative. AI-generated guidance must be reviewed before use.
+

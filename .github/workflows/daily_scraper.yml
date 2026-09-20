@@ -17,18 +17,17 @@ jobs:
           python-version: '3.11'
       - name: Install sitemap dependencies
         run: pip install -r Agent/requirements.txt
-      - name: Generate sitemap only from database content
-        working-directory: ./Blog_Agent
+      - name: Generate sitemap, crawler snapshots, robots and LLM discovery
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SCHOLARPORTAL_BASE_URL: ${{ vars.SCHOLARPORTAL_BASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: python generate_sitemap.py
-      - name: Commit sitemap if changed
+        run: python Agent/indexing_agent.py
+      - name: Commit search artifacts if changed
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git add public/sitemap.xml public/robots.txt public/seo-pages.json
+          git add public/sitemap.xml public/robots.txt public/seo-pages.json public/llms.txt
           if ! git diff --staged --quiet; then
             git commit -m "chore: refresh verified ScholarPortal sitemap"
             git pull --rebase origin main

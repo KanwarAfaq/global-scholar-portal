@@ -13,7 +13,14 @@ def build(output=None):
     if urlparse(base).scheme!='https':raise ValueError('Use the public HTTPS origin')
     out=Path(output) if output else Path(__file__).resolve().parents[1]/'public'
     out.mkdir(parents=True,exist_ok=True)
-    pages=[{'path':path,'title':title,'description':desc} for path,title,desc in [('/', 'ScholarPortal — Global opportunities','Discover academic funding and plan your applications.'),('/blog','ScholarPortal Blog','Research and practical guidance for academic applications.'),('/programs','Degree programs','Explore degree programs and official sources.'),('/pricing','Plans and pricing','Compare application tools and allowances.')]]
+    pages=[{'path':path,'title':title,'description':desc} for path,title,desc in [
+        ('/', 'Verified Global Scholarships, Fellowships and Internships','Discover verified scholarships, fellowships, internships and degree programs worldwide, compare official sources and prepare stronger applications.'),
+        ('/blog','Scholarship and Application Guides','Evidence-based scholarship research, deadline guidance and practical application strategies from ScholarPortal.'),
+        ('/programs','Verified Degree Programs Worldwide','Compare verified degree programs, official admission sources, tuition information and personalized academic fit.'),
+        ('/pricing','ScholarPortal Plans and Pricing','Compare ScholarPortal plans for opportunity discovery, application preparation and organization workflows.'),
+        ('/terms','Terms of Service','Terms governing the use of ScholarPortal.'),
+        ('/privacy-policy','Privacy Policy','How ScholarPortal handles account, profile and application data.'),
+    ]]
     for row in all_rows('blog_posts'):
         if not (row.get('content') or '').strip() or not row.get('slug'):continue
         pages.append({'path':'/blog/'+quote(row['slug'],safe=''),'title':row['title'],'description':row.get('excerpt') or row['title'],'content':row['content'],'date':row.get('updated_at') or row.get('created_at'),'kind':'Article','image':row.get('image')})
@@ -30,8 +37,20 @@ def build(output=None):
         node=SubElement(root,'url');SubElement(node,'loc').text=base+page['path']
         if page.get('date'):SubElement(node,'lastmod').text=page['date']
     (out/'sitemap.xml').write_bytes(tostring(root,encoding='utf-8',xml_declaration=True))
-    (out/'robots.txt').write_text('User-agent: *\nAllow: /\nSitemap: '+base+'/sitemap.xml\n')
+    private=['/admin','/quality','/account','/applications','/settings','/profiles','/analytics','/copilot','/notifications','/resume-builder']
+    (out/'robots.txt').write_text('User-agent: *\nAllow: /\n'+''.join(f'Disallow: {p}\n' for p in private)+'\nSitemap: '+base+'/sitemap.xml\n')
     (out/'seo-pages.json').write_text(json.dumps({'base':base,'pages':pages},ensure_ascii=False),encoding='utf-8')
+    (out/'llms.txt').write_text(
+        '# ScholarPortal\n\n'
+        '> ScholarPortal helps students discover verified global scholarships, fellowships, internships and degree programs and prepare evidence-based applications.\n\n'
+        '## Public resources\n'
+        f'- [Opportunity directory]({base}/): verified opportunity discovery and official-source links\n'
+        f'- [Application guides]({base}/blog): scholarship and application research\n'
+        f'- [Degree programs]({base}/programs): verified academic program comparisons\n'
+        f'- [Terms]({base}/terms)\n'
+        f'- [Privacy]({base}/privacy-policy)\n\n'
+        'Official source pages linked from each record remain authoritative. AI-generated guidance must be reviewed before use.\n',
+        encoding='utf-8')
     return {'public_pages':len(pages),'sitemap':base+'/sitemap.xml','status':'generated; deploy artifacts before submission'}
 
 def submit(sitemap):
@@ -54,3 +73,4 @@ if __name__=='__main__':
     result=build(args.output)
     if args.submit:result['submission']=submit(result['sitemap'])
     print(json.dumps(result,indent=2))
+

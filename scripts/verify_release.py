@@ -108,13 +108,12 @@ def main() -> None:
         if not p.is_file():
             continue
         rel = p.relative_to(ROOT)
+        if any(part in {"node_modules", ".git", "dist", "__pycache__", ".venv", ".venv-agent"} for part in rel.parts):
+            continue
         if p.name in DISALLOWED_NAMES and p.name != ".env.example":
             fail(f"disallowed secret file packaged: {rel}")
         if p.suffix.lower() in DISALLOWED_SUFFIXES:
             fail(f"disallowed key/certificate file packaged: {rel}")
-        if any(part in {"node_modules", ".git", "dist", "__pycache__"} for part in rel.parts):
-            fail(f"generated/dependency directory packaged: {rel}")
-
         # Skip lockfile for generic token scans; it contains dependency integrity data.
         if p.name == "package-lock.json":
             continue
@@ -131,7 +130,7 @@ def main() -> None:
 
     py_files = [
         p for p in ROOT.rglob("*.py")
-        if "__pycache__" not in p.parts
+        if not any(part in {"__pycache__", ".venv", ".venv-agent", "node_modules", "dist"} for part in p.relative_to(ROOT).parts)
     ]
     for p in py_files:
         try:

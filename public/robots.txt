@@ -1,4 +1,15 @@
 User-agent: *
 Allow: /
+Disallow: /admin
+Disallow: /quality
+Disallow: /account
+Disallow: /applications
+Disallow: /settings
+Disallow: /profiles
+Disallow: /analytics
+Disallow: /copilot
+Disallow: /notifications
+Disallow: /resume-builder
 
 Sitemap: https://scholarportal.site/sitemap.xml
+

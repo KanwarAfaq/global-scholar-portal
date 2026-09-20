@@ -2,8 +2,8 @@ name: Independent ScholarPortal Blog Research
 
 on:
   schedule:
-    # 00:17 UTC daily (08:17 Taiwan)
-    - cron: '47 2 * * 1'
+    # 02:47 UTC daily (10:47 Taiwan)
+    - cron: '47 2 * * *'
   workflow_dispatch:
 
 jobs:
