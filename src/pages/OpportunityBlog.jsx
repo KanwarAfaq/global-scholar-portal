@@ -36,7 +36,39 @@ export default function OpportunityBlog() {
           .maybeSingle();
 
         if (error) throw error;
-        if (!data) {const status=await supabase.rpc('opportunity_article_status',{opportunity:id});setArticleStatus(status.data||'pending');return;}
+        if (!data) {
+          const [{data:status},{data:opportunity,error:opportunityError}]=await Promise.all([
+            supabase.rpc('opportunity_article_status',{opportunity:id}),
+            supabase.from('global_opportunities').select('*').eq('id',id).maybeSingle()
+          ]);
+          setArticleStatus(status||'pending');
+          if (opportunityError) throw opportunityError;
+          if (opportunity) {
+            const verification=opportunity.verified?'Verified opportunity':'Verification pending';
+            const source=opportunity.official_source_url||opportunity.source_url||opportunity.url;
+            setBlog({
+              ...opportunity,
+              _structuredFallback:true,
+              title:opportunity.title,
+              excerpt:`${verification}. Review the available eligibility, funding, deadline, and official-source details.`,
+              content:[
+                verification,
+                opportunity.description,
+                `Organization: ${opportunity.organization||'Not specified'}`,
+                `Country: ${opportunity.country||'Not specified'}`,
+                `Opportunity type: ${opportunity.type||'Not specified'}`,
+                `Field: ${opportunity.field||'All fields'}`,
+                `Funding: ${opportunity.funding_details||'See official source'}`,
+                `Deadline: ${opportunity.deadline||'Confirm with the official source'}`,
+                `Source: ${source||'Unavailable'}`,
+                'Confirm all requirements and dates with the official institution before applying.'
+              ].filter(Boolean).join('\n\n'),
+              original_link:source,
+              read_time:'2 min read'
+            });
+          }
+          return;
+        }
         
         setBlog(data);
       } catch (err) {
@@ -138,6 +170,7 @@ export default function OpportunityBlog() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#020617] transition-colors duration-300 pb-24 selection:bg-indigo-500/30">
       
+      {blog._structuredFallback&&<Helmet><meta name="robots" content="noindex,follow"/></Helmet>}
       <ArticleMetadata title={blog.title} description={blog.excerpt} path={`/opportunity/${id}/blog`} image={blog.image} date={blog.updated_at||blog.created_at}/>
       {/* Navigation Bar */}
       <div className="sticky top-0 z-40 bg-white/80 dark:bg-[#020617]/80 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800/80">
