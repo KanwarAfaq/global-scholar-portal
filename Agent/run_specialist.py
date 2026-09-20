@@ -6,7 +6,7 @@ from content_pipeline import ArticleReconciliationAgent
 from indexing_agent import build
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('task',choices=['source-audit','articles','eligibility','completeness','indexing']);p.add_argument('--profile-id');p.add_argument('--opportunity-id');p.add_argument('--limit',type=int,default=4);a=p.parse_args()
-    limit=max(1,min(a.limit,20))
+    limit=max(1,min(a.limit,100))
     if a.task=='source-audit':result=SourceAuditor().run(limit=limit)
     elif a.task=='articles':result=ArticleReconciliationAgent().run(limit=limit)
     elif a.task=='indexing':result=build()
