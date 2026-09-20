@@ -1,12 +1,10 @@
+import {supabase} from '../lib/supabase';
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, Clock, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
-import { createClient } from '@supabase/supabase-js';
 
 // Initialize Supabase
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
 
 const ITEMS_PER_PAGE = 10;
 

@@ -1,17 +1,18 @@
+import {supabase} from '../lib/supabase';
+import { ArticleMetadata } from '../components/PageMetadata';
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { Calendar, Clock, ArrowLeft, Tag, Globe, ExternalLink, Loader2 } from 'lucide-react';
-import { createClient } from '@supabase/supabase-js';
+import { sanitizeRichHtml } from '../lib/sanitize';
+import Engagement from '../components/Engagement';
 
 // Initialize Supabase
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
 
 export default function BlogPost() {
   const { slug } = useParams();
-  
+
   const [post, setPost] = useState(null);
   const [recentPosts, setRecentPosts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,14 +22,14 @@ export default function BlogPost() {
     async function fetchPostData() {
       setLoading(true);
       setError(null);
-      
+
       try {
         const { data: postData, error: postError } = await supabase
           .from('blog_posts')
           .select('*')
           .eq('slug', slug)
           .single();
-          
+
         if (postError) throw postError;
         setPost(postData);
 
@@ -38,7 +39,7 @@ export default function BlogPost() {
           .neq('slug', slug)
           .order('created_at', { ascending: false })
           .limit(3);
-          
+
         if (!sidebarError && sidebarData) {
           setRecentPosts(sidebarData);
         }
@@ -65,7 +66,7 @@ export default function BlogPost() {
   if (error || !post) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4 space-y-4">
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Post Not Found</h2>
+        <Helmet><meta name="robots" content="noindex,follow"/></Helmet><h2 className="text-2xl font-bold text-slate-900 dark:text-white">Post Not Found</h2>
         <p className="text-slate-600 dark:text-slate-400">{error}</p>
         <Link to="/blog" className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 dark:hover:bg-indigo-500 text-white rounded-xl text-sm font-bold transition-colors mt-4">
           Return to Blog
@@ -76,21 +77,9 @@ export default function BlogPost() {
 
   return (
     <div className="max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8 flex flex-col lg:flex-row gap-10">
-      
+
       {/* Dynamic SEO Meta Header */}
-      <Helmet>
-        <title>{post.title} | ScholarPortal</title>
-        <meta name="description" content={post.excerpt} />
-        
-        {/* Open Graph / Social Sharing Tags */}
-        <meta property="og:title" content={post.title} />
-        <meta property="og:description" content={post.excerpt} />
-        <meta property="og:image" content={post.image || 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&q=80&w=1200'} />
-        <meta property="og:type" content="article" />
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content={post.title} />
-        <meta name="twitter:description" content={post.excerpt} />
-      </Helmet>
+      <ArticleMetadata title={post.title} description={post.excerpt} path={`/blog/${slug}`} image={post.image} date={post.updated_at||post.created_at}/>
 
       {/* Main Content Area */}
       <article className="flex-1 max-w-4xl">
@@ -112,11 +101,11 @@ export default function BlogPost() {
           </h1>
           <div className="flex items-center gap-4 text-sm font-semibold text-slate-500 dark:text-slate-400 pt-2 transition-colors">
             <span className="flex items-center gap-1.5">
-              <Calendar className="w-4 h-4" /> 
+              <Calendar className="w-4 h-4" />
               {new Date(post.created_at).toLocaleDateString()}
             </span>
             <span className="flex items-center gap-1.5">
-              <Clock className="w-4 h-4" /> 
+              <Clock className="w-4 h-4" />
               {post.read_time || '3 min read'}
             </span>
           </div>
@@ -124,24 +113,24 @@ export default function BlogPost() {
 
         {/* Featured Image */}
         <div className="w-full h-64 sm:h-96 rounded-3xl overflow-hidden mb-10 border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900">
-          <img 
-            src={post.image || 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&q=80&w=1200'} 
-            alt={post.title} 
+          <img
+            src={post.image || 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&q=80&w=1200'}
+            alt={post.title}
             onError={(e) => {
               e.target.onerror = null;
               e.target.src = 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&q=80&w=1200';
             }}
-            className="w-full h-full object-cover" 
+            className="w-full h-full object-cover"
           />
         </div>
 
         {/* Dynamic HTML Content (Fully Adaptive to Theme) */}
-        <div 
-          className="prose dark:prose-invert prose-indigo max-w-none text-slate-700 dark:text-slate-300 leading-relaxed text-base sm:text-lg 
+        <div
+          className="prose dark:prose-invert prose-indigo max-w-none text-slate-700 dark:text-slate-300 leading-relaxed text-base sm:text-lg
                      [&>h3]:text-2xl [&>h3]:font-bold [&>h3]:text-slate-900 dark:[&>h3]:text-white [&>h3]:mt-8 [&>h3]:mb-4 [&>h3]:transition-colors
                      [&>ul]:list-disc [&>ul]:list-inside [&>ul]:space-y-2 [&>ul]:bg-slate-50 dark:[&>ul]:bg-slate-800/30 [&>ul]:p-6 [&>ul]:rounded-2xl [&>ul]:border [&>ul]:border-slate-200 dark:[&>ul]:border-slate-800 [&>ul]:my-6 [&>ul]:transition-colors
                      [&>p]:mb-6"
-          dangerouslySetInnerHTML={{ __html: post.content }} 
+          dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(post.content) }}
         />
 
         {/* Official Source Call-to-Action */}
@@ -158,13 +147,14 @@ export default function BlogPost() {
             </a>
           </div>
         )}
+        <Engagement contentType="blog" contentId={post.id} />
       </article>
 
       {/* Right Sidebar: Related Posts */}
       <aside className="w-full lg:w-80 shrink-0 space-y-6">
         <div className="sticky top-24 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm dark:shadow-xl transition-colors">
           <h3 className="text-lg font-extrabold text-slate-900 dark:text-white mb-4 border-b border-slate-100 dark:border-slate-800 pb-2 transition-colors">Related Intelligence</h3>
-          
+
           <div className="space-y-4">
             {recentPosts.length === 0 ? (
               <p className="text-sm text-slate-500">No other reports available yet.</p>
@@ -186,7 +176,7 @@ export default function BlogPost() {
           </div>
         </div>
       </aside>
-      
+
     </div>
   );
 }

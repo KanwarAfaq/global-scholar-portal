@@ -1,12 +1,14 @@
+import {useEffectEvent} from 'react';
+import {supabase} from '../lib/supabase';
+import { notify } from '../lib/notify';
 import React, { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { Building2, MapPin, Trash2, Sparkles, RefreshCw, Clock, ExternalLink } from 'lucide-react';
-import { createClient } from '@supabase/supabase-js';
+import { useNavigate } from 'react-router-dom';
+import {useAuth} from '../context/session';
 
 // Initialize Supabase
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
 
 // COLOR FIX: Explicitly using border-t-{color} ensures Tailwind doesn't overwrite it
 const initialColumns = {
@@ -41,19 +43,21 @@ const getCountdownInfo = (deadlineStr) => {
 };
 
 export default function Applications() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [data, setData] = useState({ columns: initialColumns, tasks: {}, columnOrder: Object.keys(initialColumns) });
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchSavedApplications();
-  }, []);
+  const effectLoad=useEffectEvent(()=>fetchSavedApplications());
+  useEffect(() => { if (user) effectLoad(); }, [user]);
 
   async function fetchSavedApplications() {
     setLoading(true);
     try {
       const { data: apps, error } = await supabase
         .from('user_applications')
-        .select('id, status, global_opportunities(*)');
+        .select('id, status, global_opportunities(*)')
+        .eq('user_id', user.id);
 
       if (error) throw error;
 
@@ -109,12 +113,13 @@ export default function Applications() {
       const { error } = await supabase
         .from('user_applications')
         .delete()
-        .eq('id', taskId);
+        .eq('id', taskId)
+        .eq('user_id', user.id);
         
       if (error) throw error;
     } catch (err) {
       console.error("Failed to delete application", err);
-      alert("Error deleting application. Refreshing data...");
+      notify("Error deleting application. Refreshing data...");
       fetchSavedApplications();
     }
   };
@@ -155,7 +160,8 @@ export default function Applications() {
       await supabase
         .from('user_applications')
         .update({ status: destination.droppableId })
-        .eq('id', draggableId);
+        .eq('id', draggableId)
+        .eq('user_id', user.id);
     } catch (err) {
       console.error("Failed to save drag position to database", err);
     }
@@ -173,7 +179,7 @@ export default function Applications() {
             Drag and drop to track your progress across global opportunities.
           </p>
         </div>
-        <button className="hidden sm:flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold transition-all shadow-sm">
+        <button onClick={() => navigate('/copilot')} className="hidden sm:flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold transition-all shadow-sm">
           <Sparkles className="w-4 h-4" /> AI Copilot
         </button>
       </div>

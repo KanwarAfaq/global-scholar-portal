@@ -1,182 +1,51 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { createClient } from '@supabase/supabase-js';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
-import { Activity, Target, TrendingUp, Calendar, Loader2 } from 'lucide-react';
+import {useEffectEvent} from 'react';
+import React, { useEffect, useState } from 'react';
+import { Activity, BellRing, Bot, Calendar, Loader2, Target, TrendingUp } from 'lucide-react';
+import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import {useAuth} from '../context/session';
+import {supabase} from '../context/../lib/supabase';
 
-const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
+const statusLabels = { 'col-1':'Saved', 'col-2':'Preparing', 'col-3':'Applied', 'col-4':'Interview', 'col-5':'Offer' };
+const statusColors = { 'col-1':'#94a3b8', 'col-2':'#f59e0b', 'col-3':'#3b82f6', 'col-4':'#a855f7', 'col-5':'#10b981' };
 
-const STATUS_COLORS = {
-  'col-1': '#94a3b8', // Saved (Slate)
-  'col-2': '#fbbf24', // Preparing (Amber)
-  'col-3': '#3b82f6', // Applied (Blue)
-  'col-4': '#a855f7', // Interview (Purple)
-  'col-5': '#10b981', // Offer (Emerald)
-};
-
-const STATUS_LABELS = {
-  'col-1': 'Saved',
-  'col-2': 'Preparing',
-  'col-3': 'Applied',
-  'col-4': 'Interviewing',
-  'col-5': 'Offers',
-};
+function Metric({ icon:Icon,label,value,detail }) { return <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800"><div className="flex gap-3 items-center"><div className="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-500"><Icon className="w-5 h-5"/></div><div><p className="text-xs font-bold uppercase tracking-wide text-slate-500">{label}</p><p className="text-2xl font-black text-slate-900 dark:text-white">{value}</p></div></div>{detail&&<p className="text-xs text-slate-500 mt-3">{detail}</p>}</div> }
 
 export default function Analytics() {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    total: 0,
-    active: 0,
-    successRate: 0,
-    funnelData: [],
-    deadlines: []
-  });
+  const [loading,setLoading] = useState(true);
+  const [stats,setStats] = useState({ total:0, active:0, offerRate:0, interviewRate:0, avgMatch:null, watchlists:0, aiCredits:0, generations:0, funnel:[], deadlines:[] });
 
-  useEffect(() => {
-    if (user) fetchAnalytics();
-  }, [user]);
-
-  async function fetchAnalytics() {
+  const effectLoad=useEffectEvent(()=>load());
+  useEffect(()=>{ if(user) effectLoad(); },[user]);
+  async function load(){
     setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('user_applications')
-        .select('id, status, global_opportunities(title, organization, deadline)')
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-
-      // Calculate Metrics
-      const total = data.length;
-      const offers = data.filter(app => app.status === 'col-5').length;
-      const active = data.filter(app => ['col-2', 'col-3', 'col-4'].includes(app.status)).length;
-      const successRate = total > 0 ? Math.round((offers / data.filter(app => app.status !== 'col-1').length) * 100) || 0 : 0;
-
-      // Group Data for Charts
-      const statusCounts = data.reduce((acc, app) => {
-        acc[app.status] = (acc[app.status] || 0) + 1;
-        return acc;
-      }, {});
-
-      const funnelData = Object.keys(STATUS_LABELS).map(key => ({
-        name: STATUS_LABELS[key],
-        value: statusCounts[key] || 0,
-        color: STATUS_COLORS[key]
-      }));
-
-      // Extract Upcoming Deadlines
-      const deadlines = data
-        .filter(app => app.global_opportunities?.deadline && app.status !== 'col-5')
-        .map(app => ({
-          id: app.id,
-          title: app.global_opportunities.title,
-          org: app.global_opportunities.organization,
-          date: new Date(app.global_opportunities.deadline)
-        }))
-        .filter(app => app.date >= new Date()) // Only future deadlines
-        .sort((a, b) => a.date - b.date)
-        .slice(0, 5); // Top 5 closest
-
-      setStats({ total, active, successRate, funnelData, deadlines });
-    } catch (err) {
-      console.error('Error fetching analytics:', err);
-    } finally {
-      setLoading(false);
-    }
+    const month = new Date(); month.setUTCDate(1); month.setUTCHours(0,0,0,0);
+    const [{data:apps,error},{data:matches},{data:watches},{data:usage},{data:gens}] = await Promise.all([
+      supabase.from('user_applications').select('id,status,global_opportunities(title,organization,deadline)').eq('user_id',user.id),
+      supabase.from('user_match_scores').select('score,eligible').eq('user_id',user.id),
+      supabase.from('user_watchlists').select('id').eq('user_id',user.id),
+      supabase.from('ai_usage').select('credit_cost,success').eq('user_id',user.id).gte('created_at',month.toISOString()),
+      supabase.from('ai_generations').select('id').eq('user_id',user.id).gte('created_at',month.toISOString())
+    ]);
+    if(error) console.error(error);
+    const rows=apps||[]; const total=rows.length; const status={}; rows.forEach(a=>status[a.status]=(status[a.status]||0)+1);
+    const applied=(status['col-3']||0)+(status['col-4']||0)+(status['col-5']||0); const interviews=(status['col-4']||0)+(status['col-5']||0); const offers=status['col-5']||0;
+    const avgMatch=matches?.length?Math.round(matches.reduce((a,x)=>a+Number(x.score||0),0)/matches.length):null;
+    const deadlines=rows.filter(a=>a.global_opportunities?.deadline && /^\d{4}-\d{2}-\d{2}$/.test(a.global_opportunities.deadline) && !['col-5'].includes(a.status)).map(a=>({...a.global_opportunities,id:a.id,date:new Date(`${a.global_opportunities.deadline}T12:00:00`)})).filter(x=>x.date>=new Date()).sort((a,b)=>a.date-b.date).slice(0,8);
+    setStats({
+      total, active:(status['col-2']||0)+(status['col-3']||0)+(status['col-4']||0), offerRate:applied?Math.round(offers/applied*100):0,
+      interviewRate:applied?Math.round(interviews/applied*100):0, avgMatch, watchlists:(watches||[]).length,
+      aiCredits:(usage||[]).filter(x=>x.success!==false).reduce((a,x)=>a+Number(x.credit_cost||0),0), generations:(gens||[]).length,
+      funnel:Object.keys(statusLabels).map(k=>({name:statusLabels[k],value:status[k]||0,color:statusColors[k]})), deadlines
+    }); setLoading(false);
   }
 
-  if (loading) return <div className="h-[70vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
-
-  return (
-    <div className="max-w-7xl mx-auto space-y-8 pb-10">
-      
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Analytics Overview</h1>
-        <p className="text-slate-500 dark:text-slate-400 font-medium mt-1">Track your conversion rates and upcoming milestones.</p>
-      </div>
-
-      {/* Top Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-2xl">
-            <Target className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-sm font-bold text-slate-500 uppercase tracking-wider">Total Tracked</p>
-            <p className="text-3xl font-extrabold text-slate-900 dark:text-white">{stats.total}</p>
-          </div>
-        </div>
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-2xl">
-            <Activity className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-sm font-bold text-slate-500 uppercase tracking-wider">Active Applications</p>
-            <p className="text-3xl font-extrabold text-slate-900 dark:text-white">{stats.active}</p>
-          </div>
-        </div>
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-2xl">
-            <TrendingUp className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-sm font-bold text-slate-500 uppercase tracking-wider">Offer Rate</p>
-            <p className="text-3xl font-extrabold text-slate-900 dark:text-white">{stats.successRate}%</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Charts & Deadlines Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Application Funnel Chart */}
-        <div className="lg:col-span-2 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
-          <h3 className="font-bold text-slate-900 dark:text-white mb-6">Application Pipeline</h3>
-          <div className="h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stats.funnelData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.2} />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
-                <RechartsTooltip 
-                  cursor={{ fill: 'rgba(99, 102, 241, 0.05)' }}
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
-                />
-                <Bar dataKey="value" radius={[6, 6, 0, 0]}>
-                  {stats.funnelData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Upcoming Deadlines Widget */}
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col">
-          <h3 className="font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-orange-500" /> Upcoming Deadlines
-          </h3>
-          <div className="flex-1 overflow-y-auto pr-2 space-y-4 scrollbar-none">
-            {stats.deadlines.length === 0 ? (
-              <p className="text-sm text-slate-500 text-center mt-10">No upcoming deadlines detected in your active applications.</p>
-            ) : (
-              stats.deadlines.map(app => (
-                <div key={app.id} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50">
-                  <p className="text-xs font-bold text-orange-600 dark:text-orange-400 mb-1">
-                    {app.date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                  </p>
-                  <h4 className="font-bold text-sm text-slate-900 dark:text-white line-clamp-1">{app.title}</h4>
-                  <p className="text-xs text-slate-500 truncate mt-0.5">{app.org}</p>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-      </div>
-    </div>
-  );
+  if(loading) return <div className="h-[60vh] grid place-items-center"><Loader2 className="w-8 h-8 animate-spin text-indigo-500"/></div>;
+  return <div className="max-w-7xl mx-auto space-y-7 pb-12">
+    <div><h1 className="text-3xl font-black text-slate-900 dark:text-white">Outcome Analytics</h1><p className="text-slate-500 mt-1">Measure the full application funnel, match quality, monitoring usage and AI workload.</p></div>
+    <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4"><Metric icon={Target} label="Tracked" value={stats.total} detail={`${stats.active} applications currently active`}/><Metric icon={TrendingUp} label="Interview rate" value={`${stats.interviewRate}%`} detail="Interviews or offers divided by submitted applications"/><Metric icon={Activity} label="Offer rate" value={`${stats.offerRate}%`} detail="Offers divided by submitted applications"/><Metric icon={Target} label="Average match" value={stats.avgMatch===null?'—':`${stats.avgMatch}%`} detail="Across explainable matches you have calculated"/></div>
+    <div className="grid sm:grid-cols-3 gap-4"><Metric icon={BellRing} label="Watchlists" value={stats.watchlists} detail="Opportunities monitored for changes/deadlines"/><Metric icon={Bot} label="AI credits this month" value={stats.aiCredits} detail={`${stats.generations} saved AI generations`}/><Metric icon={Calendar} label="Upcoming deadlines" value={stats.deadlines.length} detail="Nearest tracked deadlines shown below"/></div>
+    <div className="grid lg:grid-cols-3 gap-5"><section className="lg:col-span-2 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800"><h2 className="font-extrabold mb-5">Application funnel</h2><div className="h-72"><ResponsiveContainer width="100%" height="100%"><BarChart data={stats.funnel}><CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.15}/><XAxis dataKey="name" axisLine={false} tickLine={false}/><YAxis allowDecimals={false} axisLine={false} tickLine={false}/><Tooltip/><Bar dataKey="value" radius={[8,8,0,0]}>{stats.funnel.map((x,i)=><Cell key={i} fill={x.color}/>)}</Bar></BarChart></ResponsiveContainer></div></section><section className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800"><h2 className="font-extrabold mb-4 flex gap-2"><Calendar className="w-5 h-5 text-orange-500"/>Deadline risk</h2><div className="space-y-3">{stats.deadlines.length===0?<p className="text-sm text-slate-500">No upcoming tracked deadlines.</p>:stats.deadlines.map(x=>{const days=Math.ceil((x.date-new Date())/86400000);return <div key={x.id} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950"><p className={`text-xs font-bold ${days<=7?'text-rose-500':'text-orange-500'}`}>{days} day{days===1?'':'s'} left · {x.deadline}</p><p className="font-bold text-sm mt-1 line-clamp-2">{x.title}</p><p className="text-xs text-slate-500">{x.organization}</p></div>})}</div></section></div>
+    <p className="text-xs text-slate-500">Rates are directional productivity metrics, not predictions or guarantees. Outcomes improve in usefulness as you consistently update application status.</p>
+  </div>;
 }

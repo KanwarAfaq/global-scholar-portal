@@ -24,3 +24,85 @@
 ::-webkit-scrollbar-thumb {
   @apply bg-slate-300 dark:bg-slate-700 rounded-full;
 }
+/* ScholarPortal visual system: accessible indigo/cyan actions on neutral slate surfaces. */
+:root {
+  --sp-primary: #4f46e5;
+  --sp-primary-hover: #4338ca;
+  --sp-accent: #0e7490;
+  --sp-success: #047857;
+  --sp-warning: #b45309;
+  --sp-danger: #be123c;
+  --sp-surface: #ffffff;
+  --sp-canvas: #f8fafc;
+  --sp-text: #0f172a;
+  --sp-muted: #64748b;
+}
+
+.dark {
+  --sp-primary: #818cf8;
+  --sp-primary-hover: #a5b4fc;
+  --sp-accent: #22d3ee;
+  --sp-success: #34d399;
+  --sp-warning: #fbbf24;
+  --sp-danger: #fb7185;
+  --sp-surface: #0f172a;
+  --sp-canvas: #0b0f19;
+  --sp-text: #f8fafc;
+  --sp-muted: #94a3b8;
+}
+
+@layer components {
+  .admin-input {
+    @apply rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2.5 text-slate-900 dark:text-slate-100 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 disabled:opacity-60;
+  }
+  .admin-action {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition;
+  }
+  .admin-icon {
+    @apply inline-flex items-center justify-center w-9 h-9 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition;
+  }
+}
+
+.admin-shell, .admin-shell * { min-width: 0; }
+.admin-scroll { scrollbar-width: thin; }
+
+/* Avoid accidental horizontal page scrolling on narrow devices. */
+html, body, #root { max-width: 100%; min-height: 100%; }
+body { overflow-x: hidden; }
+
+/* Comfortable touch targets on phones without inflating desktop controls. */
+@media (max-width: 640px) {
+  button, a, select { -webkit-tap-highlight-color: transparent; }
+  .admin-action { min-height: 40px; }
+}
+
+/* Consistent keyboard accessibility across public, application and admin surfaces. */
+:focus-visible {
+  outline: 2px solid var(--sp-primary);
+  outline-offset: 2px;
+}
+
+@layer components {
+  .input-modern { @apply w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/70 focus:border-indigo-500 transition; }
+  .primary-modern { @apply w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-600 hover:brightness-110 text-white font-extrabold flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20 transition disabled:opacity-50; }
+  .glass-panel { @apply bg-white/80 dark:bg-slate-950/75 backdrop-blur-2xl border border-white/60 dark:border-slate-800 shadow-xl; }
+}
+@media (prefers-reduced-motion: reduce) { *,*::before,*::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; scroll-behavior:auto !important; } }
+
+/* Shared layout invariants: content may shrink; code/table overflow stays local. */
+main, main > *, .grid > *, .flex > select { min-width: 0; }
+select, textarea, input { max-width: 100%; }
+pre { max-width: 100%; overflow: auto; overflow-wrap: anywhere; }
+main p, main h1, main h2, main h3 { overflow-wrap: anywhere; }
+button:disabled { cursor: not-allowed; opacity: .5; }
+:focus-visible { outline: 3px solid #6366f1; outline-offset: 3px; }
+.fact-chip { padding: .3rem .6rem; border-radius: 999px; background: #eef2ff; color: #3730a3; border: 1px solid #c7d2fe; }
+.dark .fact-chip { background: #1e293b; color: #c7d2fe; border-color: #475569; }
+.dark .text-slate-500 { color: #a0aec0; }
+@media (max-width: 640px) {
+  main { padding: 1rem; }
+  main select { width: 100%; }
+  main h1 { font-size: clamp(1.6rem, 7vw, 2.2rem); }
+  main pre { font-size: .8rem; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }

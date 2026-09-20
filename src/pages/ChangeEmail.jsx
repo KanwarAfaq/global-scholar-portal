@@ -1,11 +1,10 @@
+import {supabase} from '../lib/supabase';
+import { notify } from '../lib/notify';
 import React, { useState, useRef } from 'react';
-import { createClient } from '@supabase/supabase-js';
-import { useAuth } from '../context/AuthContext';
+import {useAuth} from '../context/session';
 import { Mail, Loader2, CheckCircle2 } from 'lucide-react';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
 
 const OTP_LENGTH = 6; // Change to 4 if your Supabase project is configured for 4-digit OTPs
 
@@ -38,7 +37,7 @@ export default function ChangeEmail() {
     try {
       const { error } = await supabase.auth.verifyOtp({ email: newEmail, token, type: 'email_change' });
       if (error) throw error;
-      alert('Email successfully updated!');
+      notify('Email successfully updated!');
       window.location.href = '/settings';
     } catch (err) { setError(err.message); } finally { setLoading(false); }
   };

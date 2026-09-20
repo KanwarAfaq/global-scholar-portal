@@ -1,4 +1,4 @@
-name: Daily ScholarPortal Agent
+name: Daily ScholarPortal Multi-Agent Pipeline
 
 on:
   schedule:
@@ -7,87 +7,60 @@ on:
   workflow_dispatch:
 
 jobs:
-  run-hunter-agent:
+  run-agents:
     runs-on: ubuntu-latest
-
+    timeout-minutes: 45
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
-
-      - name: Install FFmpeg
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
-
-      - name: Install Python Dependencies
+      - name: Install Python dependencies
         working-directory: ./Agent
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-
-      - name: Run Opportunity Hunter, Blog Writer & Facebook Publisher
+      - name: Run verified opportunity + monetization agents
         working-directory: ./Agent
         env:
-          # LINE
-          LINE_ACCESS_TOKEN: ${{ secrets.LINE_ACCESS_TOKEN }}
-          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
-          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
-          LINE_CHANNEL_SECRET: ${{ secrets.LINE_CHANNEL_SECRET }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || secrets.SUPABASE_KEY }}
 
-          # Supabase
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          VITE_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.VITE_SUPABASE_SERVICE_ROLE_KEY }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          # Research fallbacks (at least one is recommended; DuckDuckGo HTML is final no-key fallback)
+          SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+          BING_SEARCH_API_KEY: ${{ secrets.BING_SEARCH_API_KEY }}
 
-          # Cloudinary - agent.py uses these server-side names
-          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
-          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
-          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
-
-          # Existing frontend Cloudinary values (kept if other code needs them)
-          VITE_CLOUDINARY_CLOUD_NAME: ${{ secrets.VITE_CLOUDINARY_CLOUD_NAME }}
-          VITE_CLOUDINARY_UPLOAD_PRESET: ${{ secrets.VITE_CLOUDINARY_UPLOAD_PRESET }}
-
-          # AI gateways
-          VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
-          VITE_GEMINI_API_KEY2: ${{ secrets.VITE_GEMINI_API_KEY2 }}
-          VITE_GROQ_API_KEY: ${{ secrets.VITE_GROQ_API_KEY }}
-          VITE_GROQ_API_KEY2: ${{ secrets.VITE_GROQ_API_KEY2 }}
-          VITE_OPENAI_API_KEY: ${{ secrets.VITE_OPENAI_API_KEY }}
-          VITE_OPENAI_API_KEY2: ${{ secrets.VITE_OPENAI_API_KEY2 }}
+          # Multi-provider AI router. Configure every key you have; missing providers are skipped.
           CGU_API_KEY: ${{ secrets.CGU_API_KEY }}
-          HF_API_KEY: ${{ secrets.HF_API_KEY }}
-          HF_API_KEY2: ${{ secrets.HF_API_KEY2 }}
+          AI_PROVIDER_ORDER: ${{ vars.AI_PROVIDER_ORDER || 'cgu,groq,nvidia-nim,mistral,openrouter' }}
+          CGU_MODEL: ${{ vars.CGU_MODEL || 'gpt-4o' }}
+          NVIDIA_NIM_MODEL: ${{ vars.NVIDIA_NIM_MODEL || 'openai/gpt-oss-20b' }}
+          MISTRAL_MODEL: ${{ vars.MISTRAL_MODEL || 'mistral-small-latest' }}
+          OPENROUTER_MODEL: ${{ vars.OPENROUTER_MODEL || 'openrouter/free' }}
+          AGENT_ALLOW_OUTBOUND: ${{ vars.AGENT_ALLOW_OUTBOUND || 'false' }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GOOGLE_AI_API_KEY: ${{ secrets.GOOGLE_AI_API_KEY }}
+          CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
-          # Facebook
-          FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
-          FACEBOOK_PAGE_ACCESS_TOKEN: ${{ secrets.FACEBOOK_PAGE_ACCESS_TOKEN }}
-          FACEBOOK_GRAPH_API_VERSION: ${{ secrets.FACEBOOK_GRAPH_API_VERSION }}
-          FACEBOOK_PUBLISH_ENABLED: "true"
-          FACEBOOK_USE_PHOTO_POST: "true"
-          FACEBOOK_MAX_POSTS_PER_RUN: "6"
-
-          # Cinematic Facebook video
-          FACEBOOK_VIDEO_ENABLED: "true"
-          FACEBOOK_MAX_VIDEOS_PER_RUN: "4"
-
-          # ScholarPortal
-          SCHOLARPORTAL_BASE_URL: "https://scholarportal.site"
-
-          # Email
+          # Notifications: SMTP only
           SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
 
-        run: |
-          python agent.py
+          # Existing social publishing remains optional and receives only verified content.
+          FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+          FACEBOOK_PAGE_ACCESS_TOKEN: ${{ secrets.FACEBOOK_PAGE_ACCESS_TOKEN }}
+          FACEBOOK_GRAPH_API_VERSION: ${{ secrets.FACEBOOK_GRAPH_API_VERSION }}
+          FACEBOOK_PUBLISH_ENABLED: ${{ vars.FACEBOOK_PUBLISH_ENABLED || 'false' }}
+          SCHOLARPORTAL_BASE_URL: ${{ vars.SCHOLARPORTAL_BASE_URL }}
+        run: python agent.py

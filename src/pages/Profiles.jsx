@@ -1,21 +1,24 @@
+import {useEffectEvent} from 'react';
+import {supabase} from '../lib/supabase';
+import { notify } from '../lib/notify';
+import { normalizeProfile, activeProfileId, selectProfile } from '../lib/profile';
 import React, { useState, useEffect, useRef } from 'react';
-import { createClient } from '@supabase/supabase-js';
-import { useAuth } from '../context/AuthContext';
-import { 
-  User, Mail, MapPin, Globe, 
-  BookOpen, Briefcase, FileText, Award, Code, 
+import {useAuth} from '../context/session';
+import {
+  User, Globe,
+  BookOpen, Briefcase, FileText, Award, Code,
   Plus, Trash2, Save, Loader2, Image as ImageIcon, ChevronDown, ChevronUp
 } from 'lucide-react';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
 
 const emptyProfile = {
   profile_name: 'New Profile', full_name: '', contact_email: '', phone: '', location: '',
   website: '', linkedin: '', github: '', bio: '', avatar_url: '',
   research_interests: [], technical_skills: [], education: [], experience: [],
-  publications: [], projects: [], awards: [], certifications: [], languages: []
+  publications: [], projects: [], awards: [], certifications: [], languages: [],
+  citizenship: '', desired_countries: [], desired_degree: '', gpa: '', gpa_scale: 4,
+  english_test: { type: '', score: '' }, budget_amount: '', budget_currency: 'USD'
 };
 
 export default function Profiles() {
@@ -27,12 +30,13 @@ export default function Profiles() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
-  
+
   // Accordion State
   const [openSection, setOpenSection] = useState('basic');
 
+  const effectLoad=useEffectEvent(()=>fetchProfiles());
   useEffect(() => {
-    if (user) fetchProfiles();
+    if (user) effectLoad();
   }, [user]);
 
   async function fetchProfiles() {
@@ -45,8 +49,8 @@ export default function Profiles() {
         .order('updated_at', { ascending: false });
 
       if (error) throw error;
-      setProfiles(data || []);
-      if (data && data.length > 0) setActiveProfile(data[0]);
+      const rows=(data||[]).map(normalizeProfile);setProfiles(rows);
+      if(rows.length) setActiveProfile(rows.find(x=>x.id===activeProfileId(user.id))||rows[0]);
     } catch (err) {
       console.error(err);
     } finally {
@@ -62,14 +66,14 @@ export default function Profiles() {
         ...activeProfile,
         updated_at: new Date()
       };
-      
+
       const { error } = await supabase.from('user_profiles').upsert(payload);
       if (error) throw error;
-      
-      alert('Profile saved successfully!');
+
+      notify('Profile saved successfully!');
       fetchProfiles();
     } catch (err) {
-      alert(`Error: ${err.message}`);
+      notify(`Error: ${err.message}`);
     } finally {
       setSaving(false);
     }
@@ -90,7 +94,7 @@ export default function Profiles() {
       }
     } catch (err) {
       console.error(err);
-      alert('Error uploading image.');
+      notify('Error uploading image.');
     } finally {
       setUploadingImage(false);
     }
@@ -118,9 +122,9 @@ export default function Profiles() {
   };
 
   const SectionHeader = ({ title, icon: Icon, sectionKey }) => (
-    <button 
+    <button
       onClick={() => setOpenSection(openSection === sectionKey ? '' : sectionKey)}
-      className="w-full flex items-center justify-between p-4 bg-slate-800/80 border border-slate-700/60 rounded-xl hover:bg-slate-700/50 transition-all font-bold text-slate-200"
+      className="w-full flex items-center justify-between p-4 bg-slate-100/80 dark:bg-slate-800/80 border border-slate-300/60 dark:border-slate-700/60 rounded-xl hover:bg-slate-700/50 transition-all font-bold text-slate-800 dark:text-slate-200"
     >
       <div className="flex items-center gap-3"><Icon className="w-5 h-5 text-indigo-400" /> {title}</div>
       {openSection === sectionKey ? <ChevronUp className="w-5 h-5 text-slate-500" /> : <ChevronDown className="w-5 h-5 text-slate-500" />}
@@ -131,12 +135,12 @@ export default function Profiles() {
 
   return (
     <div className="max-w-5xl mx-auto pb-12 space-y-6 pt-6 px-4">
-      
+
       {/* Header & Profile Selector */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-extrabold text-white">Profile Studio</h1>
-          <p className="text-sm text-slate-400 mt-1">Build your comprehensive commercial and academic portfolio.</p>
+          <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white">Profile Studio</h1>
+          <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Build your comprehensive commercial and academic portfolio.</p>
         </div>
         <div className="flex gap-3 overflow-x-auto pb-2 shrink-0">
           <button onClick={() => setActiveProfile(emptyProfile)} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm">
@@ -145,43 +149,96 @@ export default function Profiles() {
         </div>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto border-b border-slate-800 pb-4 mb-6">
+      <div className="flex gap-2 overflow-x-auto border-b border-slate-200 dark:border-slate-800 pb-4 mb-6">
         {profiles.map(p => (
-          <button key={p.id} onClick={() => setActiveProfile(p)} className={`px-4 py-2 rounded-xl text-sm font-bold border whitespace-nowrap transition-all ${activeProfile.id === p.id ? 'bg-indigo-500/20 border-indigo-500 text-indigo-300' : 'bg-transparent border-slate-700 text-slate-400 hover:bg-slate-800'}`}>
+          <button key={p.id} onClick={() => {setActiveProfile(p);selectProfile(user.id,p.id);}} className={`px-4 py-2 rounded-xl text-sm font-bold border whitespace-nowrap transition-all ${activeProfile.id === p.id ? 'bg-indigo-500/20 border-indigo-500 text-indigo-300' : 'bg-transparent border-slate-700 text-slate-400 hover:bg-slate-800'}`}>
             {p.profile_name}
           </button>
         ))}
       </div>
 
       <div className="space-y-4">
-        
+
         {/* 1. BASIC INFO & LINKS */}
         <div className="space-y-2">
           <SectionHeader title="Basic Info & Web Links" icon={User} sectionKey="basic" />
           {openSection === 'basic' && (
-            <div className="p-6 bg-slate-900 border border-slate-800 rounded-xl space-y-6">
+            <div className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-6">
               <div className="flex flex-col md:flex-row gap-6">
                 <div className="shrink-0 flex flex-col items-center gap-4">
-                  <div className="w-32 h-32 rounded-full border-4 border-slate-700 overflow-hidden bg-slate-800 flex items-center justify-center relative group">
+                  <div className="w-32 h-32 rounded-full border-4 border-slate-300 dark:border-slate-700 overflow-hidden bg-slate-100 dark:bg-slate-800 flex items-center justify-center relative group">
                     {activeProfile.avatar_url ? <img src={activeProfile.avatar_url} alt="Avatar" className="w-full h-full object-cover" /> : <User className="w-10 h-10 text-slate-500" />}
                     <label className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                      {uploadingImage ? <Loader2 className="w-6 h-6 animate-spin text-white" /> : <ImageIcon className="w-6 h-6 text-white" />}
+                      {uploadingImage ? <Loader2 className="w-6 h-6 animate-spin text-slate-900 dark:text-white" /> : <ImageIcon className="w-6 h-6 text-slate-900 dark:text-white" />}
                       <input type="file" ref={fileInputRef} onChange={handleImageUpload} className="hidden" accept="image/*" />
                     </label>
                   </div>
                 </div>
                 <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div><label className="block text-xs font-bold text-slate-400 mb-1">Profile Category Name</label><input type="text" value={activeProfile.profile_name} onChange={e => setActiveProfile({...activeProfile, profile_name: e.target.value})} className="w-full bg-slate-800 text-white text-sm px-3 py-2 rounded-lg border border-slate-700 outline-none focus:border-indigo-500" /></div>
-                  <div><label className="block text-xs font-bold text-slate-400 mb-1">Full Legal Name</label><input type="text" value={activeProfile.full_name} onChange={e => setActiveProfile({...activeProfile, full_name: e.target.value})} className="w-full bg-slate-800 text-white text-sm px-3 py-2 rounded-lg border border-slate-700 outline-none focus:border-indigo-500" /></div>
-                  <div><label className="block text-xs font-bold text-slate-400 mb-1">Contact Email</label><input type="email" value={activeProfile.contact_email} onChange={e => setActiveProfile({...activeProfile, contact_email: e.target.value})} className="w-full bg-slate-800 text-white text-sm px-3 py-2 rounded-lg border border-slate-700 outline-none focus:border-indigo-500" /></div>
-                  <div><label className="block text-xs font-bold text-slate-400 mb-1">Phone Number</label><input type="text" value={activeProfile.phone} onChange={e => setActiveProfile({...activeProfile, phone: e.target.value})} className="w-full bg-slate-800 text-white text-sm px-3 py-2 rounded-lg border border-slate-700 outline-none focus:border-indigo-500" /></div>
-                  <div><label className="block text-xs font-bold text-slate-400 mb-1">Location</label><input type="text" value={activeProfile.location} onChange={e => setActiveProfile({...activeProfile, location: e.target.value})} className="w-full bg-slate-800 text-white text-sm px-3 py-2 rounded-lg border border-slate-700 outline-none focus:border-indigo-500" /></div>
-                  <div><label className="block text-xs font-bold text-slate-400 mb-1">LinkedIn URL</label><input type="text" value={activeProfile.linkedin} onChange={e => setActiveProfile({...activeProfile, linkedin: e.target.value})} className="w-full bg-slate-800 text-white text-sm px-3 py-2 rounded-lg border border-slate-700 outline-none focus:border-indigo-500" /></div>
-                  <div><label className="block text-xs font-bold text-slate-400 mb-1">GitHub URL</label><input type="text" value={activeProfile.github} onChange={e => setActiveProfile({...activeProfile, github: e.target.value})} className="w-full bg-slate-800 text-white text-sm px-3 py-2 rounded-lg border border-slate-700 outline-none focus:border-indigo-500" /></div>
-                  <div><label className="block text-xs font-bold text-slate-400 mb-1">Personal Website</label><input type="text" value={activeProfile.website} onChange={e => setActiveProfile({...activeProfile, website: e.target.value})} className="w-full bg-slate-800 text-white text-sm px-3 py-2 rounded-lg border border-slate-700 outline-none focus:border-indigo-500" /></div>
+                  <div><label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Profile Category Name</label><input type="text" value={activeProfile.profile_name} onChange={e => setActiveProfile({...activeProfile, profile_name: e.target.value})} className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white text-sm px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 outline-none focus:border-indigo-500" /></div>
+                  <div><label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Full Legal Name</label><input type="text" value={activeProfile.full_name} onChange={e => setActiveProfile({...activeProfile, full_name: e.target.value})} className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white text-sm px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 outline-none focus:border-indigo-500" /></div>
+                  <div><label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Contact Email</label><input type="email" value={activeProfile.contact_email} onChange={e => setActiveProfile({...activeProfile, contact_email: e.target.value})} className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white text-sm px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 outline-none focus:border-indigo-500" /></div>
+                  <div><label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Phone Number</label><input type="text" value={activeProfile.phone} onChange={e => setActiveProfile({...activeProfile, phone: e.target.value})} className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white text-sm px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 outline-none focus:border-indigo-500" /></div>
+                  <div><label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Location</label><input type="text" value={activeProfile.location} onChange={e => setActiveProfile({...activeProfile, location: e.target.value})} className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white text-sm px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 outline-none focus:border-indigo-500" /></div>
+                  <div><label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">LinkedIn URL</label><input type="text" value={activeProfile.linkedin} onChange={e => setActiveProfile({...activeProfile, linkedin: e.target.value})} className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white text-sm px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 outline-none focus:border-indigo-500" /></div>
+                  <div><label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">GitHub URL</label><input type="text" value={activeProfile.github} onChange={e => setActiveProfile({...activeProfile, github: e.target.value})} className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white text-sm px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 outline-none focus:border-indigo-500" /></div>
+                  <div><label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Personal Website</label><input type="text" value={activeProfile.website} onChange={e => setActiveProfile({...activeProfile, website: e.target.value})} className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white text-sm px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 outline-none focus:border-indigo-500" /></div>
                 </div>
               </div>
-              <div><label className="block text-xs font-bold text-slate-400 mb-1">Executive Summary / Bio</label><textarea rows={3} value={activeProfile.bio} onChange={e => setActiveProfile({...activeProfile, bio: e.target.value})} className="w-full bg-slate-800 text-white text-sm px-3 py-2 rounded-lg border border-slate-700 outline-none focus:border-indigo-500 resize-none" /></div>
+              <div><label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Executive Summary / Bio</label><textarea rows={3} value={activeProfile.bio} onChange={e => setActiveProfile({...activeProfile, bio: e.target.value})} className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white text-sm px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 outline-none focus:border-indigo-500 resize-none" /></div>
+            </div>
+          )}
+        </div>
+
+        {/* ELIGIBILITY & STUDY TARGETS */}
+        <div className="space-y-2">
+          <SectionHeader title="Eligibility & Study Targets" icon={Globe} sectionKey="eligibility" />
+          {openSection === 'eligibility' && (
+            <div className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-5">
+              <p className="text-xs text-slate-600 dark:text-slate-400">These facts power deterministic eligibility checks before AI ranking. ScholarPortal will not invent missing qualifications.</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Citizenship / Nationality</label>
+                  <input type="text" value={activeProfile.citizenship || ''} onChange={e => setActiveProfile({...activeProfile, citizenship: e.target.value})} placeholder="e.g. Pakistan" className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white text-sm px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 outline-none focus:border-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Desired Degree / Level</label>
+                  <input type="text" value={activeProfile.desired_degree || ''} onChange={e => setActiveProfile({...activeProfile, desired_degree: e.target.value})} placeholder="e.g. Master's, PhD" className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white text-sm px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 outline-none focus:border-indigo-500" />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Preferred Study Countries</label>
+                  <input type="text" value={(activeProfile.desired_countries || []).join(', ')} onChange={e => setActiveProfile({...activeProfile, desired_countries: e.target.value.split(',').map(v => v.trim()).filter(Boolean)})} placeholder="Taiwan, Japan, Germany" className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white text-sm px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 outline-none focus:border-indigo-500" />
+                  <p className="text-[11px] text-slate-500 mt-1">Separate countries with commas.</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">GPA</label>
+                  <input type="number" min="0" step="0.01" value={activeProfile.gpa ?? ''} onChange={e => setActiveProfile({...activeProfile, gpa: e.target.value === '' ? '' : Number(e.target.value)})} placeholder="3.5" className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white text-sm px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 outline-none focus:border-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">GPA Scale</label>
+                  <input type="number" min="1" step="0.01" value={activeProfile.gpa_scale ?? 4} onChange={e => setActiveProfile({...activeProfile, gpa_scale: e.target.value === '' ? '' : Number(e.target.value)})} placeholder="4.0" className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white text-sm px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 outline-none focus:border-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">English Test</label>
+                  <select value={activeProfile.english_test?.type || ''} onChange={e => setActiveProfile({...activeProfile, english_test: {...(activeProfile.english_test || {}), type: e.target.value}})} className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white text-sm px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 outline-none focus:border-indigo-500">
+                    <option value="">Not specified</option><option value="IELTS">IELTS</option><option value="TOEFL">TOEFL</option><option value="Duolingo">Duolingo English Test</option><option value="Other">Other</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">English Test Score</label>
+                  <input type="text" value={activeProfile.english_test?.score ?? ''} onChange={e => setActiveProfile({...activeProfile, english_test: {...(activeProfile.english_test || {}), score: e.target.value}})} placeholder="e.g. 7.0" className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white text-sm px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 outline-none focus:border-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Maximum Annual Budget</label>
+                  <input type="number" min="0" step="1" value={activeProfile.budget_amount ?? ''} onChange={e => setActiveProfile({...activeProfile, budget_amount: e.target.value === '' ? '' : Number(e.target.value)})} placeholder="15000" className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white text-sm px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 outline-none focus:border-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Budget Currency</label>
+                  <select value={activeProfile.budget_currency || 'USD'} onChange={e => setActiveProfile({...activeProfile, budget_currency: e.target.value})} className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white text-sm px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 outline-none focus:border-indigo-500">
+                    <option>USD</option><option>EUR</option><option>GBP</option><option>TWD</option><option>AUD</option><option>CAD</option><option>JPY</option>
+                  </select>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -190,15 +247,15 @@ export default function Profiles() {
         <div className="space-y-2">
           <SectionHeader title="Education & Academic Background" icon={BookOpen} sectionKey="education" />
           {openSection === 'education' && (
-            <div className="p-6 bg-slate-900 border border-slate-800 rounded-xl space-y-4">
+            <div className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-4">
               {activeProfile.education?.map((edu, idx) => (
-                <div key={idx} className="relative p-4 bg-slate-800 border border-slate-700 rounded-lg grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div key={idx} className="relative p-4 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg grid grid-cols-1 md:grid-cols-2 gap-4">
                   <button onClick={() => removeArrayItem('education', idx)} className="absolute top-2 right-2 p-1 text-slate-500 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
-                  <input type="text" placeholder="Degree (e.g. PhD Computer Science)" value={edu.degree} onChange={(e) => updateArrayItem('education', idx, 'degree', e.target.value)} className="w-full bg-slate-900 text-white text-sm px-3 py-2 rounded border border-slate-700 outline-none" />
-                  <input type="text" placeholder="Institution" value={edu.institution} onChange={(e) => updateArrayItem('education', idx, 'institution', e.target.value)} className="w-full bg-slate-900 text-white text-sm px-3 py-2 rounded border border-slate-700 outline-none" />
-                  <input type="text" placeholder="Period (e.g. 2018 - 2022)" value={edu.period} onChange={(e) => updateArrayItem('education', idx, 'period', e.target.value)} className="w-full bg-slate-900 text-white text-sm px-3 py-2 rounded border border-slate-700 outline-none" />
-                  <input type="text" placeholder="Honors / GPA" value={edu.honors} onChange={(e) => updateArrayItem('education', idx, 'honors', e.target.value)} className="w-full bg-slate-900 text-white text-sm px-3 py-2 rounded border border-slate-700 outline-none" />
-                  <div className="md:col-span-2"><input type="text" placeholder="Thesis Title" value={edu.thesis} onChange={(e) => updateArrayItem('education', idx, 'thesis', e.target.value)} className="w-full bg-slate-900 text-white text-sm px-3 py-2 rounded border border-slate-700 outline-none" /></div>
+                  <input type="text" placeholder="Degree (e.g. PhD Computer Science)" value={edu.degree} onChange={(e) => updateArrayItem('education', idx, 'degree', e.target.value)} className="w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm px-3 py-2 rounded border border-slate-300 dark:border-slate-700 outline-none" />
+                  <input type="text" placeholder="Institution" value={edu.institution} onChange={(e) => updateArrayItem('education', idx, 'institution', e.target.value)} className="w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm px-3 py-2 rounded border border-slate-300 dark:border-slate-700 outline-none" />
+                  <input type="text" placeholder="Period (e.g. 2018 - 2022)" value={edu.period} onChange={(e) => updateArrayItem('education', idx, 'period', e.target.value)} className="w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm px-3 py-2 rounded border border-slate-300 dark:border-slate-700 outline-none" />
+                  <input type="text" placeholder="Honors / GPA" value={edu.honors} onChange={(e) => updateArrayItem('education', idx, 'honors', e.target.value)} className="w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm px-3 py-2 rounded border border-slate-300 dark:border-slate-700 outline-none" />
+                  <div className="md:col-span-2"><input type="text" placeholder="Thesis Title" value={edu.thesis} onChange={(e) => updateArrayItem('education', idx, 'thesis', e.target.value)} className="w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm px-3 py-2 rounded border border-slate-300 dark:border-slate-700 outline-none" /></div>
                 </div>
               ))}
               <button onClick={() => addArrayItem('education', { degree: '', institution: '', period: '', honors: '', thesis: '' })} className="text-xs font-bold text-indigo-400 flex items-center gap-1 hover:text-indigo-300"><Plus className="w-4 h-4" /> Add Education</button>
@@ -210,19 +267,19 @@ export default function Profiles() {
         <div className="space-y-2">
           <SectionHeader title="Experience (Work, Research & Teaching)" icon={Briefcase} sectionKey="experience" />
           {openSection === 'experience' && (
-            <div className="p-6 bg-slate-900 border border-slate-800 rounded-xl space-y-4">
+            <div className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-4">
               {activeProfile.experience?.map((exp, idx) => (
-                <div key={idx} className="relative p-4 bg-slate-800 border border-slate-700 rounded-lg grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div key={idx} className="relative p-4 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg grid grid-cols-1 md:grid-cols-2 gap-4">
                   <button onClick={() => removeArrayItem('experience', idx)} className="absolute top-2 right-2 p-1 text-slate-500 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
-                  <select value={exp.type || 'Work'} onChange={(e) => updateArrayItem('experience', idx, 'type', e.target.value)} className="w-full bg-slate-900 text-white text-sm px-3 py-2 rounded border border-slate-700 outline-none">
+                  <select value={exp.type || 'Work'} onChange={(e) => updateArrayItem('experience', idx, 'type', e.target.value)} className="w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm px-3 py-2 rounded border border-slate-300 dark:border-slate-700 outline-none">
                     <option value="Work">Corporate / Work</option>
                     <option value="Research">Research Lab</option>
                     <option value="Teaching">Teaching / TA</option>
                   </select>
-                  <input type="text" placeholder="Role Title" value={exp.role} onChange={(e) => updateArrayItem('experience', idx, 'role', e.target.value)} className="w-full bg-slate-900 text-white text-sm px-3 py-2 rounded border border-slate-700 outline-none" />
-                  <input type="text" placeholder="Organization / Company" value={exp.organization} onChange={(e) => updateArrayItem('experience', idx, 'organization', e.target.value)} className="w-full bg-slate-900 text-white text-sm px-3 py-2 rounded border border-slate-700 outline-none" />
-                  <input type="text" placeholder="Period (e.g. Aug 2021 - Present)" value={exp.period} onChange={(e) => updateArrayItem('experience', idx, 'period', e.target.value)} className="w-full bg-slate-900 text-white text-sm px-3 py-2 rounded border border-slate-700 outline-none" />
-                  <div className="md:col-span-2"><textarea rows={3} placeholder="Description or bullet points (separate by newline)" value={exp.description} onChange={(e) => updateArrayItem('experience', idx, 'description', e.target.value)} className="w-full bg-slate-900 text-white text-sm px-3 py-2 rounded border border-slate-700 outline-none resize-none" /></div>
+                  <input type="text" placeholder="Role Title" value={exp.role} onChange={(e) => updateArrayItem('experience', idx, 'role', e.target.value)} className="w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm px-3 py-2 rounded border border-slate-300 dark:border-slate-700 outline-none" />
+                  <input type="text" placeholder="Organization / Company" value={exp.organization} onChange={(e) => updateArrayItem('experience', idx, 'organization', e.target.value)} className="w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm px-3 py-2 rounded border border-slate-300 dark:border-slate-700 outline-none" />
+                  <input type="text" placeholder="Period (e.g. Aug 2021 - Present)" value={exp.period} onChange={(e) => updateArrayItem('experience', idx, 'period', e.target.value)} className="w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm px-3 py-2 rounded border border-slate-300 dark:border-slate-700 outline-none" />
+                  <div className="md:col-span-2"><textarea rows={3} placeholder="Description or bullet points (separate by newline)" value={exp.description} onChange={(e) => updateArrayItem('experience', idx, 'description', e.target.value)} className="w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm px-3 py-2 rounded border border-slate-300 dark:border-slate-700 outline-none resize-none" /></div>
                 </div>
               ))}
               <button onClick={() => addArrayItem('experience', { type: 'Work', role: '', organization: '', period: '', description: '' })} className="text-xs font-bold text-indigo-400 flex items-center gap-1 hover:text-indigo-300"><Plus className="w-4 h-4" /> Add Experience</button>
@@ -234,20 +291,20 @@ export default function Profiles() {
         <div className="space-y-2">
           <SectionHeader title="Publications (Journals, Conferences, Books)" icon={FileText} sectionKey="publications" />
           {openSection === 'publications' && (
-            <div className="p-6 bg-slate-900 border border-slate-800 rounded-xl space-y-4">
+            <div className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-4">
               {activeProfile.publications?.map((pub, idx) => (
-                <div key={idx} className="relative p-4 bg-slate-800 border border-slate-700 rounded-lg grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div key={idx} className="relative p-4 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg grid grid-cols-1 md:grid-cols-2 gap-4">
                   <button onClick={() => removeArrayItem('publications', idx)} className="absolute top-2 right-2 p-1 text-slate-500 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
-                  <select value={pub.type || 'Journal Article'} onChange={(e) => updateArrayItem('publications', idx, 'type', e.target.value)} className="w-full bg-slate-900 text-white text-sm px-3 py-2 rounded border border-slate-700 outline-none">
+                  <select value={pub.type || 'Journal Article'} onChange={(e) => updateArrayItem('publications', idx, 'type', e.target.value)} className="w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm px-3 py-2 rounded border border-slate-300 dark:border-slate-700 outline-none">
                     <option value="Journal Article">Journal Article</option>
                     <option value="Conference Paper">Conference Paper</option>
                     <option value="Book Chapter">Book Chapter</option>
                     <option value="Patent">Patent</option>
                   </select>
-                  <input type="text" placeholder="Title" value={pub.title} onChange={(e) => updateArrayItem('publications', idx, 'title', e.target.value)} className="w-full bg-slate-900 text-white text-sm px-3 py-2 rounded border border-slate-700 outline-none" />
-                  <input type="text" placeholder="Venue / Journal Name" value={pub.venue} onChange={(e) => updateArrayItem('publications', idx, 'venue', e.target.value)} className="w-full bg-slate-900 text-white text-sm px-3 py-2 rounded border border-slate-700 outline-none" />
-                  <input type="text" placeholder="Year & Status (e.g. 2023 - Published)" value={pub.year} onChange={(e) => updateArrayItem('publications', idx, 'year', e.target.value)} className="w-full bg-slate-900 text-white text-sm px-3 py-2 rounded border border-slate-700 outline-none" />
-                  <div className="md:col-span-2"><input type="text" placeholder="Authors (e.g. Smith, J., Doe, A.)" value={pub.authors} onChange={(e) => updateArrayItem('publications', idx, 'authors', e.target.value)} className="w-full bg-slate-900 text-white text-sm px-3 py-2 rounded border border-slate-700 outline-none" /></div>
+                  <input type="text" placeholder="Title" value={pub.title} onChange={(e) => updateArrayItem('publications', idx, 'title', e.target.value)} className="w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm px-3 py-2 rounded border border-slate-300 dark:border-slate-700 outline-none" />
+                  <input type="text" placeholder="Venue / Journal Name" value={pub.venue} onChange={(e) => updateArrayItem('publications', idx, 'venue', e.target.value)} className="w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm px-3 py-2 rounded border border-slate-300 dark:border-slate-700 outline-none" />
+                  <input type="text" placeholder="Year & Status (e.g. 2023 - Published)" value={pub.year} onChange={(e) => updateArrayItem('publications', idx, 'year', e.target.value)} className="w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm px-3 py-2 rounded border border-slate-300 dark:border-slate-700 outline-none" />
+                  <div className="md:col-span-2"><input type="text" placeholder="Authors (e.g. Smith, J., Doe, A.)" value={pub.authors} onChange={(e) => updateArrayItem('publications', idx, 'authors', e.target.value)} className="w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm px-3 py-2 rounded border border-slate-300 dark:border-slate-700 outline-none" /></div>
                 </div>
               ))}
               <button onClick={() => addArrayItem('publications', { type: 'Journal Article', title: '', venue: '', year: '', authors: '' })} className="text-xs font-bold text-indigo-400 flex items-center gap-1 hover:text-indigo-300"><Plus className="w-4 h-4" /> Add Publication</button>
@@ -259,19 +316,19 @@ export default function Profiles() {
         <div className="space-y-2">
           <SectionHeader title="Projects (Final Year, Products, Open Source)" icon={Code} sectionKey="projects" />
           {openSection === 'projects' && (
-            <div className="p-6 bg-slate-900 border border-slate-800 rounded-xl space-y-4">
+            <div className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-4">
               {activeProfile.projects?.map((proj, idx) => (
-                <div key={idx} className="relative p-4 bg-slate-800 border border-slate-700 rounded-lg grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div key={idx} className="relative p-4 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg grid grid-cols-1 md:grid-cols-2 gap-4">
                   <button onClick={() => removeArrayItem('projects', idx)} className="absolute top-2 right-2 p-1 text-slate-500 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
-                  <select value={proj.type || 'Final Year Project'} onChange={(e) => updateArrayItem('projects', idx, 'type', e.target.value)} className="w-full bg-slate-900 text-white text-sm px-3 py-2 rounded border border-slate-700 outline-none">
+                  <select value={proj.type || 'Final Year Project'} onChange={(e) => updateArrayItem('projects', idx, 'type', e.target.value)} className="w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm px-3 py-2 rounded border border-slate-300 dark:border-slate-700 outline-none">
                     <option value="Final Year Project">Final Year Project</option>
                     <option value="Product">Commercial Product</option>
                     <option value="Open Source">Open Source Contribution</option>
                   </select>
-                  <input type="text" placeholder="Project Name" value={proj.name} onChange={(e) => updateArrayItem('projects', idx, 'name', e.target.value)} className="w-full bg-slate-900 text-white text-sm px-3 py-2 rounded border border-slate-700 outline-none" />
-                  <input type="text" placeholder="Your Role / Tech Stack" value={proj.role} onChange={(e) => updateArrayItem('projects', idx, 'role', e.target.value)} className="w-full bg-slate-900 text-white text-sm px-3 py-2 rounded border border-slate-700 outline-none" />
-                  <input type="text" placeholder="URL / Link (Optional)" value={proj.url} onChange={(e) => updateArrayItem('projects', idx, 'url', e.target.value)} className="w-full bg-slate-900 text-white text-sm px-3 py-2 rounded border border-slate-700 outline-none" />
-                  <div className="md:col-span-2"><textarea rows={2} placeholder="Description" value={proj.description} onChange={(e) => updateArrayItem('projects', idx, 'description', e.target.value)} className="w-full bg-slate-900 text-white text-sm px-3 py-2 rounded border border-slate-700 outline-none resize-none" /></div>
+                  <input type="text" placeholder="Project Name" value={proj.name} onChange={(e) => updateArrayItem('projects', idx, 'name', e.target.value)} className="w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm px-3 py-2 rounded border border-slate-300 dark:border-slate-700 outline-none" />
+                  <input type="text" placeholder="Your Role / Tech Stack" value={proj.role} onChange={(e) => updateArrayItem('projects', idx, 'role', e.target.value)} className="w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm px-3 py-2 rounded border border-slate-300 dark:border-slate-700 outline-none" />
+                  <input type="text" placeholder="URL / Link (Optional)" value={proj.url} onChange={(e) => updateArrayItem('projects', idx, 'url', e.target.value)} className="w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm px-3 py-2 rounded border border-slate-300 dark:border-slate-700 outline-none" />
+                  <div className="md:col-span-2"><textarea rows={2} placeholder="Description" value={proj.description} onChange={(e) => updateArrayItem('projects', idx, 'description', e.target.value)} className="w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm px-3 py-2 rounded border border-slate-300 dark:border-slate-700 outline-none resize-none" /></div>
                 </div>
               ))}
               <button onClick={() => addArrayItem('projects', { type: 'Final Year Project', name: '', role: '', url: '', description: '' })} className="text-xs font-bold text-indigo-400 flex items-center gap-1 hover:text-indigo-300"><Plus className="w-4 h-4" /> Add Project</button>
@@ -283,13 +340,13 @@ export default function Profiles() {
         <div className="space-y-2">
           <SectionHeader title="Technical Skills & Research Interests" icon={Award} sectionKey="skills" />
           {openSection === 'skills' && (
-            <div className="p-6 bg-slate-900 border border-slate-800 rounded-xl space-y-6">
+            <div className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-6">
               <div>
-                <h3 className="text-sm font-bold text-white mb-2">Technical & Soft Skills</h3>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-2">Technical & Soft Skills</h3>
                 {activeProfile.technical_skills?.map((skillSet, idx) => (
                   <div key={idx} className="flex gap-2 mb-2">
-                    <input type="text" placeholder="Category (e.g. Languages, Frameworks)" value={skillSet.category} onChange={(e) => updateArrayItem('technical_skills', idx, 'category', e.target.value)} className="w-1/3 bg-slate-800 text-white text-sm px-3 py-2 rounded border border-slate-700 outline-none" />
-                    <input type="text" placeholder="Skills (comma separated)" value={skillSet.skills} onChange={(e) => updateArrayItem('technical_skills', idx, 'skills', e.target.value)} className="flex-1 bg-slate-800 text-white text-sm px-3 py-2 rounded border border-slate-700 outline-none" />
+                    <input type="text" placeholder="Category (e.g. Languages, Frameworks)" value={skillSet.category} onChange={(e) => updateArrayItem('technical_skills', idx, 'category', e.target.value)} className="w-1/3 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white text-sm px-3 py-2 rounded border border-slate-300 dark:border-slate-700 outline-none" />
+                    <input type="text" placeholder="Skills (comma separated)" value={skillSet.skills} onChange={(e) => updateArrayItem('technical_skills', idx, 'skills', e.target.value)} className="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white text-sm px-3 py-2 rounded border border-slate-300 dark:border-slate-700 outline-none" />
                     <button onClick={() => removeArrayItem('technical_skills', idx)} className="p-2 text-slate-500 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
                   </div>
                 ))}
@@ -297,10 +354,10 @@ export default function Profiles() {
               </div>
 
               <div>
-                <h3 className="text-sm font-bold text-white mb-2">Research Interests</h3>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-2">Research Interests</h3>
                 {activeProfile.research_interests?.map((interest, idx) => (
                   <div key={idx} className="flex gap-2 mb-2">
-                    <input type="text" placeholder="e.g. Deep Learning, Climate Policy" value={interest.name || ''} onChange={(e) => updateArrayItem('research_interests', idx, 'name', e.target.value)} className="flex-1 bg-slate-800 text-white text-sm px-3 py-2 rounded border border-slate-700 outline-none" />
+                    <input type="text" placeholder="e.g. Deep Learning, Climate Policy" value={interest.name || ''} onChange={(e) => updateArrayItem('research_interests', idx, 'name', e.target.value)} className="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white text-sm px-3 py-2 rounded border border-slate-300 dark:border-slate-700 outline-none" />
                     <button onClick={() => removeArrayItem('research_interests', idx)} className="p-2 text-slate-500 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
                   </div>
                 ))}

@@ -1,0 +1,66 @@
+name: Independent ScholarPortal Blog Research
+
+on:
+  schedule:
+    # 00:17 UTC daily (08:17 Taiwan)
+    - cron: '47 2 * * 1'
+  workflow_dispatch:
+
+jobs:
+  run-agents:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - name: Install Python dependencies
+        working-directory: ./Agent
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Research and publish standalone blog articles
+        working-directory: ./Agent
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || secrets.SUPABASE_KEY }}
+
+          # Research fallbacks (at least one is recommended; DuckDuckGo HTML is final no-key fallback)
+          SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+          BING_SEARCH_API_KEY: ${{ secrets.BING_SEARCH_API_KEY }}
+
+          # Multi-provider AI router. Configure every key you have; missing providers are skipped.
+          CGU_API_KEY: ${{ secrets.CGU_API_KEY }}
+          AI_PROVIDER_ORDER: ${{ vars.AI_PROVIDER_ORDER || 'cgu,groq,nvidia-nim,mistral,openrouter' }}
+          CGU_MODEL: ${{ vars.CGU_MODEL || 'gpt-4o' }}
+          NVIDIA_NIM_MODEL: ${{ vars.NVIDIA_NIM_MODEL || 'openai/gpt-oss-20b' }}
+          MISTRAL_MODEL: ${{ vars.MISTRAL_MODEL || 'mistral-small-latest' }}
+          OPENROUTER_MODEL: ${{ vars.OPENROUTER_MODEL || 'openrouter/free' }}
+          AGENT_ALLOW_OUTBOUND: ${{ vars.AGENT_ALLOW_OUTBOUND || 'false' }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GOOGLE_AI_API_KEY: ${{ secrets.GOOGLE_AI_API_KEY }}
+          CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+          # Notifications: SMTP only
+          SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+
+          # Existing social publishing remains optional and receives only verified content.
+          FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+          FACEBOOK_PAGE_ACCESS_TOKEN: ${{ secrets.FACEBOOK_PAGE_ACCESS_TOKEN }}
+          FACEBOOK_GRAPH_API_VERSION: ${{ secrets.FACEBOOK_GRAPH_API_VERSION }}
+          FACEBOOK_PUBLISH_ENABLED: ${{ vars.FACEBOOK_PUBLISH_ENABLED || 'false' }}
+          SCHOLARPORTAL_BASE_URL: ${{ vars.SCHOLARPORTAL_BASE_URL }}
+        run: python ../Blog_Agent/blog_agent.py --limit 2

@@ -1,22 +1,23 @@
+import {useEffectEvent} from 'react';
+import {supabase} from '../lib/supabase';
+import { notify } from '../lib/notify';
+import { normalizeProfile, activeProfileId, selectProfile } from '../lib/profile';
 import React, { useState, useEffect } from 'react';
-import { 
-  Document, Page, Text, View, Image as PDFImage, 
-  StyleSheet, PDFViewer, PDFDownloadLink 
+import {
+  Document, Page, Text, View, Image as PDFImage,
+  StyleSheet, PDFViewer, PDFDownloadLink
 } from '@react-pdf/renderer';
-import { createClient } from '@supabase/supabase-js';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { useAuth } from '../context/AuthContext';
-import { 
-  Sparkles, Eye, EyeOff, Plus, Trash2, Download, 
-  RefreshCw, CheckCircle2, FileText, Briefcase, 
+import {useAuth} from '../context/session';
+import { runAiAction } from '../lib/ai';
+import {
+  Sparkles, Eye, EyeOff, Download,
+  RefreshCw, CheckCircle2, FileText, Briefcase,
   GraduationCap, Palette, Building2, Code, BookOpen,
   Award, Globe, Microscope, BadgeCheck, Contact
 } from 'lucide-react';
 
 // Initialize Supabase
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
 
 // ==========================================
 // 🎨 TEMPLATES (Modern, Minimalist, Academic)
@@ -92,7 +93,7 @@ const UniversalResumePDF = ({ data, templateId }) => {
   return (
     <Document>
       <Page size="A4" style={s.page}>
-        
+
         {/* HEADER */}
         <View style={s.header}>
           <View style={s.headerInfo}>
@@ -279,7 +280,7 @@ const UniversalResumePDF = ({ data, templateId }) => {
 // ==========================================
 export default function ResumeBuilder() {
   const { user } = useAuth();
-  
+
   const [applications, setApplications] = useState([]);
   const [selectedApp, setSelectedApp] = useState(null);
   const [profiles, setProfiles] = useState([]);
@@ -289,29 +290,27 @@ export default function ResumeBuilder() {
 
   // Comprehensive Master Resume Data State
   const [resumeData, setResumeData] = useState({
-    personal: { 
-      fullName: '', title: 'Specialist', 
+    personal: {
+      fullName: '', title: 'Specialist',
       email: '', showEmail: true,
       phone: '', showPhone: true,
       location: '', showLocation: true,
       linkedin: '', showLinkedin: true,
       github: '', showGithub: true,
       website: '', showWebsite: true,
-      avatar_url: '', showPhoto: true, 
-      showTitle: true 
+      avatar_url: '', showPhoto: true,
+      showTitle: true
     },
     summary: { text: '', visible: true },
     skills: [], experience: [], education: [], projects: [], publications: [],
     awards: [], certifications: [], languages: [], researchInterests: [], customSections: []
   });
 
-  const [newTitle, setNewTitle] = useState('');
-  const [newDetail, setNewDetail] = useState('');
 
+  const effectLoad=useEffectEvent(()=>{fetchProfiles();fetchSavedApplications();});
   useEffect(() => {
     if (user) {
-      fetchProfiles();
-      fetchSavedApplications();
+      effectLoad();
     }
   }, [user]);
 
@@ -321,8 +320,9 @@ export default function ResumeBuilder() {
       if (error) throw error;
       if (data && data.length > 0) {
         setProfiles(data);
-        setSelectedProfileId(data[0].id);
-        populateFromProfile(data[0]);
+        const selected=data.find(p=>p.id===activeProfileId(user.id))||data[0];
+        setSelectedProfileId(selected.id);
+        populateFromProfile(selected);
       }
     } catch (err) { console.error('Failed to load profiles:', err); }
   }
@@ -340,7 +340,8 @@ export default function ResumeBuilder() {
   // Parses DB data perfectly into Resume State
   const populateFromProfile = (profile) => {
     if (!profile) return;
-    
+    profile=normalizeProfile(profile);
+
     const parseArray = (arr) => Array.isArray(arr) ? arr : [];
 
     let parsedSkills = [];
@@ -383,169 +384,29 @@ export default function ResumeBuilder() {
 
   const handleProfileChange = (e) => {
     const pId = e.target.value;
-    setSelectedProfileId(pId);
+    setSelectedProfileId(pId);selectProfile(user.id,pId);
     const chosen = profiles.find(p => p.id === pId);
     if (chosen) populateFromProfile(chosen);
   };
 
-  // 4-Tier AI Generator with 40-Second Timeout Integration
+  // AI tailoring is routed through the authenticated server-side gateway.
   const handleGenerateAI = async () => {
+    if (!selectedApp || !selectedProfileId) return;
     setGeneratingAI(true);
-
-    const prompt = `You are an elite ATS resume optimizer.
-    
-CANDIDATE DATA:
-Name: ${resumeData.personal.fullName}
-Summary: ${resumeData.summary.text}
-Skills: ${resumeData.skills.map(s => s.name).join(', ')}
-Experience: ${JSON.stringify(resumeData.experience)}
-Projects: ${JSON.stringify(resumeData.projects)}
-
-TARGET OPPORTUNITY:
-Position: ${selectedApp?.title || 'General Position'}
-Organization: ${selectedApp?.organization || 'Target Organization'}
-Requirements: ${selectedApp?.tags ? selectedApp.tags.join(', ') : 'Not specified'}
-
-TASK: 
-1. Write a masterful 3-sentence summary highlighting why this candidate is perfect for this specific role.
-2. Rewrite the Experience and Projects bullet points to align with the target opportunity requirements. Use strong action verbs.
-3. Extract and organize the most relevant Skills.
-
-Return ONLY valid JSON (no markdown formatting, no backticks, no comments):
-{
-  "title": "Professional Title (Tailored)",
-  "summary": "Tailored 3-sentence summary",
-  "skills": ["Skill 1", "Skill 2"],
-  "experience": [{"role": "Title", "company": "Org", "period": "Date", "highlights": ["Optimized bullet 1", "Optimized bullet 2"]}],
-  "projects": [{"name": "Proj Name", "role": "Role", "description": "Tailored description mapping to job requirements"}]
-}`;
-
-    let jsonText = "";
-
-    // 🟢 TIER 1A: CGU Institutional Gateway (GPT-4o) with 40s Timeout
     try {
-      console.log("Attempting CGU Gateway GPT-4o (Tier 1A) with 40s timeout...");
-      const cguKey = import.meta.env.VITE_CGU_API_KEY;
-      if (!cguKey) throw new Error("VITE_CGU_API_KEY is not defined in .env");
-
-      const cguRes = await fetch('/cgullmapi/v1/chat/completions', {
-        method: 'POST', 
-        headers: { 
-          'Content-Type': 'application/json', 
-          'Authorization': `Bearer ${cguKey}` 
-        },
-        body: JSON.stringify({ 
-          model: "gpt-4o", 
-          messages: [
-            { role: "system", content: "You output valid JSON only." }, 
-            { role: "user", content: prompt }
-          ],
-          response_format: { type: "json_object" } 
-        }),
-        signal: AbortSignal.timeout(40000) // 40-second timeout limit
-      });
-      
-      if (!cguRes.ok) throw new Error(await cguRes.text());
-      jsonText = (await cguRes.json()).choices[0].message.content;
-      console.log("✅ CGU Gateway GPT-4o Succeeded!");
-
-    } catch (err1a) {
-      console.warn("CGU GPT-4o Failed or timed out after 40s, attempting CGU Local Model (Tier 1B)...", err1a.message);
-      
-      // 🟢 TIER 1B: CGU Local Model (gpt-oss:20b - Free Quota) with 40s Timeout
-      try {
-        const cguKey = import.meta.env.VITE_CGU_API_KEY;
-        if (!cguKey) throw new Error("VITE_CGU_API_KEY is not defined in .env");
-
-        const cguLocalRes = await fetch('https://air.cgu.edu.tw/cgullmapi/v1/chat/completions', {
-          method: 'POST', 
-          headers: { 
-            'Content-Type': 'application/json', 
-            'Authorization': `Bearer ${cguKey}` 
-          },
-          body: JSON.stringify({ 
-            model: "gpt-oss:20b", 
-            messages: [
-              { role: "system", content: "You output valid JSON only." }, 
-              { role: "user", content: prompt }
-            ]
-          }),
-          signal: AbortSignal.timeout(40000) // 40-second timeout limit
-        });
-
-        if (!cguLocalRes.ok) throw new Error(await cguLocalRes.text());
-        jsonText = (await cguLocalRes.json()).choices[0].message.content;
-        console.log("✅ CGU Local Model Succeeded!");
-
-      } catch (err1b) {
-        console.warn("CGU Local Model Failed or timed out after 40s, attempting Groq (Tier 2)...", err1b.message);
-        
-        // 🟡 TIER 2: Groq Fallback with 40s Timeout
-        try {
-          const groqKey = import.meta.env.VITE_GROQ_API_KEY;
-          if (!groqKey) throw new Error("VITE_GROQ_API_KEY is not defined in .env");
-
-          const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-            method: 'POST', 
-            headers: { 
-              'Content-Type': 'application/json', 
-              'Authorization': `Bearer ${groqKey}` 
-            },
-            body: JSON.stringify({ 
-              model: "openai/gpt-oss-120b", 
-              messages: [
-                { role: "system", content: "You output valid JSON only. Do not wrap in markdown. Begin immediately with {" }, 
-                { role: "user", content: prompt }
-              ]
-            }),
-            signal: AbortSignal.timeout(40000) // 40-second timeout limit
-          });
-          
-          if (!groqRes.ok) throw new Error(await groqRes.text());
-          jsonText = (await groqRes.json()).choices[0].message.content;
-          console.log("✅ Groq Succeeded!");
-
-        } catch (err2) {
-          console.warn("Groq Failed or timed out after 40s, attempting Gemini (Tier 3)...", err2.message);
-          
-          // 🟠 TIER 3: Gemini Fallback
-          try {
-            const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
-            if (!geminiKey) throw new Error("VITE_GEMINI_API_KEY is missing");
-
-            const genAI = new GoogleGenerativeAI(geminiKey);
-            const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
-            jsonText = (await model.generateContent(prompt)).response.text();
-            console.log("✅ Gemini Succeeded!");
-            
-          } catch (err3) {
-            console.error("All APIs failed or timed out:", err3.message);
-            alert("AI Generation failed or timed out across all networks. Please try again later.");
-            setGeneratingAI(false); 
-            return;
-          }
-        }
-      }
-    }
-
-    try {
-      const parsed = JSON.parse(jsonText.replace(/```json/gi, '').replace(/```/g, '').trim());
-      
+      const result = await runAiAction('resume_tailor', { profileId: selectedProfileId, opportunityId: selectedApp.id });
+      const parsed = result.structured || JSON.parse((result.text || '').replace(/```json/gi, '').replace(/```/g, '').trim());
       setResumeData(prev => ({
-        ...prev, 
+        ...prev,
         personal: { ...prev.personal, title: parsed.title || prev.personal.title },
         summary: { text: parsed.summary || prev.summary.text, visible: true },
-        skills: (parsed.skills || []).map((s, i) => ({ id: `ai_sk_${i}`, name: s, visible: true })),
-        experience: (parsed.experience || []).map((exp, i) => ({ id: `ai_exp_${i}`, ...exp, visible: true })),
+        skills: (parsed.skills || prev.skills.map(s => s.name)).map((skill, i) => ({ id: `ai_sk_${i}`, name: typeof skill === 'string' ? skill : skill.name, visible: true })),
+        experience: (parsed.experience || prev.experience).map((exp, i) => ({ id: `ai_exp_${i}`, ...exp, visible: true })),
         projects: (parsed.projects || prev.projects).map((proj, i) => ({ id: `ai_proj_${i}`, ...proj, visible: true }))
       }));
-      
     } catch (e) {
-      console.error("JSON parsing error:", e, jsonText);
-      alert("AI returned invalid JSON. Please try generating again.");
-    } finally {
-      setGeneratingAI(false);
-    }
+      notify(e.code === 'quota_exceeded' ? 'Your AI allowance is used. Upgrade from Plans & Billing.' : (e.message || 'AI resume tailoring failed.'));
+    } finally { setGeneratingAI(false); }
   };
 
   const toggleArrayItem = (field, id) => {
@@ -558,7 +419,7 @@ Return ONLY valid JSON (no markdown formatting, no backticks, no comments):
 
   const ToggleList = ({ title, icon: Icon, field, dataArray, renderContent }) => (
     dataArray && dataArray.length > 0 && (
-      <div className="space-y-3 bg-slate-900/40 p-4 rounded-2xl border border-slate-700/40">
+      <div className="space-y-3 bg-white/40 dark:bg-slate-900/40 p-4 rounded-2xl border border-slate-300/40 dark:border-slate-700/40">
         <h2 className="text-xs font-extrabold uppercase tracking-wider text-indigo-400 flex items-center gap-1">
           <Icon className="w-3.5 h-3.5" /> {title}
         </h2>
@@ -566,7 +427,7 @@ Return ONLY valid JSON (no markdown formatting, no backticks, no comments):
           {dataArray.map(item => (
             <div key={item.id} className={`p-3 rounded-xl border flex items-start justify-between gap-3 ${item.visible ? 'bg-slate-800 border-slate-700' : 'bg-slate-900/60 border-slate-800 opacity-50'}`}>
               <div>{renderContent(item)}</div>
-              <button onClick={() => toggleArrayItem(field, item.id)} className="text-slate-400 hover:text-white p-1 shrink-0">
+              <button onClick={() => toggleArrayItem(field, item.id)} className="text-slate-600 dark:text-slate-400 hover:text-white p-1 shrink-0">
                 {item.visible ? <Eye className="w-4 h-4 text-indigo-400" /> : <EyeOff className="w-4 h-4" />}
               </button>
             </div>
@@ -577,29 +438,29 @@ Return ONLY valid JSON (no markdown formatting, no backticks, no comments):
   );
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 lg:h-[calc(100vh-5.5rem)] min-h-screen lg:min-h-0 p-4 lg:p-6 bg-slate-900 text-slate-100">
-      
+    <div className="flex flex-col lg:flex-row gap-6 lg:h-[calc(100vh-5.5rem)] min-h-screen lg:min-h-0 p-4 lg:p-6 bg-white dark:bg-slate-900 text-slate-100">
+
       {/* 🛠️ LEFT PANEL: CONTROLS & CHECKBOXES */}
-      <div className="w-full lg:w-5/12 bg-slate-800/80 border border-slate-700/60 rounded-3xl p-5 overflow-y-auto space-y-5 shrink-0 shadow-xl scrollbar-none">
-        
+      <div className="w-full lg:w-5/12 bg-slate-100/80 dark:bg-slate-800/80 border border-slate-300/60 dark:border-slate-700/60 rounded-3xl p-5 overflow-y-auto space-y-5 shrink-0 shadow-xl scrollbar-none">
+
         <div>
-          <h1 className="text-xl font-extrabold text-white flex items-center gap-2 mb-1">
+          <h1 className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2 mb-1">
             <FileText className="w-5 h-5 text-indigo-400" /> Resume Studio
           </h1>
-          <p className="text-xs text-slate-400 mb-4">Toggle items and select templates to build your document.</p>
+          <p className="text-xs text-slate-600 dark:text-slate-400 mb-4">Toggle items and select templates to build your document.</p>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-900/60 p-3 rounded-2xl border border-slate-700/50 mb-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white/60 dark:bg-slate-900/60 p-3 rounded-2xl border border-slate-300/50 dark:border-slate-700/50 mb-3">
             <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Active Profile</label>
-              <select value={selectedProfileId} onChange={handleProfileChange} className="w-full bg-slate-800 text-white text-xs font-semibold px-3 py-2 rounded-xl border border-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer">
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">Active Profile</label>
+              <select value={selectedProfileId} onChange={handleProfileChange} className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-semibold px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer">
                 {profiles.map(p => <option key={p.id} value={p.id}>{p.profile_name}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center gap-1">
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1 flex items-center gap-1">
                 <Palette className="w-3 h-3 text-indigo-400" /> Template Style
               </label>
-              <select value={selectedTemplate} onChange={(e) => setSelectedTemplate(e.target.value)} className="w-full bg-slate-800 text-white text-xs font-semibold px-3 py-2 rounded-xl border border-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer">
+              <select value={selectedTemplate} onChange={(e) => setSelectedTemplate(e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-semibold px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer">
                 <option value="modern">Modern Indigo</option>
                 <option value="minimal">Clean Minimalist</option>
                 <option value="academic">Academic & Research</option>
@@ -607,11 +468,11 @@ Return ONLY valid JSON (no markdown formatting, no backticks, no comments):
             </div>
           </div>
 
-          <div className="bg-slate-900/60 p-3 rounded-2xl border border-slate-700/50">
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center gap-1">
+          <div className="bg-white/60 dark:bg-slate-900/60 p-3 rounded-2xl border border-slate-300/50 dark:border-slate-700/50">
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1 flex items-center gap-1">
               <Building2 className="w-3 h-3 text-indigo-400" /> Target Opportunity
             </label>
-            <select value={selectedApp?.appId || ''} onChange={(e) => setSelectedApp(applications.find(a => a.appId === e.target.value))} className="w-full bg-slate-800 text-white text-xs font-semibold px-3 py-2 rounded-xl border border-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer">
+            <select value={selectedApp?.appId || ''} onChange={(e) => setSelectedApp(applications.find(a => a.appId === e.target.value))} className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-semibold px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer">
               {applications.length === 0 && <option value="">No saved applications found</option>}
               {applications.map(app => <option key={app.appId} value={app.appId}>{app.title} at {app.organization}</option>)}
             </select>
@@ -626,68 +487,68 @@ Return ONLY valid JSON (no markdown formatting, no backticks, no comments):
         {/* ===================================== */}
         {/* GRANULAR CONTACT & BASIC TOGGLES */}
         {/* ===================================== */}
-        <div className="space-y-3 bg-slate-900/40 p-4 rounded-2xl border border-slate-700/40">
+        <div className="space-y-3 bg-white/40 dark:bg-slate-900/40 p-4 rounded-2xl border border-slate-300/40 dark:border-slate-700/40">
           <h2 className="text-xs font-extrabold uppercase tracking-wider text-indigo-400 flex items-center gap-1">
             <Contact className="w-3.5 h-3.5" /> Header & Contact Info
           </h2>
           <div className="grid grid-cols-2 gap-3">
-            <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-300">
-              <input type="checkbox" checked={resumeData.personal.showPhoto} onChange={() => togglePersonalItem('showPhoto')} className="rounded bg-slate-700 border-slate-600 text-indigo-600" /> Photo Avatar
+            <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300">
+              <input type="checkbox" checked={resumeData.personal.showPhoto} onChange={() => togglePersonalItem('showPhoto')} className="rounded bg-slate-200 dark:bg-slate-700 border-slate-600 text-indigo-600" /> Photo Avatar
             </label>
-            <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-300">
-              <input type="checkbox" checked={resumeData.personal.showTitle} onChange={() => togglePersonalItem('showTitle')} className="rounded bg-slate-700 border-slate-600 text-indigo-600" /> Professional Title
+            <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300">
+              <input type="checkbox" checked={resumeData.personal.showTitle} onChange={() => togglePersonalItem('showTitle')} className="rounded bg-slate-200 dark:bg-slate-700 border-slate-600 text-indigo-600" /> Professional Title
             </label>
-            <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-300">
-              <input type="checkbox" checked={resumeData.personal.showEmail} onChange={() => togglePersonalItem('showEmail')} className="rounded bg-slate-700 border-slate-600 text-indigo-600" /> Email Address
+            <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300">
+              <input type="checkbox" checked={resumeData.personal.showEmail} onChange={() => togglePersonalItem('showEmail')} className="rounded bg-slate-200 dark:bg-slate-700 border-slate-600 text-indigo-600" /> Email Address
             </label>
-            <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-300">
-              <input type="checkbox" checked={resumeData.personal.showPhone} onChange={() => togglePersonalItem('showPhone')} className="rounded bg-slate-700 border-slate-600 text-indigo-600" /> Phone Number
+            <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300">
+              <input type="checkbox" checked={resumeData.personal.showPhone} onChange={() => togglePersonalItem('showPhone')} className="rounded bg-slate-200 dark:bg-slate-700 border-slate-600 text-indigo-600" /> Phone Number
             </label>
-            <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-300">
-              <input type="checkbox" checked={resumeData.personal.showLocation} onChange={() => togglePersonalItem('showLocation')} className="rounded bg-slate-700 border-slate-600 text-indigo-600" /> Location
+            <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300">
+              <input type="checkbox" checked={resumeData.personal.showLocation} onChange={() => togglePersonalItem('showLocation')} className="rounded bg-slate-200 dark:bg-slate-700 border-slate-600 text-indigo-600" /> Location
             </label>
-            <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-300">
-              <input type="checkbox" checked={resumeData.personal.showLinkedin} onChange={() => togglePersonalItem('showLinkedin')} className="rounded bg-slate-700 border-slate-600 text-indigo-600" /> LinkedIn
+            <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300">
+              <input type="checkbox" checked={resumeData.personal.showLinkedin} onChange={() => togglePersonalItem('showLinkedin')} className="rounded bg-slate-200 dark:bg-slate-700 border-slate-600 text-indigo-600" /> LinkedIn
             </label>
-            <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-300">
-              <input type="checkbox" checked={resumeData.personal.showGithub} onChange={() => togglePersonalItem('showGithub')} className="rounded bg-slate-700 border-slate-600 text-indigo-600" /> GitHub
+            <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300">
+              <input type="checkbox" checked={resumeData.personal.showGithub} onChange={() => togglePersonalItem('showGithub')} className="rounded bg-slate-200 dark:bg-slate-700 border-slate-600 text-indigo-600" /> GitHub
             </label>
-            <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-300">
-              <input type="checkbox" checked={resumeData.personal.showWebsite} onChange={() => togglePersonalItem('showWebsite')} className="rounded bg-slate-700 border-slate-600 text-indigo-600" /> Website
+            <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300">
+              <input type="checkbox" checked={resumeData.personal.showWebsite} onChange={() => togglePersonalItem('showWebsite')} className="rounded bg-slate-200 dark:bg-slate-700 border-slate-600 text-indigo-600" /> Website
             </label>
-            <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-300 col-span-2 mt-2 pt-2 border-t border-slate-700/50">
-              <input type="checkbox" checked={resumeData.summary.visible} onChange={(e) => setResumeData(prev => ({ ...prev, summary: { ...prev.summary, visible: e.target.checked } }))} className="rounded bg-slate-700 border-slate-600 text-indigo-600" /> Include Executive Summary
+            <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300 col-span-2 mt-2 pt-2 border-t border-slate-300/50 dark:border-slate-700/50">
+              <input type="checkbox" checked={resumeData.summary.visible} onChange={(e) => setResumeData(prev => ({ ...prev, summary: { ...prev.summary, visible: e.target.checked } }))} className="rounded bg-slate-200 dark:bg-slate-700 border-slate-600 text-indigo-600" /> Include Executive Summary
             </label>
           </div>
         </div>
 
         {/* Dynamic Lists using Toggle Helper */}
         <ToggleList title="Experience" icon={Briefcase} field="experience" dataArray={resumeData.experience} renderContent={item => (
-          <><h3 className="text-xs font-bold text-white">{item.role}</h3><p className="text-[11px] text-slate-400">{item.company} • {item.period}</p></>
+          <><h3 className="text-xs font-bold text-slate-900 dark:text-white">{item.role}</h3><p className="text-[11px] text-slate-600 dark:text-slate-400">{item.company} • {item.period}</p></>
         )} />
-        
+
         <ToggleList title="Projects" icon={Code} field="projects" dataArray={resumeData.projects} renderContent={item => (
-          <><h3 className="text-xs font-bold text-white">{item.name}</h3><p className="text-[11px] text-slate-400">{item.role}</p></>
+          <><h3 className="text-xs font-bold text-slate-900 dark:text-white">{item.name}</h3><p className="text-[11px] text-slate-600 dark:text-slate-400">{item.role}</p></>
         )} />
 
         <ToggleList title="Publications" icon={BookOpen} field="publications" dataArray={resumeData.publications} renderContent={item => (
-          <><h3 className="text-xs font-bold text-white line-clamp-1">{item.title}</h3><p className="text-[11px] text-slate-400">{item.venue} • {item.year}</p></>
+          <><h3 className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1">{item.title}</h3><p className="text-[11px] text-slate-600 dark:text-slate-400">{item.venue} • {item.year}</p></>
         )} />
 
         <ToggleList title="Education" icon={GraduationCap} field="education" dataArray={resumeData.education} renderContent={item => (
-          <><h3 className="text-xs font-bold text-white">{item.degree}</h3><p className="text-[11px] text-slate-400">{item.institution} • {item.year}</p></>
+          <><h3 className="text-xs font-bold text-slate-900 dark:text-white">{item.degree}</h3><p className="text-[11px] text-slate-600 dark:text-slate-400">{item.institution} • {item.year}</p></>
         )} />
 
         <ToggleList title="Awards & Honors" icon={Award} field="awards" dataArray={resumeData.awards} renderContent={item => (
-          <><h3 className="text-xs font-bold text-white">{item.name}</h3><p className="text-[11px] text-slate-400">{item.issuer} • {item.year}</p></>
+          <><h3 className="text-xs font-bold text-slate-900 dark:text-white">{item.name}</h3><p className="text-[11px] text-slate-600 dark:text-slate-400">{item.issuer} • {item.year}</p></>
         )} />
 
         <ToggleList title="Certifications" icon={BadgeCheck} field="certifications" dataArray={resumeData.certifications} renderContent={item => (
-          <><h3 className="text-xs font-bold text-white">{item.name}</h3><p className="text-[11px] text-slate-400">{item.issuer} • {item.year}</p></>
+          <><h3 className="text-xs font-bold text-slate-900 dark:text-white">{item.name}</h3><p className="text-[11px] text-slate-600 dark:text-slate-400">{item.issuer} • {item.year}</p></>
         )} />
 
         {resumeData.researchInterests.length > 0 && (
-          <div className="space-y-3 bg-slate-900/40 p-4 rounded-2xl border border-slate-700/40">
+          <div className="space-y-3 bg-white/40 dark:bg-slate-900/40 p-4 rounded-2xl border border-slate-300/40 dark:border-slate-700/40">
             <h2 className="text-xs font-extrabold uppercase tracking-wider text-indigo-400 flex items-center gap-1"><Microscope className="w-3.5 h-3.5"/> Research Interests</h2>
             <div className="flex flex-wrap gap-2">
               {resumeData.researchInterests.map(interest => (
@@ -700,7 +561,7 @@ Return ONLY valid JSON (no markdown formatting, no backticks, no comments):
         )}
 
         {resumeData.skills.length > 0 && (
-          <div className="space-y-3 bg-slate-900/40 p-4 rounded-2xl border border-slate-700/40">
+          <div className="space-y-3 bg-white/40 dark:bg-slate-900/40 p-4 rounded-2xl border border-slate-300/40 dark:border-slate-700/40">
             <h2 className="text-xs font-extrabold uppercase tracking-wider text-indigo-400 flex items-center gap-1"><Code className="w-3.5 h-3.5"/> Technical Skills</h2>
             <div className="flex flex-wrap gap-2">
               {resumeData.skills.map(skill => (
@@ -713,7 +574,7 @@ Return ONLY valid JSON (no markdown formatting, no backticks, no comments):
         )}
 
         {resumeData.languages.length > 0 && (
-          <div className="space-y-3 bg-slate-900/40 p-4 rounded-2xl border border-slate-700/40">
+          <div className="space-y-3 bg-white/40 dark:bg-slate-900/40 p-4 rounded-2xl border border-slate-300/40 dark:border-slate-700/40">
             <h2 className="text-xs font-extrabold uppercase tracking-wider text-indigo-400 flex items-center gap-1"><Globe className="w-3.5 h-3.5"/> Languages</h2>
             <div className="flex flex-wrap gap-2">
               {resumeData.languages.map(lang => (
@@ -728,11 +589,11 @@ Return ONLY valid JSON (no markdown formatting, no backticks, no comments):
       </div>
 
       {/* 📄 RIGHT PANEL: LIVE PDF PREVIEW */}
-      <div className="flex-1 flex flex-col bg-slate-800/50 border border-slate-700/60 rounded-3xl overflow-hidden shadow-2xl">
-        <div className="p-4 bg-slate-800 border-b border-slate-700 flex justify-between items-center shrink-0">
+      <div className="flex-1 flex flex-col bg-slate-100/50 dark:bg-slate-800/50 border border-slate-300/60 dark:border-slate-700/60 rounded-3xl overflow-hidden shadow-2xl">
+        <div className="p-4 bg-slate-100 dark:bg-slate-800 border-b border-slate-300 dark:border-slate-700 flex justify-between items-center shrink-0">
           <div>
-            <h2 className="text-sm font-bold text-white">Live PDF Preview</h2>
-            <p className="text-xs text-slate-400">Updates dynamically with active checkboxes</p>
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white">Live PDF Preview</h2>
+            <p className="text-xs text-slate-600 dark:text-slate-400">Updates dynamically with active checkboxes</p>
           </div>
 
           <PDFDownloadLink
@@ -748,7 +609,7 @@ Return ONLY valid JSON (no markdown formatting, no backticks, no comments):
           </PDFDownloadLink>
         </div>
 
-        <div className="flex-1 p-3 sm:p-6 bg-slate-950 flex items-center justify-center">
+        <div className="flex-1 p-3 sm:p-6 bg-slate-50 dark:bg-slate-950 flex items-center justify-center">
           <PDFViewer width="100%" height="100%" className="rounded-2xl border-none shadow-2xl">
             <UniversalResumePDF data={resumeData} templateId={selectedTemplate} />
           </PDFViewer>

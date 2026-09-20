@@ -1,62 +1,36 @@
-name: Daily Regional Blog Agent
+name: ScholarPortal Sitemap Refresh
 
 on:
   schedule:
-    # Runs at 00:00 UTC (9:00 AM CST) every single day
     - cron: '17 1 * * *'
-  workflow_dispatch: # Gives you a "Run workflow" button in GitHub to trigger it manually
+  workflow_dispatch:
 
 jobs:
-  run-agent:
+  sitemap:
     runs-on: ubuntu-latest
-    
-    # Grants permissions for the bot to push the sitemap back to your repo
     permissions:
-      contents: write 
-
+      contents: write
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          
-      - name: Install Dependencies
-        run: |
-          pip install groq google-genai supabase beautifulsoup4 requests python-dotenv ddgs
-
-      - name: Run Regional Blog Agent
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          VITE_GROQ_API_KEY: ${{ secrets.VITE_GROQ_API_KEY }}
-          VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
-          LINE_CHANNEL_ACCESS_TOKEN_blog: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN_blog }}
-          LINE_USER_ID_blog: ${{ secrets.LINE_USER_ID_blog }}
-        # Tells GitHub to run the script from inside the Blog_Agent folder
+      - name: Install sitemap dependencies
+        run: pip install -r Agent/requirements.txt
+      - name: Generate sitemap only from database content
         working-directory: ./Blog_Agent
-        run: python blog_agent.py
-
-      - name: Commit and Push Updated Sitemap
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SCHOLARPORTAL_BASE_URL: ${{ vars.SCHOLARPORTAL_BASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python generate_sitemap.py
+      - name: Commit sitemap if changed
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          
-          # 1. Stage ONLY the sitemap
-          git add public/sitemap.xml
-          
-          # 2. Check if the sitemap actually changed
+          git add public/sitemap.xml public/robots.txt public/seo-pages.json
           if ! git diff --staged --quiet; then
-            git commit -m "🤖 Auto-updated sitemap.xml"
-            
-            # 3. Sweep away any leftover temporary files (like __pycache__) so Git doesn't panic
-            git stash push --include-untracked
-            
-            # 4. Safely pull new code and push
+            git commit -m "chore: refresh verified ScholarPortal sitemap"
             git pull --rebase origin main
             git push origin main
-          else
-            echo "No new sitemap updates today. Skipping commit."
           fi

@@ -1,20 +1,24 @@
+import { Helmet } from 'react-helmet-async';
+import { safeUrl } from '../lib/opportunities';
+import {supabase} from '../lib/supabase';
+import { ArticleMetadata } from '../components/PageMetadata';
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { createClient } from '@supabase/supabase-js';
+import { sanitizeRichHtml } from '../lib/sanitize';
+import Engagement from '../components/Engagement';
 import { motion } from 'framer-motion';
 import { 
   ArrowLeft, Clock, Calendar, ExternalLink, 
   Tag, Loader2, AlertCircle, Sparkles
 } from 'lucide-react';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
 
 export default function OpportunityBlog() {
   const { id } = useParams();
   const navigate = useNavigate();
   
+  const [articleStatus,setArticleStatus]=useState('pending');
   const [blog, setBlog] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -23,15 +27,16 @@ export default function OpportunityBlog() {
   useEffect(() => {
     async function fetchBlogData() {
       try {
-        setLoading(true);
+        setLoading(true);setError(null);setBlog(null);
         const { data, error } = await supabase
           .from('opportunity_blogs')
           .select('*')
           .eq('opportunity_id', id)
+          .not('content','is',null).neq('content','').order('updated_at',{ascending:false}).limit(1)
           .maybeSingle();
 
         if (error) throw error;
-        if (!data) throw new Error("No blog post exists for this opportunity yet.");
+        if (!data) {const status=await supabase.rpc('opportunity_article_status',{opportunity:id});setArticleStatus(status.data||'pending');return;}
         
         setBlog(data);
       } catch (err) {
@@ -59,7 +64,7 @@ export default function OpportunityBlog() {
                      prose-headings:font-extrabold prose-headings:text-slate-900 dark:prose-headings:text-slate-100
                      prose-p:text-slate-700 dark:prose-p:text-slate-300 prose-p:leading-[1.8]
                      prose-a:text-indigo-600 dark:prose-a:text-indigo-400 prose-a:font-semibold"
-          dangerouslySetInnerHTML={{ __html: content }}
+          dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(content) }}
         />
       );
     }
@@ -116,9 +121,9 @@ export default function OpportunityBlog() {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-[#020617] flex items-center justify-center p-6">
         <div className="max-w-md w-full bg-white dark:bg-slate-900 rounded-3xl p-8 text-center shadow-xl border border-slate-200 dark:border-slate-800">
-          <AlertCircle className="w-12 h-12 text-rose-500 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Blog Not Found</h2>
-          <p className="text-slate-600 dark:text-slate-400 text-sm mb-6">{error}</p>
+          <Helmet><meta name="robots" content="noindex,follow"/></Helmet><AlertCircle className="w-12 h-12 text-rose-500 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{error?'Article unavailable':articleStatus==='failed'?'Article generation needs attention':'Article pending'}</h2>
+          <p className="text-slate-600 dark:text-slate-400 text-sm mb-6">{error||'This opportunity’s deep dive is not available yet. Please check again later.'}</p><button className="admin-action mb-3" onClick={()=>window.location.reload()}>Check again</button>
           <button 
             onClick={() => navigate(-1)}
             className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold transition-all"
@@ -133,6 +138,7 @@ export default function OpportunityBlog() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#020617] transition-colors duration-300 pb-24 selection:bg-indigo-500/30">
       
+      <ArticleMetadata title={blog.title} description={blog.excerpt} path={`/opportunity/${id}/blog`} image={blog.image} date={blog.updated_at||blog.created_at}/>
       {/* Navigation Bar */}
       <div className="sticky top-0 z-40 bg-white/80 dark:bg-[#020617]/80 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800/80">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center">
@@ -208,7 +214,7 @@ export default function OpportunityBlog() {
         </div>
 
         {/* Call to Action Footer */}
-        {blog.original_link && (
+        {safeUrl(blog.original_link) && (
           <div className="mt-16 max-w-3xl mx-auto bg-gradient-to-br from-indigo-50 dark:from-indigo-950/40 to-sky-50 dark:to-cyan-950/20 border border-indigo-100 dark:border-indigo-500/30 rounded-[2.5rem] p-10 sm:p-16 text-center shadow-lg relative overflow-hidden">
             <h3 className="text-3xl font-extrabold text-slate-900 dark:text-white mb-5 relative z-10">
               Ready to take the next step?
@@ -217,7 +223,7 @@ export default function OpportunityBlog() {
               Review the official guidelines and prepare your application materials before the deadline approaches.
             </p>
             <a
-              href={blog.original_link}
+              href={safeUrl(blog.original_link)}
               target="_blank"
               rel="noopener noreferrer"
               className="relative z-10 inline-flex items-center justify-center gap-3 px-12 py-5 rounded-full bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white font-bold text-lg transition-all shadow-[0_10px_40px_rgba(79,70,229,0.3)] transform hover:-translate-y-1"
@@ -226,6 +232,7 @@ export default function OpportunityBlog() {
             </a>
           </div>
         )}
+        <div className="max-w-4xl mx-auto"><Engagement contentType="opportunity" contentId={id} /></div>
 
       </motion.article>
     </div>

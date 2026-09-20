@@ -2,10 +2,8 @@ Flask
 line-bot-sdk
 supabase
 python-dotenv
-google-genai
-groq
 requests
 gunicorn
 beautifulsoup4
-cloudinary
-Pillow
+
+google-auth

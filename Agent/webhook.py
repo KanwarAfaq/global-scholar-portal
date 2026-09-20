@@ -24,11 +24,13 @@ app = Flask(__name__)
 LINE_CHANNEL_ACCESS_TOKEN = os.getenv('LINE_CHANNEL_ACCESS_TOKEN')
 LINE_CHANNEL_SECRET = os.getenv('LINE_CHANNEL_SECRET')
 SUPABASE_URL = os.getenv('SUPABASE_URL')
-SUPABASE_KEY = os.getenv('SUPABASE_KEY') 
+SUPABASE_KEY = os.getenv('SUPABASE_SERVICE_ROLE_KEY') or os.getenv('SUPABASE_KEY')
 
 # Validate that the env variables actually loaded
 if not LINE_CHANNEL_ACCESS_TOKEN or not LINE_CHANNEL_SECRET:
     raise ValueError("CRITICAL: LINE environment variables are missing. Check your .env file!")
+if not SUPABASE_URL or not SUPABASE_KEY:
+    raise ValueError("CRITICAL: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required for the LINE webhook")
 
 # Initialize LINE v3 Configurations
 configuration = Configuration(access_token=LINE_CHANNEL_ACCESS_TOKEN)
@@ -76,16 +78,33 @@ def handle_message(event):
     if user_message.isdigit() and len(user_message) == 6:
         try:
             # 1. Search Supabase for this code
-            response = supabase.table('user_settings').select('*').eq('line_verification_code', user_message).execute()
+            response = (supabase.table('user_settings')
+                        .select('user_id,line_verification_expires_at')
+                        .eq('line_verification_code', user_message)
+                        .limit(2)
+                        .execute())
             
-            if response.data and len(response.data) > 0:
+            if response.data and len(response.data) == 1:
+                row = response.data[0]
+                expires_at = row.get('line_verification_expires_at')
+                if expires_at:
+                    from datetime import datetime, timezone
+                    try:
+                        expiry = datetime.fromisoformat(expires_at.replace('Z', '+00:00'))
+                        if expiry < datetime.now(timezone.utc):
+                            supabase.table('user_settings').update({'line_verification_code': None, 'line_verification_expires_at': None}).eq('user_id', row['user_id']).execute()
+                            send_reply("❌ This verification code expired. Generate a new one in ScholarPortal Settings.")
+                            return
+                    except Exception:
+                        pass
                 # 2. Match found! Get the user's UUID
-                db_user_id = response.data[0]['user_id']
+                db_user_id = row['user_id']
                 
                 # 3. Update the database to link the LINE ID and wipe the temporary code
                 supabase.table('user_settings').update({
                     'line_user_id': line_user_id,
-                    'line_verification_code': None
+                    'line_verification_code': None,
+                    'line_verification_expires_at': None
                 }).eq('user_id', db_user_id).execute()
 
                 # 4. Reply with success

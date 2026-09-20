@@ -1,0 +1,10 @@
+project_id = "global-scholar-portal"
+
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.otp-request]
+verify_jwt = false
+
+[functions.otp-verify]
+verify_jwt = false
