@@ -12,4 +12,3 @@ Disallow: /notifications
 Disallow: /resume-builder
 
 Sitemap: https://scholarportal.site/sitemap.xml
-
