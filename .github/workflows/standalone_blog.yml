@@ -5,6 +5,13 @@ on:
     # 02:47 UTC daily (10:47 Taiwan)
     - cron: '47 2 * * *'
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/standalone_blog.yml'
+      - 'Blog_Agent/**'
+      - 'Agent/content_pipeline.py'
+      - 'Agent/core.py'
 
 jobs:
   run-agents:
