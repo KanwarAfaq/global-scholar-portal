@@ -1,0 +1,10 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {normalizeProfile} from '../src/lib/profile.js';
+import {deterministicMatch} from '../supabase/functions/_shared/matching.ts';
+import {officialUrl,daysLeft} from '../src/lib/opportunities.js';
+test('grouped legacy skills and education survive normalization',()=>{const p=normalizeProfile({technical_skills:{cloud:['AWS','GCP'],languages:['Go']},research_interests:['Edge AI'],education:[{school:'NUST',degree:'Master of Computer Science'}],experience:[{company:'Example'}],publications:[{journal:'Journal A'}]});assert.equal(p.technical_skills[0].skills,'AWS, GCP');assert.equal(p.education[0].institution,'NUST');assert.equal(p.experience[0].organization,'Example');assert.equal(p.publications[0].venue,'Journal A');assert.equal(p.research_interests[0].name,'Edge AI');});
+test('career title does not disqualify a Master graduate from PhD',()=>{const r=deterministicMatch({profile_name:'Senior Lead',education:[{degree:'Master of Computer Science'}]},{type:'PhD',description:"Must hold a Master's degree",field:'Computer Science'});assert.equal(r.eligible,true);assert.ok(r.matched_rules.some(x=>x.includes('Academic degree')));});
+test('missing education remains unknown',()=>{assert.equal(deterministicMatch({profile_name:'PhD'},{eligibility:{minimum_degree:'Master'}}).eligible,null);});
+test('known Bachelor cannot satisfy a stated Master minimum',()=>{assert.equal(deterministicMatch({education:[{degree:'Bachelor'}]},{eligibility:{minimum_degree:'Master'}}).eligible,false);});
+test('GPA scales and citizenship location do not create false certainty',()=>{const r=deterministicMatch({location:'Denmark',gpa:3.5,gpa_scale:4},{eligibility:{countries:['Denmark'],min_gpa:3}});assert.equal(r.eligible,null);});
+test('official destination accepts only http protocols',()=>{assert.equal(officialUrl({official_source_url:'javascript:alert(1)',url:'https://example.org/apply?id=42'}),'https://example.org/apply?id=42');assert.equal(daysLeft('Unknown'),null);});
