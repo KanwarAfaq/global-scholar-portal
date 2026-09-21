@@ -18,6 +18,25 @@ export default function BlogPost() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const renderMarkdown = (content) => {
+    if (!content) return null;
+    if (/<(p|h[1-6]|ul|ol|li|strong|em|div|span)[\s>]/i.test(content)) {
+      return <div dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(content) }} />;
+    }
+    const inline = (value, key) => String(value).split(/(\*\*[^*]+\*\*|__[^_]+__|\*[^*]+\*|_[^_]+_|`[^`]+`)/g).filter(Boolean).map((token, index) => {
+      if ((token.startsWith('**') && token.endsWith('**')) || (token.startsWith('__') && token.endsWith('__'))) return <strong key={`${key}-b-${index}`}>{token.slice(2, -2)}</strong>;
+      if ((token.startsWith('*') && token.endsWith('*')) || (token.startsWith('_') && token.endsWith('_'))) return <em key={`${key}-i-${index}`}>{token.slice(1, -1)}</em>;
+      if (token.startsWith('`') && token.endsWith('`')) return <code key={`${key}-c-${index}`} className="rounded bg-slate-100 px-1.5 py-0.5 dark:bg-slate-800">{token.slice(1, -1)}</code>;
+      return <React.Fragment key={`${key}-t-${index}`}>{token}</React.Fragment>;
+    });
+    return String(content).split(/\r?\n/).map(line => line.trim()).filter(Boolean).map((line, index) => {
+      const heading = line.match(/^(#{1,6})\s+(.+)$/);
+      if (heading) return <h3 key={index} className="mt-8 mb-4 text-2xl font-bold text-slate-900 dark:text-white">{inline(heading[2], `h-${index}`)}</h3>;
+      if (/^[-*•]\s/.test(line) || /^\d+\.\s/.test(line)) return <div key={index} className="flex gap-3 mb-3"><span className="text-indigo-500">{/^\d+\.\s/.test(line) ? line.match(/^\d+/)[0] : '•'}</span><p>{inline(line.replace(/^([-*•]|\d+\.)\s/, ''), `l-${index}`)}</p></div>;
+      return <p key={index} className="mb-6">{inline(line, `p-${index}`)}</p>;
+    });
+  };
+
   useEffect(() => {
     async function fetchPostData() {
       setLoading(true);
@@ -130,8 +149,7 @@ export default function BlogPost() {
                      [&>h3]:text-2xl [&>h3]:font-bold [&>h3]:text-slate-900 dark:[&>h3]:text-white [&>h3]:mt-8 [&>h3]:mb-4 [&>h3]:transition-colors
                      [&>ul]:list-disc [&>ul]:list-inside [&>ul]:space-y-2 [&>ul]:bg-slate-50 dark:[&>ul]:bg-slate-800/30 [&>ul]:p-6 [&>ul]:rounded-2xl [&>ul]:border [&>ul]:border-slate-200 dark:[&>ul]:border-slate-800 [&>ul]:my-6 [&>ul]:transition-colors
                      [&>p]:mb-6"
-          dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(post.content) }} 
-        />
+        >{renderMarkdown(post.content)}</div>
 
         {/* Official Source Call-to-Action */}
         {post.original_link && (
