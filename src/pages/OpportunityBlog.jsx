@@ -82,7 +82,20 @@ export default function OpportunityBlog() {
     if (id) fetchBlogData();
   }, [id]);
 
-  // --- BULLETPROOF TEXT RENDERER ---
+  const renderInlineMarkdown = (value, keyPrefix='line') => {
+    const source = String(value || '');
+    return source.split(/(\*\*[^*]+\*\*|__[^_]+__|\*[^*]+\*|_[^_]+_|`[^`]+`)/g).filter(Boolean).map((token, index) => {
+      if ((token.startsWith('**') && token.endsWith('**')) || (token.startsWith('__') && token.endsWith('__')))
+        return <strong key={`${keyPrefix}-strong-${index}`}>{token.slice(2, -2)}</strong>;
+      if ((token.startsWith('*') && token.endsWith('*')) || (token.startsWith('_') && token.endsWith('_')))
+        return <em key={`${keyPrefix}-em-${index}`}>{token.slice(1, -1)}</em>;
+      if (token.startsWith('`') && token.endsWith('`'))
+        return <code key={`${keyPrefix}-code-${index}`} className="rounded bg-slate-100 px-1.5 py-0.5 text-[0.9em] dark:bg-slate-800">{token.slice(1, -1)}</code>;
+      return <React.Fragment key={`${keyPrefix}-text-${index}`}>{token}</React.Fragment>;
+    });
+  };
+
+  // Render stored plain text, Markdown, or trusted legacy HTML consistently.
   const renderContent = (content) => {
     if (!content) return null;
 
@@ -102,35 +115,37 @@ export default function OpportunityBlog() {
     }
 
     // If it's plain text (like in your screenshot), manually format it perfectly
-    const lines = content.split('\n').filter(line => line.trim() !== '');
+    const lines = content.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
     
     return (
       <div className="text-slate-700 dark:text-slate-300 text-lg md:text-xl leading-[1.8] space-y-5 max-w-none">
         {lines.map((line, index) => {
           const trimmed = line.trim();
           
-          // Detect headers: Short lines without ending punctuation
-          if (trimmed.length < 50 && !trimmed.endsWith('.') && !trimmed.endsWith(',')) {
+          const heading = trimmed.match(/^(#{1,6})\s+(.+)$/);
+          if (heading) {
+            const Heading = heading[1].length <= 2 ? 'h2' : 'h3';
             return (
-              <h3 key={index} className="text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white mt-10 mb-4 tracking-tight border-b border-slate-100 dark:border-slate-800 pb-3">
-                {trimmed}
-              </h3>
+              <Heading key={index} className="mt-10 mb-4 border-b border-slate-100 pb-3 text-2xl font-extrabold tracking-tight text-slate-900 dark:border-slate-800 dark:text-white md:text-3xl">
+                {renderInlineMarkdown(heading[2], `heading-${index}`)}
+              </Heading>
             );
           }
           
           // Detect bullet points: Starts with a dash, asterisk, or bullet
           if (trimmed.match(/^[-*•]\s/) || trimmed.match(/^\d+\.\s/)) {
+            const ordered = /^\d+\.\s/.test(trimmed);
             const cleanText = trimmed.replace(/^[-*•]\s|^\d+\.\s/, '');
             return (
-              <div key={index} className="flex items-start gap-3 ml-2 sm:ml-4">
-                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-2.5 shrink-0"></div>
-                <p>{cleanText}</p>
+              <div key={index} className="ml-2 flex items-start gap-3 sm:ml-4">
+                <div className="mt-2.5 shrink-0 text-indigo-500">{ordered ? trimmed.match(/^\d+/)[0] : '•'}</div>
+                <p>{renderInlineMarkdown(cleanText, `bullet-${index}`)}</p>
               </div>
             );
           }
 
           // Render normal paragraph
-          return <p key={index}>{trimmed}</p>;
+          return <p key={index}>{renderInlineMarkdown(trimmed, `paragraph-${index}`)}</p>;
         })}
       </div>
     );
