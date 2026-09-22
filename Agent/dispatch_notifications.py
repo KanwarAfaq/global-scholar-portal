@@ -6,7 +6,7 @@ from email.mime.text import MIMEText
 import requests
 from core import supabase, log_event, platform_setting
 
-SITE=os.getenv('SCHOLARPORTAL_BASE_URL','https://scholarportal.site').rstrip('/')
+SITE=(os.getenv('SCHOLARPORTAL_BASE_URL') or 'https://scholarportal.site').rstrip('/')
 
 def values(v):
     if isinstance(v,list): return [str(x).strip() for x in v if str(x).strip()]
@@ -57,27 +57,32 @@ def opportunity_email_card(opportunity):
     organization=escape(str(opportunity.get('organization') or 'Official institution'))
     deadline=escape(str(opportunity.get('deadline') or 'Check official source'))
     summary=escape(compact(opportunity.get('description') or opportunity.get('funding_details') or 'Review eligibility, funding and application requirements on ScholarPortal.'))
-    details=escape(portal_url(opportunity)); official=escape(official_url(opportunity))
+    details=escape(portal_url(opportunity))
     return f'''<div style="margin:18px 0;padding:20px;border:1px solid #e2e8f0;border-radius:14px;background:#ffffff">
       <h3 style="margin:0 0 6px;color:#172554;font-size:18px">{title}</h3>
       <p style="margin:0 0 8px;color:#475569"><b>{organization}</b> · Deadline: {deadline}</p>
       <p style="margin:0 0 16px;color:#475569;line-height:1.55">{summary}</p>
-      <a href="{details}" style="display:inline-block;padding:10px 15px;background:#4f46e5;color:#fff;border-radius:8px;text-decoration:none;font-weight:700;margin-right:8px">Read details on ScholarPortal</a>
-      <a href="{official}" style="display:inline-block;padding:10px 15px;background:#0f172a;color:#fff;border-radius:8px;text-decoration:none;font-weight:700">Official application</a>
+      <a href="{details}" style="display:inline-block;padding:11px 16px;background:#4f46e5;color:#fff;border-radius:8px;text-decoration:none;font-weight:700">Review on ScholarPortal</a>
+      <p style="margin:12px 0 0;color:#64748b;font-size:12px">The authentic official source and application link are available inside the ScholarPortal guide.</p>
     </div>'''
 
 def opportunity_line_block(opportunity):
     return '\n'.join([
         f"🎓 {opportunity.get('title') or 'Verified opportunity'}",
         f"🏛 {opportunity.get('organization') or 'Official institution'} · Deadline: {opportunity.get('deadline') or 'Check official source'}",
-        f"📖 Read details first: {portal_url(opportunity)}",
-        f"🌐 Official application: {official_url(opportunity)}",
+        f"📖 Review on ScholarPortal: {portal_url(opportunity)}",
+        "🔎 The authentic official source is available inside the guide.",
     ])
 
 def line_send(line_id,text):
     token=os.getenv('LINE_CHANNEL_ACCESS_TOKEN')
     if not token: raise RuntimeError('LINE not configured')
-    r=requests.post('https://api.line.me/v2/bot/message/push',headers={'Authorization':f'Bearer {token}','Content-Type':'application/json'},json={'to':line_id,'messages':[{'type':'text','text':text[:4900]}]},timeout=25);r.raise_for_status();return 'line'
+    r=requests.post('https://api.line.me/v2/bot/message/push',headers={'Authorization':f'Bearer {token}','Content-Type':'application/json'},json={'to':line_id,'messages':[{'type':'text','text':text[:4900]}]},timeout=25)
+    if not r.ok:
+        try: detail=(r.json() or {}).get('message') or r.text
+        except Exception: detail=r.text
+        raise RuntimeError(f'LINE push HTTP {r.status_code}: {compact(detail,240)}')
+    return 'line'
 
 class NotificationAgent:
     name='notification-agent'
@@ -149,13 +154,13 @@ class NotificationAgent:
                             if s.get('email_alerts_enabled') and email and not self.delivery_exists(uid,'email',key):
                                 try:
                                     watched=opp_map.get(w['opportunity_id']) or {'id':w['opportunity_id'],'title':meta.get('title')}
-                                    provider=EMAIL.send(email,f"ScholarPortal update: {meta.get('title') or 'watched opportunity'}",f"<div style='font-family:Arial,sans-serif;max-width:620px'><h2>Watched opportunity updated</h2><p>{escape(str(meta.get('title') or ''))}</p><p>Changed fields: {escape(', '.join(meta.get('changed_fields') or []) or 'See portal for details')}</p><p><a href='{escape(portal_url(watched))}'>Read details on ScholarPortal</a> · <a href='{escape(official_url(watched))}'>Official source</a></p></div>")
+                                    provider=EMAIL.send(email,f"ScholarPortal update: {meta.get('title') or 'watched opportunity'}",f"<div style='font-family:Arial,sans-serif;max-width:620px'><h2>Watched opportunity updated</h2><p>{escape(str(meta.get('title') or ''))}</p><p>Changed fields: {escape(', '.join(meta.get('changed_fields') or []) or 'See portal for details')}</p><p><a href='{escape(portal_url(watched))}'>Review the update on ScholarPortal</a></p><p style='font-size:12px;color:#64748b'>The authentic official source is available inside the guide.</p></div>")
                                     self.record(uid,w['opportunity_id'],'email',key,'opportunity_change',{'provider':provider,**meta});sent['email']+=1
                                 except Exception as e:log_event(self.name,f'change email {uid}: {e}','warn',run_id)
                             if s.get('line_alerts_enabled') and s.get('line_user_id') and not self.delivery_exists(uid,'line',key):
                                 try:
                                     watched=opp_map.get(w['opportunity_id']) or {'id':w['opportunity_id'],'title':meta.get('title')}
-                                    line_send(s['line_user_id'],f"🔔 ScholarPortal watchlist update\n{meta.get('title') or 'Opportunity changed'}\nChanged: {', '.join(meta.get('changed_fields') or []) or 'details updated'}\n📖 Details: {portal_url(watched)}\n🌐 Official source: {official_url(watched)}")
+                                    line_send(s['line_user_id'],f"🔔 ScholarPortal watchlist update\n{meta.get('title') or 'Opportunity changed'}\nChanged: {', '.join(meta.get('changed_fields') or []) or 'details updated'}\n📖 Review: {portal_url(watched)}\n🔎 Official source available inside the guide.")
                                     self.record(uid,w['opportunity_id'],'line',key,'opportunity_change',meta);sent['line']+=1
                                 except Exception as e:log_event(self.name,f'change LINE {uid}: {e}','warn',run_id)
                 if w.get('notify_deadline') and s.get('notify_deadline_reminders',True):
@@ -172,12 +177,12 @@ class NotificationAgent:
                                 self.record(uid,opp['id'],'in_app',key,'deadline_reminder',meta); sent['in_app']+=1
                             if s.get('email_alerts_enabled') and email and not self.delivery_exists(uid,'email',key):
                                 try:
-                                    provider=EMAIL.send(email,f"Deadline reminder: {opp.get('title')}",f"<div style='font-family:Arial,sans-serif;max-width:620px'><h2>{days} day{'s' if days!=1 else ''} left</h2><p>{escape(str(opp.get('title') or ''))}</p><p>Deadline: {escape(str(opp.get('deadline') or ''))}</p><p><a href='{escape(portal_url(opp))}'>Read details on ScholarPortal</a> · <a href='{escape(official_url(opp))}'>Official application</a></p></div>")
+                                    provider=EMAIL.send(email,f"Deadline reminder: {opp.get('title')}",f"<div style='font-family:Arial,sans-serif;max-width:620px'><h2>{days} day{'s' if days!=1 else ''} left</h2><p>{escape(str(opp.get('title') or ''))}</p><p>Deadline: {escape(str(opp.get('deadline') or ''))}</p><p><a href='{escape(portal_url(opp))}'>Review on ScholarPortal</a></p><p style='font-size:12px;color:#64748b'>The authentic official application link is available inside the guide.</p></div>")
                                     self.record(uid,opp['id'],'email',key,'deadline_reminder',{'provider':provider,**meta});sent['email']+=1
                                 except Exception as e:log_event(self.name,f'deadline email {uid}: {e}','warn',run_id)
                             if s.get('line_alerts_enabled') and s.get('line_user_id') and not self.delivery_exists(uid,'line',key):
                                 try:
-                                    line_send(s['line_user_id'],f"⏰ ScholarPortal deadline reminder\n{opp.get('title')}\n{days} day{'s' if days!=1 else ''} left · {opp.get('deadline')}\n📖 Details: {portal_url(opp)}\n🌐 Official application: {official_url(opp)}")
+                                    line_send(s['line_user_id'],f"⏰ ScholarPortal deadline reminder\n{opp.get('title')}\n{days} day{'s' if days!=1 else ''} left · {opp.get('deadline')}\n📖 Review: {portal_url(opp)}\n🔎 Official application link available inside the guide.")
                                     self.record(uid,opp['id'],'line',key,'deadline_reminder',meta);sent['line']+=1
                                 except Exception as e:log_event(self.name,f'deadline LINE {uid}: {e}','warn',run_id)
         return sent
@@ -205,21 +210,44 @@ class NotificationAgent:
             if not self.delivery_exists(uid,'in_app',key):
                 self.record(uid,None,'in_app',key,'workflow_summary',meta)
             if getattr(admin,'email',None):recipients.add(admin.email)
-        sent=0
+        sent=0; line_sent=0
         subject=f"ScholarPortal {workflow}: {status}"
-        short={
-            'status':status,
-            'opportunities':summary.get('opportunities',{}),
-            'articles':summary.get('opportunity_articles',{}),
-            'changes':summary.get('changes',0),
-            'notifications':summary.get('notifications',{}),
-            'error':summary.get('error'),
-        }
-        lines=[]
-        for key,value in short.items():
-            if value not in (None,{},[]): lines.append(f"<tr><td style='padding:7px 12px;color:#64748b'>{escape(key.replace('_',' ').title())}</td><td style='padding:7px 12px;font-weight:700;color:#0f172a'>{escape(compact(json.dumps(value,default=str),180))}</td></tr>")
-        html=f"<div style='font-family:Arial,sans-serif;max-width:620px;padding:22px;background:#f8fafc'><div style='padding:18px;border-radius:12px;background:#172554;color:#fff'><div style='font-size:12px;letter-spacing:1px;text-transform:uppercase;opacity:.8'>ScholarPortal Operations</div><h2 style='margin:7px 0 0'>{escape(subject)}</h2></div><table style='width:100%;margin-top:16px;border-collapse:collapse;background:#fff;border-radius:10px'>{''.join(lines)}</table><p style='font-size:12px;color:#64748b'>Open the admin console for full run details.</p></div>"
+        opportunities=summary.get('opportunities') or {}; articles=summary.get('opportunity_articles') or {}
+        social=summary.get('social_publications') or {}; user_alerts=summary.get('notifications') or {}
+        facts=[
+            ('Status',status.upper()),
+            ('Opportunities',f"{opportunities.get('verified_inserted',0)} published · {opportunities.get('needs_review',0)} sent to review · {opportunities.get('discovered',0)} discovered"),
+            ('Articles',f"{articles.get('created',0)} created · {articles.get('failed',0)} failed"),
+            ('Facebook',f"{social.get('published',0)} published · {social.get('errors',0)} errors"),
+            ('User alerts',f"{user_alerts.get('email',0)} email · {user_alerts.get('line',0)} LINE · {user_alerts.get('in_app',0)} in-app"),
+            ('Source changes',str(summary.get('changes',0))),
+        ]
+        if summary.get('error'): facts.append(('Error',compact(summary['error'],240)))
+        rows=''.join(f"<tr><td style='padding:10px 14px;border-bottom:1px solid #e2e8f0;color:#64748b;vertical-align:top'>{escape(label)}</td><td style='padding:10px 14px;border-bottom:1px solid #e2e8f0;font-weight:700;color:#0f172a'>{escape(value)}</td></tr>" for label,value in facts)
+        html=f"<div style='font-family:Arial,sans-serif;max-width:640px;margin:auto;padding:24px;background:#f8fafc;color:#0f172a'><div style='padding:22px;border-radius:16px;background:linear-gradient(135deg,#172554,#0e7490);color:#fff'><div style='font-size:12px;letter-spacing:1.2px;text-transform:uppercase;opacity:.82'>ScholarPortal Operations</div><h2 style='margin:8px 0 3px'>{escape(workflow.title())} workflow</h2><p style='margin:0;opacity:.9'>Completed with status: {escape(status)}</p></div><table role='presentation' style='width:100%;margin-top:16px;border-collapse:separate;border-spacing:0;background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden'>{rows}</table><p style='margin:18px 0 0'><a href='{escape(SITE)}/admin' style='display:inline-block;padding:11px 16px;background:#4f46e5;color:#fff;border-radius:8px;text-decoration:none;font-weight:700'>Open Admin Control</a></p><p style='font-size:12px;color:#64748b'>This is a short operational summary. Detailed warnings and review items remain in Trust &amp; Quality.</p></div>"
         for email in recipients:
-            try:EMAIL.send(email,subject,html);sent+=1
+            try:
+                EMAIL.send(email,subject,html);sent+=1
+                admin_user=next((u for u in admins if str(getattr(u,'email','')).lower()==email.lower()),None)
+                if admin_user:self.record(str(admin_user.id),None,'email',key,'workflow_summary',meta)
             except Exception as e:log_event(self.name,f'admin email {email}: {e}','warn',run_id)
-        return {'in_app':len(admins),'email':sent,'recipients':len(recipients)}
+        admin_ids=[str(a.id) for a in admins]
+        line_settings=[]
+        if admin_ids:
+            try:line_settings=supabase.table('user_settings').select('user_id,line_user_id,line_alerts_enabled').in_('user_id',admin_ids).execute().data or []
+            except Exception as e:log_event(self.name,f'admin LINE lookup: {e}','warn',run_id)
+        line_text='\n'.join([
+            f"📊 ScholarPortal {workflow} — {status.upper()}",
+            f"🎓 Opportunities: {opportunities.get('verified_inserted',0)} published · {opportunities.get('needs_review',0)} review",
+            f"📝 Articles: {articles.get('created',0)} created · {articles.get('failed',0)} failed",
+            f"📘 Facebook: {social.get('published',0)} published · {social.get('errors',0)} errors",
+            f"🔔 User alerts: {user_alerts.get('email',0)} email · {user_alerts.get('line',0)} LINE · {user_alerts.get('in_app',0)} in-app",
+            f"🛡 Admin: {SITE}/admin",
+        ]+( [f"⚠️ Error: {compact(summary.get('error'),180)}"] if summary.get('error') else []))
+        for setting in line_settings:
+            if not setting.get('line_user_id') or setting.get('line_alerts_enabled') is False:continue
+            uid=str(setting['user_id'])
+            if self.delivery_exists(uid,'line',key):continue
+            try:line_send(setting['line_user_id'],line_text);self.record(uid,None,'line',key,'workflow_summary',meta);line_sent+=1
+            except Exception as e:log_event(self.name,f'admin LINE {uid}: {e}','warn',run_id)
+        return {'in_app':len(admins),'email':sent,'line':line_sent,'recipients':len(recipients)}

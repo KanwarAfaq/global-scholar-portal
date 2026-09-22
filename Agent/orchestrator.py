@@ -15,8 +15,39 @@ REGIONS={
 6:['Australia RTP scholarships','New Zealand Manaaki scholarships','Erasmus Mundus scholarships']}
 
 ALLOWED_TYPES={'Bachelor','Master','PhD','MPhil','Fellowship','Internship','Course','Workshop','Scholarship'}
+AUTO_PUBLISH_SCORE=70
+
+def verification_status(score):
+    return 'verified' if max(0,min(100,int(score or 0)))>AUTO_PUBLISH_SCORE else 'needs_review'
 
 GENERIC_ORG_WORDS={'university','college','institute','institution','foundation','ministry','department','government','international','national','school','programme','program','scholarship','scholarships','education','research','office','organization','organisation'}
+
+def facebook_opportunity_message(opportunity,article_url):
+    """Create a readable Facebook caption that sends visitors to ScholarPortal first."""
+    def short(value,limit=180):
+        text=re.sub(r'\s+',' ',str(value or '')).strip()
+        return text if len(text)<=limit else text[:limit-1].rstrip()+'…'
+    title=short(opportunity.get('title') or 'New verified opportunity',180)
+    organization=short(opportunity.get('organization') or 'Official institution',90)
+    country=short(opportunity.get('country') or 'International',60)
+    deadline=short(opportunity.get('deadline') or 'Check the official source',60)
+    funding=short(opportunity.get('funding_details') or 'Funding details are available in the ScholarPortal guide.',180)
+    kind=re.sub(r'[^A-Za-z0-9]','',str(opportunity.get('type') or 'Scholarship')) or 'Scholarship'
+    return '\n'.join([
+        '🎓 NEW VERIFIED OPPORTUNITY',
+        '',
+        title,
+        f'🏛️ {organization}',
+        f'🌍 {country}',
+        f'💰 {funding}',
+        f'📅 Deadline: {deadline}',
+        '',
+        '✅ ScholarPortal checked the source and prepared the eligibility, funding, deadline, and application details for you.',
+        '👇 Read the complete guide on ScholarPortal first. The authentic official source is provided inside the guide:',
+        article_url,
+        '',
+        f'#ScholarPortal #{kind} #StudyAbroad #InternationalStudents #FundingOpportunity',
+    ])
 
 def likely_official_source(url, organization=''):
     """Conservative official-source gate used before an automated verified badge.
@@ -91,7 +122,6 @@ class VerificationAgent:
         try: page=FETCH.fetch(candidate['url'])
         except Exception as e: log_event(self.name,f"fetch failed {candidate['url']}: {e}",'warn',run_id); return None
         score,checks=self.score(candidate,page)
-        if score<60: return None
         try: data,ai=self.extract(candidate,page)
         except Exception as e: log_event(self.name,f"extraction failed: {e}",'warn',run_id); return None
         typ=data.get('type') or 'Scholarship'; typ=typ if typ in ALLOWED_TYPES else 'Scholarship'
@@ -106,8 +136,9 @@ class VerificationAgent:
         if not checks['likely_official_source']: score-=20
         checks['specific_destination']=bool(urlparse(page['final_url']).path.strip('/')) and checks.get('substantial_page',False)
         if not checks['specific_destination']: score-=25
-        threshold=int(platform_setting('trust',{}).get('auto_publish_min_confidence',88) or 88)
-        status='verified' if score>=threshold and checks['likely_official_source'] else 'needs_review'
+        # Product rule: a score strictly greater than 70 is eligible for
+        # automatic publication. Scores of 70 or below always require staff.
+        status=verification_status(score)
         return {'data':{**data,'type':typ,'deadline':deadline},'page':page,'score':max(0,min(100,score)),'checks':checks,'status':status,'ai':ai}
 
 class ChangeMonitorAgent:
@@ -308,7 +339,7 @@ class SocialGrowthAgent:
             if not ready: continue
             base=(os.getenv('SCHOLARPORTAL_BASE_URL') or 'https://scholarportal.site').rstrip('/')
             article=f"{base}/opportunity/{o['id']}/blog"
-            msg=f"🎓 Verified opportunity: {o.get('title')}\n🏢 {o.get('organization')} · {o.get('country')}\n⏳ Deadline: {o.get('deadline','Unknown')}\n✅ ScholarPortal checked the source; always confirm final details on the official page."
+            msg=facebook_opportunity_message(o,article)
             attempted+=1
             try:
                 ext=publish_post(msg,article)

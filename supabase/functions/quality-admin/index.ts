@@ -38,14 +38,21 @@ Deno.serve(async (req) => {
       const { data: item, error } = await admin.from('opportunity_review_queue').select('*').eq('id', body.id).eq('status','pending').single();
       if (error || !item) return json({ error: 'Review item not found' }, 404);
       if (action === 'reject') {
-        await admin.from('opportunity_review_queue').update({ status:'rejected', reviewed_by:user.id, reviewed_at:new Date().toISOString(), review_note:String(body.note||''), updated_at:new Date().toISOString() }).eq('id', item.id);
+        const { data: rejected, error: rejectError } = await admin.from('opportunity_review_queue')
+          .update({ status:'rejected', reviewed_by:user.id, reviewed_at:new Date().toISOString(), review_note:String(body.note||''), updated_at:new Date().toISOString() })
+          .eq('id', item.id).eq('status','pending').select('id').maybeSingle();
+        if (rejectError) throw rejectError;
+        if (!rejected) return json({ error:'This review item was already handled. Refresh the queue.' },409);
         await audit(admin,user.id,'quality_reject','opportunity_review_queue',item.id,{status:item.status},{status:'rejected'},{source_url:item.source_url});
         return json({ ok:true, status:'rejected' });
       }
       const d = item.candidate_data || {};
       if (!d.title || !item.source_url) return json({ error:'Candidate is missing a title or source URL' },400);
+      let sourceDomain = '';
+      try { sourceDomain = new URL(item.source_url).hostname; }
+      catch { return json({ error:'Candidate source URL is invalid' },400); }
       const payload = {
-        title:d.title, organization:d.organization || new URL(item.source_url).hostname,
+        title:d.title, organization:d.organization || sourceDomain,
         country:d.country || 'Global', type:d.type || 'Scholarship', field:d.field || 'All Fields',
         funding_details:d.funding_details || 'See official source', description:d.description || 'Staff-reviewed opportunity. See official source.',
         tags:Array.isArray(d.tags)?d.tags:[], deadline:d.deadline || 'Unknown', url:item.source_url, source_url:item.source_url,
@@ -60,11 +67,19 @@ Deno.serve(async (req) => {
         const { data: row, error: insertError } = await admin.from('global_opportunities').insert(payload).select('*').single();
         if (insertError) throw insertError;
         opportunityId = row.id;
-        await admin.from('opportunity_sources').insert({ opportunity_id:row.id, source_url:item.source_url, source_domain:new URL(item.source_url).hostname, source_type:'official', is_official:true, http_status:item.page_metadata?.http_status || null, content_hash:item.page_metadata?.content_hash || null, metadata:{ review_queue_id:item.id, fetch_strategy:item.page_metadata?.fetch_strategy || null } });
-        await admin.from('opportunity_versions').insert({ opportunity_id:row.id, content_hash:item.page_metadata?.content_hash || `staff-${item.id}`, snapshot:d, changed_fields:['created_by_staff_review'] });
-        await admin.from('opportunity_verifications').insert({ opportunity_id:row.id, status:'verified', confidence:item.verification_score, checks:item.checks || {}, evidence:[item.source_url], verifier:`staff:${user.id}` });
+        const related = await Promise.all([
+          admin.from('opportunity_sources').insert({ opportunity_id:row.id, source_url:item.source_url, source_domain:sourceDomain, source_type:'official', is_official:true, http_status:item.page_metadata?.http_status || null, content_hash:item.page_metadata?.content_hash || null, metadata:{ review_queue_id:item.id, fetch_strategy:item.page_metadata?.fetch_strategy || null } }),
+          admin.from('opportunity_versions').insert({ opportunity_id:row.id, content_hash:item.page_metadata?.content_hash || `staff-${item.id}`, snapshot:d, changed_fields:['created_by_staff_review'] }),
+          admin.from('opportunity_verifications').insert({ opportunity_id:row.id, status:'verified', confidence:item.verification_score, checks:item.checks || {}, evidence:[item.source_url], verifier:`staff:${user.id}` }),
+        ]);
+        const relatedError = related.find(result=>result.error)?.error;
+        if (relatedError) throw relatedError;
       }
-      await admin.from('opportunity_review_queue').update({ status:'approved', reviewed_by:user.id, reviewed_at:new Date().toISOString(), review_note:String(body.note||''), updated_at:new Date().toISOString() }).eq('id', item.id);
+      const { data: approved, error: approveError } = await admin.from('opportunity_review_queue')
+        .update({ status:'approved', reviewed_by:user.id, reviewed_at:new Date().toISOString(), review_note:String(body.note||''), updated_at:new Date().toISOString() })
+        .eq('id', item.id).eq('status','pending').select('id').maybeSingle();
+      if (approveError) throw approveError;
+      if (!approved) return json({ error:'This review item was already handled. Refresh the queue.' },409);
       await audit(admin,user.id,'quality_approve','opportunity_review_queue',item.id,{status:item.status},{status:'approved',opportunity_id:opportunityId},{source_url:item.source_url});
       return json({ ok:true, status:'approved', opportunityId });
     }

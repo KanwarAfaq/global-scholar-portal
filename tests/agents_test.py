@@ -5,8 +5,18 @@ os.environ['SUPABASE_URL']='https://example.supabase.co';os.environ['SUPABASE_SE
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'Agent'))
 with patch('supabase.create_client'):
     import core
+    import orchestrator
 from content_pipeline import article_schema
 class AgentTests(unittest.TestCase):
+    def test_opportunity_score_boundary_routes_to_correct_destination(self):
+        self.assertEqual(orchestrator.verification_status(70),'needs_review')
+        self.assertEqual(orchestrator.verification_status(71),'verified')
+        self.assertEqual(orchestrator.verification_status(100),'verified')
+    def test_facebook_caption_routes_reader_through_scholarportal(self):
+        message=orchestrator.facebook_opportunity_message({'title':'Global Scholarship','organization':'Example University','country':'Taiwan','deadline':'2027-01-15','funding_details':'Full tuition and stipend','type':'Scholarship'},'https://scholarportal.site/opportunity/abc/blog')
+        self.assertIn('NEW VERIFIED OPPORTUNITY',message)
+        self.assertIn('https://scholarportal.site/opportunity/abc/blog',message)
+        self.assertIn('official source is provided inside',message)
     def test_query_identifiers_survive_canonicalization(self):
         self.assertEqual(core.canonical_url('https://example.org/apply?id=42&utm_source=test'),'https://example.org/apply?id=42')
     @patch('core.platform_setting',return_value={})
