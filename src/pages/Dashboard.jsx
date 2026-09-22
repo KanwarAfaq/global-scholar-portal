@@ -331,18 +331,17 @@ export default function Dashboard() {
       </div>
 
       {/* --- CONTROLS & FILTER SECTION --- */}
-      <div className="flex flex-col space-y-5">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          
-          <div className="flex min-w-0 flex-1 items-center gap-3">
-            <h2 className="whitespace-nowrap text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">Active Opportunities</h2>
-            <span className="text-xs font-bold px-3 py-1 bg-indigo-500/15 rounded-full text-indigo-700 dark:text-indigo-300 border border-indigo-500/30">
+      <div className="space-y-5">
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">Active Opportunities</h2>
+            <span className="shrink-0 text-xs font-bold px-3 py-1 bg-indigo-500/15 rounded-full text-indigo-700 dark:text-indigo-300 border border-indigo-500/30">
               {filteredData.length} Live Postings
             </span>
           </div>
 
           {/* Filter Dropdowns */}
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
             <select
               value={activeField}
               onChange={(e) => handleFilterChange('field', e.target.value)}
