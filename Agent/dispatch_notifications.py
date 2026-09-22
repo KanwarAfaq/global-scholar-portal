@@ -140,3 +140,33 @@ class NotificationAgent:
                                     self.record(uid,opp['id'],'line',key,'deadline_reminder',meta);sent['line']+=1
                                 except Exception as e:log_event(self.name,f'deadline LINE {uid}: {e}','warn',run_id)
         return sent
+
+    def notify_admins(self,workflow,summary,run_id=None,status='success'):
+        """Send an operational workflow summary to every platform admin.
+
+        In-app delivery is always attempted. Email uses the admin account email and
+        also supports ADMIN_NOTIFICATION_EMAIL for an external operations inbox.
+        Failures are logged without hiding the workflow's real result.
+        """
+        key=f"workflow:{workflow}:{run_id or datetime.now(timezone.utc).strftime('%Y-%m-%d')}:{status}"
+        meta={'title':f'{workflow} workflow {status}','workflow':workflow,'status':status,'summary':summary}
+        recipients=set()
+        admins=[]
+        try:
+            response=supabase.auth.admin.list_users(page=1,per_page=1000)
+            admins=[u for u in (getattr(response,'users',None) or []) if (getattr(u,'app_metadata',None) or {}).get('role')=='admin']
+        except Exception as e:log_event(self.name,f'admin lookup: {e}','warn',run_id)
+        for admin in admins:
+            uid=str(admin.id)
+            if not self.delivery_exists(uid,'in_app',key):
+                self.record(uid,None,'in_app',key,'workflow_summary',meta)
+            if getattr(admin,'email',None):recipients.add(admin.email)
+        configured=os.getenv('ADMIN_NOTIFICATION_EMAIL')
+        if configured:recipients.update(x.strip() for x in configured.split(',') if x.strip())
+        sent=0
+        subject=f"ScholarPortal {workflow}: {status}"
+        html=f"<h2>{subject}</h2><pre>{json.dumps(summary,indent=2,default=str)}</pre>"
+        for email in recipients:
+            try:EMAIL.send(email,subject,html);sent+=1
+            except Exception as e:log_event(self.name,f'admin email {email}: {e}','warn',run_id)
+        return {'in_app':len(admins),'email':sent,'recipients':len(recipients)}

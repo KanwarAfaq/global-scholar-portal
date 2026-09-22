@@ -436,8 +436,11 @@ def main():
         metrics['opportunity_freshness']=OpportunityFreshnessAgent().run(run_id)
         metrics['community_moderation']=CommunityModerationAgent().run(run_id)
         metrics['application_coach']=ApplicationCoachAgent().run(run_id)
+        metrics['admin_notifications']=notifier.notify_admins('multi-agent',metrics,run_id,'success')
         finish(run_id,'success',metrics); print(json.dumps(metrics,indent=2,default=str)); return metrics
     except Exception as e:
+        try:NotificationAgent().notify_admins('multi-agent',{'error':str(e),'metrics':metrics},run_id,'failed')
+        except Exception:pass
         finish(run_id,'failed',metrics,str(e)); raise
 
 if __name__=='__main__': main()
