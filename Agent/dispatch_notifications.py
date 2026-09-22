@@ -1,4 +1,5 @@
 import os, smtplib, json
+from html import escape
 from datetime import datetime, timezone, timedelta
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -41,6 +42,38 @@ class SMTPEmail:
 
 EMAIL=SMTPEmail()
 
+def portal_url(opportunity):
+    return f"{SITE}/opportunity/{opportunity.get('id')}/blog" if opportunity.get('id') else f"{SITE}/"
+
+def official_url(opportunity):
+    return opportunity.get('official_source_url') or opportunity.get('source_url') or opportunity.get('url') or SITE
+
+def compact(value,limit=220):
+    text=' '.join(str(value or '').split())
+    return text if len(text)<=limit else text[:limit-1].rstrip()+'…'
+
+def opportunity_email_card(opportunity):
+    title=escape(str(opportunity.get('title') or 'Verified opportunity'))
+    organization=escape(str(opportunity.get('organization') or 'Official institution'))
+    deadline=escape(str(opportunity.get('deadline') or 'Check official source'))
+    summary=escape(compact(opportunity.get('description') or opportunity.get('funding_details') or 'Review eligibility, funding and application requirements on ScholarPortal.'))
+    details=escape(portal_url(opportunity)); official=escape(official_url(opportunity))
+    return f'''<div style="margin:18px 0;padding:20px;border:1px solid #e2e8f0;border-radius:14px;background:#ffffff">
+      <h3 style="margin:0 0 6px;color:#172554;font-size:18px">{title}</h3>
+      <p style="margin:0 0 8px;color:#475569"><b>{organization}</b> · Deadline: {deadline}</p>
+      <p style="margin:0 0 16px;color:#475569;line-height:1.55">{summary}</p>
+      <a href="{details}" style="display:inline-block;padding:10px 15px;background:#4f46e5;color:#fff;border-radius:8px;text-decoration:none;font-weight:700;margin-right:8px">Read details on ScholarPortal</a>
+      <a href="{official}" style="display:inline-block;padding:10px 15px;background:#0f172a;color:#fff;border-radius:8px;text-decoration:none;font-weight:700">Official application</a>
+    </div>'''
+
+def opportunity_line_block(opportunity):
+    return '\n'.join([
+        f"🎓 {opportunity.get('title') or 'Verified opportunity'}",
+        f"🏛 {opportunity.get('organization') or 'Official institution'} · Deadline: {opportunity.get('deadline') or 'Check official source'}",
+        f"📖 Read details first: {portal_url(opportunity)}",
+        f"🌐 Official application: {official_url(opportunity)}",
+    ])
+
 def line_send(line_id,text):
     token=os.getenv('LINE_CHANNEL_ACCESS_TOKEN')
     if not token: raise RuntimeError('LINE not configured')
@@ -78,13 +111,19 @@ class NotificationAgent:
             if email_due or line_due:
                 matched=[o for o in recent_opps if match_rules(o,s)][:5]
                 if matched:
-                    html='<h2>ScholarPortal verified opportunity digest</h2><p>Official sources remain authoritative.</p><ul>'+''.join(f"<li><b>{o['title']}</b> — {o.get('organization','')} — deadline {o.get('deadline','Unknown')} — <a href=\"{o.get('official_source_url') or o.get('url')}\">official source</a></li>" for o in matched)+'</ul>'
+                    html='''<div style="font-family:Arial,sans-serif;max-width:680px;margin:auto;background:#f8fafc;padding:24px;color:#0f172a">
+                      <div style="padding:22px;border-radius:16px;background:linear-gradient(135deg,#312e81,#0891b2);color:#fff">
+                        <div style="font-size:13px;letter-spacing:1px;text-transform:uppercase;opacity:.85">ScholarPortal</div>
+                        <h2 style="margin:8px 0 4px">Verified opportunities for you</h2>
+                        <p style="margin:0;opacity:.9">Review the details on ScholarPortal first, then continue to the official application.</p>
+                      </div>
+                      <p style="color:#475569">We found opportunities matching your alert preferences. Official sources remain authoritative.</p>'''+''.join(opportunity_email_card(o) for o in matched)+'''<p style="font-size:12px;color:#64748b">You can update alert preferences in ScholarPortal Settings.</p></div>'''
                     digest_key='digest:'+datetime.now(timezone.utc).strftime('%Y-%m-%d')+':'+':'.join(str(o['id'])[:8] for o in matched)
                     if email_due and email and not self.delivery_exists(uid,'email',digest_key):
                         try:provider=EMAIL.send(email,f"ScholarPortal: {len(matched)} verified matches",html);self.record(uid,matched[0]['id'],'email',digest_key,'match_digest',{'provider':provider});sent['email']+=1
                         except Exception as e:log_event(self.name,f'email {uid}: {e}','warn',run_id)
                     if line_due and s.get('line_user_id') and not self.delivery_exists(uid,'line',digest_key):
-                        text='🎓 ScholarPortal verified matches\n\n'+'\n\n'.join(f"• {o['title']}\n{o.get('deadline','Unknown')}\n{o.get('official_source_url') or o.get('url')}" for o in matched)
+                        text='🎓 ScholarPortal verified matches\nReview details first, then apply through the official source.\n\n'+'\n\n'.join(opportunity_line_block(o) for o in matched)
                         try:line_send(s['line_user_id'],text);self.record(uid,matched[0]['id'],'line',digest_key,'match_digest',{});sent['line']+=1
                         except Exception as e:log_event(self.name,f'LINE {uid}: {e}','warn',run_id)
 
@@ -109,12 +148,14 @@ class NotificationAgent:
                         if s.get('urgent_change_alerts',True):
                             if s.get('email_alerts_enabled') and email and not self.delivery_exists(uid,'email',key):
                                 try:
-                                    provider=EMAIL.send(email,f"ScholarPortal update: {meta.get('title') or 'watched opportunity'}",f"<h2>Watched opportunity changed</h2><p>{meta.get('title') or ''}</p><p>Changed fields: {', '.join(meta.get('changed_fields') or []) or 'See portal for details'}</p><p><a href='{SITE}/intelligence'>Open watchlist</a></p>")
+                                    watched=opp_map.get(w['opportunity_id']) or {'id':w['opportunity_id'],'title':meta.get('title')}
+                                    provider=EMAIL.send(email,f"ScholarPortal update: {meta.get('title') or 'watched opportunity'}",f"<div style='font-family:Arial,sans-serif;max-width:620px'><h2>Watched opportunity updated</h2><p>{escape(str(meta.get('title') or ''))}</p><p>Changed fields: {escape(', '.join(meta.get('changed_fields') or []) or 'See portal for details')}</p><p><a href='{escape(portal_url(watched))}'>Read details on ScholarPortal</a> · <a href='{escape(official_url(watched))}'>Official source</a></p></div>")
                                     self.record(uid,w['opportunity_id'],'email',key,'opportunity_change',{'provider':provider,**meta});sent['email']+=1
                                 except Exception as e:log_event(self.name,f'change email {uid}: {e}','warn',run_id)
                             if s.get('line_alerts_enabled') and s.get('line_user_id') and not self.delivery_exists(uid,'line',key):
                                 try:
-                                    line_send(s['line_user_id'],f"🔔 ScholarPortal watchlist update\n{meta.get('title') or 'Opportunity changed'}\nChanged: {', '.join(meta.get('changed_fields') or []) or 'details updated'}\n{SITE}/intelligence")
+                                    watched=opp_map.get(w['opportunity_id']) or {'id':w['opportunity_id'],'title':meta.get('title')}
+                                    line_send(s['line_user_id'],f"🔔 ScholarPortal watchlist update\n{meta.get('title') or 'Opportunity changed'}\nChanged: {', '.join(meta.get('changed_fields') or []) or 'details updated'}\n📖 Details: {portal_url(watched)}\n🌐 Official source: {official_url(watched)}")
                                     self.record(uid,w['opportunity_id'],'line',key,'opportunity_change',meta);sent['line']+=1
                                 except Exception as e:log_event(self.name,f'change LINE {uid}: {e}','warn',run_id)
                 if w.get('notify_deadline') and s.get('notify_deadline_reminders',True):
@@ -131,12 +172,12 @@ class NotificationAgent:
                                 self.record(uid,opp['id'],'in_app',key,'deadline_reminder',meta); sent['in_app']+=1
                             if s.get('email_alerts_enabled') and email and not self.delivery_exists(uid,'email',key):
                                 try:
-                                    provider=EMAIL.send(email,f"Deadline reminder: {opp.get('title')}",f"<h2>{days} day{'s' if days!=1 else ''} left</h2><p>{opp.get('title')}</p><p>Deadline: {opp.get('deadline')}</p><p><a href='{SITE}/applications'>Open applications</a></p>")
+                                    provider=EMAIL.send(email,f"Deadline reminder: {opp.get('title')}",f"<div style='font-family:Arial,sans-serif;max-width:620px'><h2>{days} day{'s' if days!=1 else ''} left</h2><p>{escape(str(opp.get('title') or ''))}</p><p>Deadline: {escape(str(opp.get('deadline') or ''))}</p><p><a href='{escape(portal_url(opp))}'>Read details on ScholarPortal</a> · <a href='{escape(official_url(opp))}'>Official application</a></p></div>")
                                     self.record(uid,opp['id'],'email',key,'deadline_reminder',{'provider':provider,**meta});sent['email']+=1
                                 except Exception as e:log_event(self.name,f'deadline email {uid}: {e}','warn',run_id)
                             if s.get('line_alerts_enabled') and s.get('line_user_id') and not self.delivery_exists(uid,'line',key):
                                 try:
-                                    line_send(s['line_user_id'],f"⏰ ScholarPortal deadline reminder\n{opp.get('title')}\n{days} day{'s' if days!=1 else ''} left · {opp.get('deadline')}\n{SITE}/applications")
+                                    line_send(s['line_user_id'],f"⏰ ScholarPortal deadline reminder\n{opp.get('title')}\n{days} day{'s' if days!=1 else ''} left · {opp.get('deadline')}\n📖 Details: {portal_url(opp)}\n🌐 Official application: {official_url(opp)}")
                                     self.record(uid,opp['id'],'line',key,'deadline_reminder',meta);sent['line']+=1
                                 except Exception as e:log_event(self.name,f'deadline LINE {uid}: {e}','warn',run_id)
         return sent
@@ -166,7 +207,18 @@ class NotificationAgent:
             if getattr(admin,'email',None):recipients.add(admin.email)
         sent=0
         subject=f"ScholarPortal {workflow}: {status}"
-        html=f"<h2>{subject}</h2><pre>{json.dumps(summary,indent=2,default=str)}</pre>"
+        short={
+            'status':status,
+            'opportunities':summary.get('opportunities',{}),
+            'articles':summary.get('opportunity_articles',{}),
+            'changes':summary.get('changes',0),
+            'notifications':summary.get('notifications',{}),
+            'error':summary.get('error'),
+        }
+        lines=[]
+        for key,value in short.items():
+            if value not in (None,{},[]): lines.append(f"<tr><td style='padding:7px 12px;color:#64748b'>{escape(key.replace('_',' ').title())}</td><td style='padding:7px 12px;font-weight:700;color:#0f172a'>{escape(compact(json.dumps(value,default=str),180))}</td></tr>")
+        html=f"<div style='font-family:Arial,sans-serif;max-width:620px;padding:22px;background:#f8fafc'><div style='padding:18px;border-radius:12px;background:#172554;color:#fff'><div style='font-size:12px;letter-spacing:1px;text-transform:uppercase;opacity:.8'>ScholarPortal Operations</div><h2 style='margin:7px 0 0'>{escape(subject)}</h2></div><table style='width:100%;margin-top:16px;border-collapse:collapse;background:#fff;border-radius:10px'>{''.join(lines)}</table><p style='font-size:12px;color:#64748b'>Open the admin console for full run details.</p></div>"
         for email in recipients:
             try:EMAIL.send(email,subject,html);sent+=1
             except Exception as e:log_event(self.name,f'admin email {email}: {e}','warn',run_id)
