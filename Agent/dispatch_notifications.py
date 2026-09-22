@@ -202,7 +202,9 @@ class NotificationAgent:
         admins=[]
         try:
             response=supabase.auth.admin.list_users(page=1,per_page=1000)
-            users=getattr(response,'users',None) or []
+            # supabase-py 2.x returns a list directly; older clients wrapped it
+            # in an object with a ``users`` attribute. Support both shapes.
+            users=getattr(response,'users',None) or (response if isinstance(response,list) else [])
             admins=[u for u in users if (getattr(u,'app_metadata',None) or {}).get('role')=='admin' or str(getattr(u,'email','')).lower() in configured_emails]
         except Exception as e:log_event(self.name,f'admin lookup: {e}','warn',run_id)
         for admin in admins:
