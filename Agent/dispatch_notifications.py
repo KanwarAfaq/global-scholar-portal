@@ -150,19 +150,20 @@ class NotificationAgent:
         """
         key=f"workflow:{workflow}:{run_id or datetime.now(timezone.utc).strftime('%Y-%m-%d')}:{status}"
         meta={'title':f'{workflow} workflow {status}','workflow':workflow,'status':status,'summary':summary}
-        recipients=set()
+        configured=os.getenv('ADMIN_NOTIFICATION_EMAIL') or os.getenv('SENDER_EMAIL') or ''
+        configured_emails={x.strip().lower() for x in configured.split(',') if x.strip()}
+        recipients=set(configured_emails)
         admins=[]
         try:
             response=supabase.auth.admin.list_users(page=1,per_page=1000)
-            admins=[u for u in (getattr(response,'users',None) or []) if (getattr(u,'app_metadata',None) or {}).get('role')=='admin']
+            users=getattr(response,'users',None) or []
+            admins=[u for u in users if (getattr(u,'app_metadata',None) or {}).get('role')=='admin' or str(getattr(u,'email','')).lower() in configured_emails]
         except Exception as e:log_event(self.name,f'admin lookup: {e}','warn',run_id)
         for admin in admins:
             uid=str(admin.id)
             if not self.delivery_exists(uid,'in_app',key):
                 self.record(uid,None,'in_app',key,'workflow_summary',meta)
             if getattr(admin,'email',None):recipients.add(admin.email)
-        configured=os.getenv('ADMIN_NOTIFICATION_EMAIL')
-        if configured:recipients.update(x.strip() for x in configured.split(',') if x.strip())
         sent=0
         subject=f"ScholarPortal {workflow}: {status}"
         html=f"<h2>{subject}</h2><pre>{json.dumps(summary,indent=2,default=str)}</pre>"
