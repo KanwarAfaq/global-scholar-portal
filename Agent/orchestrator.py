@@ -284,13 +284,21 @@ class ContentAgent:
 class SocialGrowthAgent:
     name='social-growth-agent'
     def run(self,inserted,run_id=None):
-        if os.getenv('FACEBOOK_PUBLISH_ENABLED','false').lower() not in ('1','true','yes','on'): return 0
+        if os.getenv('FACEBOOK_PUBLISH_ENABLED','false').lower() not in ('1','true','yes','on'):
+            return {'enabled':False,'attempted':0,'published':0,'errors':0}
         try:
             from facebook_publisher import publish_post
         except Exception as e:
-            log_event(self.name,f'publisher unavailable: {e}','warn',run_id); return 0
-        count=0
-        for o in inserted or []:
+            log_event(self.name,f'publisher unavailable: {e}','warn',run_id)
+            return {'enabled':True,'attempted':0,'published':0,'errors':1}
+        max_posts=max(1,min(int(os.getenv('FACEBOOK_MAX_POSTS_PER_RUN','1')),5))
+        recent=supabase.table('global_opportunities').select('*').eq('verified',True).order('created_at',desc=True).limit(50).execute().data or []
+        candidates=[]; seen=set()
+        for o in list(inserted or [])+recent:
+            if o.get('id') and o['id'] not in seen: candidates.append(o);seen.add(o['id'])
+        published=0;attempted=0;errors=0
+        for o in candidates:
+            if published>=max_posts:break
             if not o.get('verified'): continue
             latest=supabase.table('global_opportunities').select('verified').eq('id',o['id']).single().execute().data
             if not latest or not latest.get('verified'):continue
@@ -298,12 +306,17 @@ class SocialGrowthAgent:
             if existing: continue
             ready=supabase.table('opportunity_blogs').select('id').eq('opportunity_id',o['id']).neq('content','').limit(1).execute().data
             if not ready: continue
-            article=f"{os.getenv('SCHOLARPORTAL_BASE_URL','https://scholarportal.site').rstrip('/')}/opportunity/{o['id']}/blog"
+            base=(os.getenv('SCHOLARPORTAL_BASE_URL') or 'https://scholarportal.site').rstrip('/')
+            article=f"{base}/opportunity/{o['id']}/blog"
             msg=f"🎓 Verified opportunity: {o.get('title')}\n🏢 {o.get('organization')} · {o.get('country')}\n⏳ Deadline: {o.get('deadline','Unknown')}\n✅ ScholarPortal checked the source; always confirm final details on the official page."
+            attempted+=1
             try:
-                ext=publish_post(msg,article); supabase.table('social_publications').insert({'opportunity_id':o['id'],'channel':'facebook','external_id':ext}).execute(); count+=1
-            except Exception as e: log_event(self.name,f"{o.get('title')}: {e}",'warn',run_id)
-        return count
+                ext=publish_post(msg,article)
+                supabase.table('social_publications').insert({'opportunity_id':o['id'],'channel':'facebook','external_id':ext,'metadata':{'article_url':article}}).execute()
+                published+=1
+            except Exception as e:
+                errors+=1;log_event(self.name,f"{o.get('title')}: {e}",'warn',run_id)
+        return {'enabled':True,'attempted':attempted,'published':published,'errors':errors}
 
 class OpportunitySafetyAgent:
     name='opportunity-safety-agent'
