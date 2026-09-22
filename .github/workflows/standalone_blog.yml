@@ -12,6 +12,7 @@ on:
       - 'Blog_Agent/**'
       - 'Agent/content_pipeline.py'
       - 'Agent/core.py'
+      - 'Agent/dispatch_notifications.py'
 
 jobs:
   run-agents:
