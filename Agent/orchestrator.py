@@ -327,7 +327,7 @@ class SocialGrowthAgent:
         candidates=[]; seen=set()
         for o in list(inserted or [])+recent:
             if o.get('id') and o['id'] not in seen: candidates.append(o);seen.add(o['id'])
-        published=0;attempted=0;errors=0
+        published=0;attempted=0;errors=0;facebook_titles=[]
         for o in candidates:
             if published>=max_posts:break
             if not o.get('verified'): continue
@@ -344,10 +344,10 @@ class SocialGrowthAgent:
             try:
                 ext=publish_post(msg,article)
                 supabase.table('social_publications').insert({'opportunity_id':o['id'],'channel':'facebook','external_id':ext,'metadata':{'article_url':article}}).execute()
-                published+=1
+                published+=1;facebook_titles.append(o.get('title') or 'Untitled opportunity')
             except Exception as e:
                 errors+=1;log_event(self.name,f"{o.get('title')}: {e}",'warn',run_id)
-        return {'enabled':True,'attempted':attempted,'published':published,'errors':errors}
+        return {'enabled':True,'attempted':attempted,'published':published,'errors':errors,'facebook_titles':facebook_titles}
 
 class OpportunitySafetyAgent:
     name='opportunity-safety-agent'
@@ -427,7 +427,7 @@ class ApplicationCoachAgent:
 
 class OpportunityPipeline:
     def run(self,run_id=None):
-        discovered=ResearchAgent().discover(run_id); verified=0; review=0; inserted=[]; verifier=VerificationAgent()
+        discovered=ResearchAgent().discover(run_id); verified=0; review=0; inserted=[]; review_titles=[]; verifier=VerificationAgent()
         for c in discovered:
             # Avoid reprocessing canonical source URLs.
             exist=supabase.table('global_opportunities').select('id').eq('source_url',c['url']).limit(1).execute().data or []
@@ -436,7 +436,7 @@ class OpportunityPipeline:
             if not v: continue
             d=v['data']; payload={'title':d.get('title') or c.get('title'),'organization':d.get('organization') or domain(c['url']),'country':d.get('country') or 'Global','type':d.get('type') or 'Scholarship','field':d.get('field') or 'All Fields','funding_details':d.get('funding_details') or 'See official source','description':d.get('description') or c.get('snippet') or 'Verified opportunity. See official source.','tags':d.get('tags') or [],'deadline':d.get('deadline') or 'Unknown','url':c['url'],'source_url':c['url'],'official_source_url':v['page']['final_url'],'verified':v['status']=='verified','verification_status':v['status'],'verification_confidence':v['score'],'verified_at':datetime.now(timezone.utc).isoformat() if v['status']=='verified' else None,'last_checked_at':datetime.now(timezone.utc).isoformat(),'requirements':d.get('requirements') or {},'eligibility':d.get('eligibility') or {},'application_requirements':d.get('application_requirements') or {},'change_hash':hash_text(v['page']['text'])}
             if v['status']!='verified':
-                review+=1; queue_review(c,v,run_id); continue # low confidence never auto-publishes
+                review+=1;review_titles.append(payload['title']);queue_review(c,v,run_id); continue # low confidence never auto-publishes
             try:
                 row=supabase.table('global_opportunities').insert(payload).execute().data[0]
                 supabase.table('opportunity_sources').insert({'opportunity_id':row['id'],'source_url':v['page']['final_url'],'source_domain':domain(v['page']['final_url']),'source_type':'official','is_official':True,'http_status':v['page']['status'],'content_hash':payload['change_hash'],'metadata':{'search_provider':c.get('search_provider'),'fetch_strategy':v['page']['strategy']}}).execute()
@@ -444,7 +444,7 @@ class OpportunityPipeline:
                 supabase.table('opportunity_verifications').insert({'opportunity_id':row['id'],'status':'verified','confidence':v['score'],'checks':v['checks'],'evidence':[v['page']['final_url']],'verifier':self.__class__.__name__}).execute()
                 verified+=1; inserted.append(row)
             except Exception as e: log_event('opportunity-pipeline',f"insert failed {payload['title']}: {e}",'warn',run_id)
-        return {'discovered':len(discovered),'verified_inserted':verified,'needs_review':review,'inserted':inserted}
+        return {'discovered':len(discovered),'verified_inserted':verified,'needs_review':review,'discovered_titles':[c.get('title') or c.get('url') for c in discovered],'published_titles':[o.get('title') for o in inserted],'review_titles':review_titles,'inserted':inserted}
 
 def start_run():
     try: return supabase.table('agent_runs').insert({'agent_name':'daily-orchestrator','status':'running','provider_chain':['cgu','groq','openrouter','nvidia-nim','mistral','google-ai-studio','cerebras','openai']}).execute().data[0]['id']

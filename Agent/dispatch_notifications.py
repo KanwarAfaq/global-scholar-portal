@@ -28,6 +28,38 @@ def due(s,last_sent):
     delta=now-last
     return delta >= {'daily':timedelta(hours=20),'weekly':timedelta(days=6),'monthly':timedelta(days=27)}.get(freq,timedelta(days=6))
 
+def digest_cutoff(s,last_sent,now=None):
+    """Return the oldest opportunity creation time eligible for the next digest."""
+    if last_sent:
+        try:return datetime.fromisoformat(last_sent.replace('Z','+00:00'))
+        except Exception:pass
+    now=now or datetime.now(timezone.utc)
+    freq=(s.get('alert_frequency') or 'weekly').lower()
+    return now-{'daily':timedelta(days=1),'weekly':timedelta(days=7),'monthly':timedelta(days=31)}.get(freq,timedelta(days=7))
+
+def created_after(opportunity,cutoff):
+    try:
+        created=datetime.fromisoformat(str(opportunity.get('created_at') or '').replace('Z','+00:00'))
+        return created > cutoff
+    except Exception:return False
+
+def titles(items,limit=30):
+    result=[]
+    for item in items or []:
+        title=compact(item.get('title') if isinstance(item,dict) else item,160)
+        if title and title not in result:result.append(title)
+    return result[:limit]
+
+def metric_rows(summary,prefix=''):
+    """Flatten operational metrics while excluding verbose/private payloads."""
+    rows=[]
+    for key,value in (summary or {}).items():
+        if key in ('inserted','discovered_titles','published_titles','review_titles','facebook_titles','matched_titles','error'):continue
+        label=f'{prefix} / {key}' if prefix else key
+        if isinstance(value,dict):rows.extend(metric_rows(value,label))
+        elif isinstance(value,(str,int,float,bool)) or value is None:rows.append((label.replace('_',' ').title(),compact(value,220)))
+    return rows
+
 class SMTPEmail:
     """Single supported email transport: SMTP. Fail loudly so operations can monitor it."""
     def send(self,to,subject,html):
@@ -74,10 +106,24 @@ def opportunity_line_block(opportunity):
         "🔎 The authentic official source is available inside the guide.",
     ])
 
+def line_message_chunks(text,limit=4800,max_messages=5):
+    chunks=[];current=''
+    for block in str(text or '').split('\n'):
+        candidate=f'{current}\n{block}'.strip() if current else block
+        if len(candidate)<=limit:current=candidate;continue
+        if current:chunks.append(current)
+        while len(block)>limit and len(chunks)<max_messages:
+            chunks.append(block[:limit]);block=block[limit:]
+        current=block
+        if len(chunks)>=max_messages:break
+    if current and len(chunks)<max_messages:chunks.append(current)
+    return chunks[:max_messages]
+
 def line_send(line_id,text):
     token=os.getenv('LINE_CHANNEL_ACCESS_TOKEN')
     if not token: raise RuntimeError('LINE not configured')
-    r=requests.post('https://api.line.me/v2/bot/message/push',headers={'Authorization':f'Bearer {token}','Content-Type':'application/json'},json={'to':line_id,'messages':[{'type':'text','text':text[:4900]}]},timeout=25)
+    messages=[{'type':'text','text':chunk} for chunk in line_message_chunks(text)]
+    r=requests.post('https://api.line.me/v2/bot/message/push',headers={'Authorization':f'Bearer {token}','Content-Type':'application/json'},json={'to':line_id,'messages':messages},timeout=25)
     if not r.ok:
         try: detail=(r.json() or {}).get('message') or r.text
         except Exception: detail=r.text
@@ -101,7 +147,7 @@ class NotificationAgent:
         settings=supabase.table('user_settings').select('*').execute().data or []
         recent_opps=supabase.table('global_opportunities').select('*').eq('verified',True).order('created_at',desc=True).limit(200).execute().data or []
         recent_map={o['id']:o for o in recent_opps}
-        sent={'email':0,'line':0,'in_app':0}
+        sent={'email':0,'line':0,'in_app':0,'email_users':0,'line_users':0,'matched_users':0,'matched_opportunities':0,'matched_titles':[]}
         change_map={x['opportunity_id']:x for x in (changes or [])}
         for s in settings:
             uid=s.get('user_id')
@@ -111,10 +157,22 @@ class NotificationAgent:
             # notifications are evaluated every run regardless of daily/weekly/monthly digest cadence.
             try:u=supabase.auth.admin.get_user_by_id(uid); email=u.user.email if u and u.user else None
             except Exception:email=None
-            email_due=bool(global_cfg.get('email_enabled',True)) and bool(s.get('email_alerts_enabled')) and bool(s.get('notify_new_matches',True)) and due(s,self.last_digest(uid,'email'))
-            line_due=bool(global_cfg.get('line_enabled',True)) and bool(s.get('line_alerts_enabled')) and bool(s.get('notify_new_matches',True)) and due(s,self.last_digest(uid,'line'))
+            email_last=self.last_digest(uid,'email')
+            line_last=self.last_digest(uid,'line')
+            email_due=bool(global_cfg.get('email_enabled',True)) and bool(s.get('email_alerts_enabled')) and bool(s.get('notify_new_matches',True)) and due(s,email_last)
+            line_due=bool(global_cfg.get('line_enabled',True)) and bool(s.get('line_alerts_enabled')) and bool(s.get('notify_new_matches',True)) and due(s,line_last)
             if email_due or line_due:
-                matched=[o for o in recent_opps if match_rules(o,s)][:5]
+                channel_matches={}
+                if email_due:channel_matches['email']=[o for o in recent_opps if match_rules(o,s) and created_after(o,digest_cutoff(s,email_last))]
+                if line_due:channel_matches['line']=[o for o in recent_opps if match_rules(o,s) and created_after(o,digest_cutoff(s,line_last))]
+                all_matches=[]
+                for matches in channel_matches.values():
+                    for o in matches:
+                        if o.get('id') not in {x.get('id') for x in all_matches}:all_matches.append(o)
+                if all_matches:
+                    sent['matched_users']+=1;sent['matched_opportunities']+=len(all_matches)
+                    sent['matched_titles']=titles(list(sent['matched_titles'])+all_matches)
+                matched=channel_matches.get('email') or []
                 if matched:
                     html='''<div style="font-family:Arial,sans-serif;max-width:680px;margin:auto;background:#f8fafc;padding:24px;color:#0f172a">
                       <div style="padding:22px;border-radius:16px;background:linear-gradient(135deg,#312e81,#0891b2);color:#fff">
@@ -122,14 +180,17 @@ class NotificationAgent:
                         <h2 style="margin:8px 0 4px">Verified opportunities for you</h2>
                         <p style="margin:0;opacity:.9">Review the details on ScholarPortal first, then continue to the official application.</p>
                       </div>
-                      <p style="color:#475569">We found opportunities matching your alert preferences. Official sources remain authoritative.</p>'''+''.join(opportunity_email_card(o) for o in matched)+'''<p style="font-size:12px;color:#64748b">You can update alert preferences in ScholarPortal Settings.</p></div>'''
+                      <p style="color:#475569">We found <b>'''+str(len(matched))+''' new opportunities</b> matching your alert preferences. Official sources remain authoritative.</p>'''+''.join(opportunity_email_card(o) for o in matched)+'''<p style="font-size:12px;color:#64748b">You can update alert preferences in ScholarPortal Settings.</p></div>'''
                     digest_key='digest:'+datetime.now(timezone.utc).strftime('%Y-%m-%d')+':'+':'.join(str(o['id'])[:8] for o in matched)
                     if email_due and email and not self.delivery_exists(uid,'email',digest_key):
-                        try:provider=EMAIL.send(email,f"ScholarPortal: {len(matched)} verified matches",html);self.record(uid,matched[0]['id'],'email',digest_key,'match_digest',{'provider':provider});sent['email']+=1
+                        try:provider=EMAIL.send(email,f"ScholarPortal: {len(matched)} new opportunities for you",html);self.record(uid,matched[0]['id'],'email',digest_key,'match_digest',{'provider':provider,'count':len(matched),'opportunity_ids':[o['id'] for o in matched]});sent['email']+=1;sent['email_users']+=1
                         except Exception as e:log_event(self.name,f'email {uid}: {e}','warn',run_id)
+                matched=channel_matches.get('line') or []
+                if matched:
+                    digest_key='digest:'+datetime.now(timezone.utc).strftime('%Y-%m-%d')+':'+':'.join(str(o['id'])[:8] for o in matched)
                     if line_due and s.get('line_user_id') and not self.delivery_exists(uid,'line',digest_key):
-                        text='🎓 ScholarPortal verified matches\nReview details first, then apply through the official source.\n\n'+'\n\n'.join(opportunity_line_block(o) for o in matched)
-                        try:line_send(s['line_user_id'],text);self.record(uid,matched[0]['id'],'line',digest_key,'match_digest',{});sent['line']+=1
+                        text=f'🎓 ScholarPortal found {len(matched)} new opportunities for you\nMatched to your saved interests. Review each guide on ScholarPortal.\n\n'+'\n\n'.join(opportunity_line_block(o) for o in matched)
+                        try:line_send(s['line_user_id'],text);self.record(uid,matched[0]['id'],'line',digest_key,'match_digest',{'count':len(matched),'opportunity_ids':[o['id'] for o in matched]});sent['line']+=1;sent['line_users']+=1
                         except Exception as e:log_event(self.name,f'LINE {uid}: {e}','warn',run_id)
 
             watched=supabase.table('user_watchlists').select('*').eq('user_id',uid).execute().data or []
@@ -221,12 +282,19 @@ class NotificationAgent:
             ('Opportunities',f"{opportunities.get('verified_inserted',0)} published · {opportunities.get('needs_review',0)} sent to review · {opportunities.get('discovered',0)} discovered"),
             ('Articles',f"{articles.get('created',0)} created · {articles.get('failed',0)} failed"),
             ('Facebook',f"{social.get('published',0)} published · {social.get('errors',0)} errors"),
-            ('User alerts',f"{user_alerts.get('email',0)} email · {user_alerts.get('line',0)} LINE · {user_alerts.get('in_app',0)} in-app"),
+            ('User delivery',f"{user_alerts.get('email_users',user_alerts.get('email',0))} users by email · {user_alerts.get('line_users',user_alerts.get('line',0))} users by LINE · {user_alerts.get('in_app',0)} in-app"),
+            ('Matched users/opportunities',f"{user_alerts.get('matched_users',0)} users · {user_alerts.get('matched_opportunities',0)} opportunity matches"),
             ('Source changes',str(summary.get('changes',0))),
         ]
         if summary.get('error'): facts.append(('Error',compact(summary['error'],240)))
+        facts.extend(metric_rows(summary))
+        seen=set(); facts=[x for x in facts if not (x[0] in seen or seen.add(x[0]))]
         rows=''.join(f"<tr><td style='padding:10px 14px;border-bottom:1px solid #e2e8f0;color:#64748b;vertical-align:top'>{escape(label)}</td><td style='padding:10px 14px;border-bottom:1px solid #e2e8f0;font-weight:700;color:#0f172a'>{escape(value)}</td></tr>" for label,value in facts)
-        html=f"<div style='font-family:Arial,sans-serif;max-width:640px;margin:auto;padding:24px;background:#f8fafc;color:#0f172a'><div style='padding:22px;border-radius:16px;background:linear-gradient(135deg,#172554,#0e7490);color:#fff'><div style='font-size:12px;letter-spacing:1.2px;text-transform:uppercase;opacity:.82'>ScholarPortal Operations</div><h2 style='margin:8px 0 3px'>{escape(workflow.title())} workflow</h2><p style='margin:0;opacity:.9'>Completed with status: {escape(status)}</p></div><table role='presentation' style='width:100%;margin-top:16px;border-collapse:separate;border-spacing:0;background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden'>{rows}</table><p style='margin:18px 0 0'><a href='{escape(SITE)}/admin' style='display:inline-block;padding:11px 16px;background:#4f46e5;color:#fff;border-radius:8px;text-decoration:none;font-weight:700'>Open Admin Control</a></p><p style='font-size:12px;color:#64748b'>This is a short operational summary. Detailed warnings and review items remain in Trust &amp; Quality.</p></div>"
+        sections=[]
+        for heading,key_name in (('Fetched opportunities','discovered_titles'),('Published to database','published_titles'),('Sent to admin review','review_titles'),('Posted to Facebook','facebook_titles'),('Matched user opportunities','matched_titles')):
+            values=titles(opportunities.get(key_name) or social.get(key_name) or user_alerts.get(key_name))
+            if values:sections.append(f"<div style='margin-top:16px;padding:16px;background:#fff;border:1px solid #e2e8f0;border-radius:12px'><h3 style='margin:0 0 8px'>{escape(heading)} ({len(values)})</h3><ul style='margin:0;padding-left:20px;color:#334155'>"+''.join(f'<li>{escape(x)}</li>' for x in values)+'</ul></div>')
+        html=f"<div style='font-family:Arial,sans-serif;max-width:680px;margin:auto;padding:24px;background:#f8fafc;color:#0f172a'><div style='padding:22px;border-radius:16px;background:linear-gradient(135deg,#172554,#0e7490);color:#fff'><div style='font-size:12px;letter-spacing:1.2px;text-transform:uppercase;opacity:.82'>ScholarPortal Operations</div><h2 style='margin:8px 0 3px'>{escape(workflow.title())} workflow</h2><p style='margin:0;opacity:.9'>Completed with status: {escape(status)}</p></div><table role='presentation' style='width:100%;margin-top:16px;border-collapse:separate;border-spacing:0;background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden'>{rows}</table>{''.join(sections)}<p style='margin:18px 0 0'><a href='{escape(SITE)}/admin' style='display:inline-block;padding:11px 16px;background:#4f46e5;color:#fff;border-radius:8px;text-decoration:none;font-weight:700'>Open Admin Control</a></p></div>"
         for email in recipients:
             try:
                 EMAIL.send(email,subject,html);sent+=1
@@ -238,14 +306,18 @@ class NotificationAgent:
         if admin_ids:
             try:line_settings=supabase.table('user_settings').select('user_id,line_user_id,line_alerts_enabled').in_('user_id',admin_ids).execute().data or []
             except Exception as e:log_event(self.name,f'admin LINE lookup: {e}','warn',run_id)
+        line_titles=[]
+        for label,vals in (('Fetched',opportunities.get('discovered_titles')),('Published',opportunities.get('published_titles')),('Review',opportunities.get('review_titles')),('Facebook',social.get('facebook_titles'))):
+            selected=titles(vals,10)
+            if selected:line_titles.append(f"{label}:\n"+'\n'.join(f'• {x}' for x in selected))
         line_text='\n'.join([
             f"📊 ScholarPortal {workflow} — {status.upper()}",
             f"🎓 Opportunities: {opportunities.get('verified_inserted',0)} published · {opportunities.get('needs_review',0)} review",
             f"📝 Articles: {articles.get('created',0)} created · {articles.get('failed',0)} failed",
             f"📘 Facebook: {social.get('published',0)} published · {social.get('errors',0)} errors",
-            f"🔔 User alerts: {user_alerts.get('email',0)} email · {user_alerts.get('line',0)} LINE · {user_alerts.get('in_app',0)} in-app",
+            f"🔔 Users notified: {user_alerts.get('email_users',user_alerts.get('email',0))} email · {user_alerts.get('line_users',user_alerts.get('line',0))} LINE · {user_alerts.get('in_app',0)} in-app",
             f"🛡 Admin: {SITE}/admin",
-        ]+( [f"⚠️ Error: {compact(summary.get('error'),180)}"] if summary.get('error') else []))
+        ]+line_titles+( [f"⚠️ Error: {compact(summary.get('error'),180)}"] if summary.get('error') else []))
         for setting in line_settings:
             if not setting.get('line_user_id') or setting.get('line_alerts_enabled') is False:continue
             uid=str(setting['user_id'])
