@@ -281,24 +281,25 @@ class NotificationAgent:
         report=summary.get('metrics') if isinstance(summary.get('metrics'),dict) else summary
         opportunities=report.get('opportunities') or {}; articles=report.get('opportunity_articles') or {}
         social=report.get('social_publications') or {}; user_alerts=report.get('notifications') or {}
-        facts=[
-            ('Status',status.upper()),
-            ('Opportunities',f"{opportunities.get('verified_inserted',0)} published · {opportunities.get('needs_review',0)} sent to review · {opportunities.get('discovered',0)} discovered"),
-            ('Articles',f"{articles.get('created',0)} created · {articles.get('failed',0)} failed"),
-            ('Facebook',f"{social.get('published',0)} published · {social.get('errors',0)} errors"),
-            ('User delivery',f"{user_alerts.get('email_users',user_alerts.get('email',0))} users by email · {user_alerts.get('line_users',user_alerts.get('line',0))} users by LINE · {user_alerts.get('in_app',0)} in-app"),
-            ('Matched users/opportunities',f"{user_alerts.get('matched_users',0)} users · {user_alerts.get('matched_opportunities',0)} opportunity matches"),
-            ('Source changes',str(report.get('changes',0))),
-        ]
-        if summary.get('error'): facts.append(('Error',compact(summary['error'],240)))
-        facts.extend(metric_rows(report))
-        seen=set(); facts=[x for x in facts if not (x[0] in seen or seen.add(x[0]))]
-        rows=''.join(f"<tr><td style='padding:10px 14px;border-bottom:1px solid #e2e8f0;color:#64748b;vertical-align:top'>{escape(label)}</td><td style='padding:10px 14px;border-bottom:1px solid #e2e8f0;font-weight:700;color:#0f172a'>{escape(value)}</td></tr>" for label,value in facts)
-        sections=[]
-        for heading,key_name in (('Fetched opportunities','discovered_titles'),('Published to database','published_titles'),('Sent to admin review','review_titles'),('Posted to Facebook','facebook_titles'),('Matched user opportunities','matched_titles'),('Standalone blogs published','article_titles')):
-            values=titles(opportunities.get(key_name) or social.get(key_name) or user_alerts.get(key_name) or report.get(key_name),None)
-            if values:sections.append(f"<div style='margin-top:16px;padding:16px;background:#fff;border:1px solid #e2e8f0;border-radius:12px'><h3 style='margin:0 0 8px'>{escape(heading)} ({len(values)})</h3><ul style='margin:0;padding-left:20px;color:#334155'>"+''.join(f'<li>{escape(x)}</li>' for x in values)+'</ul></div>')
-        html=f"<div style='font-family:Arial,sans-serif;max-width:680px;margin:auto;padding:24px;background:#f8fafc;color:#0f172a'><div style='padding:22px;border-radius:16px;background:linear-gradient(135deg,#172554,#0e7490);color:#fff'><div style='font-size:12px;letter-spacing:1.2px;text-transform:uppercase;opacity:.82'>ScholarPortal Operations</div><h2 style='margin:8px 0 3px'>{escape(workflow.title())} workflow</h2><p style='margin:0;opacity:.9'>Completed with status: {escape(status)}</p></div><table role='presentation' style='width:100%;margin-top:16px;border-collapse:separate;border-spacing:0;background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden'>{rows}</table>{''.join(sections)}<p style='margin:18px 0 0'><a href='{escape(SITE)}/admin' style='display:inline-block;padding:11px 16px;background:#4f46e5;color:#fff;border-radius:8px;text-decoration:none;font-weight:700'>Open Admin Control</a></p></div>"
+        error_count=(1 if summary.get('error') else 0)+int(articles.get('failed',0) or 0)+int(social.get('errors',0) or 0)+int(report.get('failed',0) or 0)+int((report.get('source_audit') or {}).get('failed',0) or 0)
+        cards=[]
+        if opportunities:
+            cards.extend([
+                ('Discovered',opportunities.get('discovered',0),'#2563eb'),
+                ('Published',opportunities.get('verified_inserted',0),'#059669'),
+                ('For review',opportunities.get('needs_review',0),'#d97706'),
+                ('Articles',articles.get('created',0),'#7c3aed'),
+            ])
+        else:cards.append(('Blogs published',report.get('standalone_articles_created',0),'#7c3aed'))
+        cards.extend([
+            ('Facebook',social.get('published',0),'#2563eb'),
+            ('Email users',user_alerts.get('email_users',user_alerts.get('email',0)),'#0891b2'),
+            ('LINE users',user_alerts.get('line_users',user_alerts.get('line',0)),'#06a64f'),
+            ('Errors',error_count,'#dc2626' if error_count else '#64748b'),
+        ])
+        card_cells=[f"<td style='width:25%;padding:6px'><div style='padding:14px 10px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;text-align:center'><div style='font-size:24px;font-weight:800;color:{color}'>{escape(value)}</div><div style='margin-top:4px;font-size:12px;color:#64748b'>{escape(label)}</div></div></td>" for label,value,color in cards]
+        card_rows=''.join('<tr>'+''.join(card_cells[i:i+4])+'</tr>' for i in range(0,len(card_cells),4))
+        html=f"<div style='font-family:Arial,sans-serif;max-width:680px;margin:auto;padding:24px;background:#f8fafc;color:#0f172a'><div style='padding:22px;border-radius:16px;background:linear-gradient(135deg,#172554,#0e7490);color:#fff'><div style='font-size:12px;letter-spacing:1.2px;text-transform:uppercase;opacity:.82'>ScholarPortal Operations</div><h2 style='margin:8px 0 3px'>{escape(workflow.title())} summary</h2><p style='margin:0;opacity:.9'>Run completed: {escape(status.upper())}</p></div><table role='presentation' style='width:100%;margin:12px -6px 0;border-spacing:0'>{card_rows}</table><p style='margin:14px 0 0;text-align:center'><a href='{escape(SITE)}/admin' style='display:inline-block;padding:11px 18px;background:#4f46e5;color:#fff;border-radius:9px;text-decoration:none;font-weight:700'>Open Admin Dashboard</a></p></div>"
         for email in recipients:
             try:
                 EMAIL.send(email,subject,html);sent+=1
@@ -312,19 +313,17 @@ class NotificationAgent:
         if not (admin_token and admin_recipient) and admin_ids:
             try:line_settings=supabase.table('user_settings').select('user_id,line_user_id,line_alerts_enabled').in_('user_id',admin_ids).execute().data or []
             except Exception as e:log_event(self.name,f'admin LINE lookup: {e}','warn',run_id)
-        line_titles=[]
-        for label,vals in (('Fetched',opportunities.get('discovered_titles')),('Published',opportunities.get('published_titles')),('Review',opportunities.get('review_titles')),('Facebook',social.get('facebook_titles')),('Standalone blogs',report.get('article_titles'))):
-            selected=titles(vals,None)
-            if selected:line_titles.append(f"{label}:\n"+'\n'.join(f'• {x}' for x in selected))
-        line_text='\n'.join([
-            f"📊 ScholarPortal {workflow} — {status.upper()}",
-            f"🎓 Opportunities: {opportunities.get('verified_inserted',0)} published · {opportunities.get('needs_review',0)} review",
-            f"📝 Articles: {articles.get('created',0)} created · {articles.get('failed',0)} failed",
-            f"📰 Standalone blogs: {report.get('standalone_articles_created',0)} published",
-            f"📘 Facebook: {social.get('published',0)} published · {social.get('errors',0)} errors",
-            f"🔔 Users notified: {user_alerts.get('email_users',user_alerts.get('email',0))} email · {user_alerts.get('line_users',user_alerts.get('line',0))} LINE · {user_alerts.get('in_app',0)} in-app",
-            f"🛡 Admin: {SITE}/admin",
-        ]+line_titles+( [f"⚠️ Error: {compact(summary.get('error'),180)}"] if summary.get('error') else []))
+        line_rows=[f"📊 ScholarPortal · {workflow}",f"Status: {status.upper()}"]
+        if opportunities:line_rows.append(f"🎓 Opportunities: {opportunities.get('discovered',0)} found · {opportunities.get('verified_inserted',0)} published · {opportunities.get('needs_review',0)} review")
+        else:line_rows.append(f"📰 Blogs published: {report.get('standalone_articles_created',0)}")
+        line_rows.extend([
+            f"📝 Articles: {articles.get('created',0)}",
+            f"📘 Facebook posts: {social.get('published',0)}",
+            f"🔔 Users: {user_alerts.get('email_users',user_alerts.get('email',0))} email · {user_alerts.get('line_users',user_alerts.get('line',0))} LINE",
+            f"⚠️ Errors: {error_count}",
+            f"🛡 {SITE}/admin",
+        ])
+        line_text='\n'.join(line_rows)
         if admin_token and admin_recipient:
             try:line_send(admin_recipient,line_text,admin_token);line_sent=1
             except Exception as e:log_event(self.name,f'admin LINE backend bot: {e}','warn',run_id)
