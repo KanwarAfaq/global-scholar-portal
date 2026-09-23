@@ -7,13 +7,19 @@ from dispatch_notifications import NotificationAgent
 if __name__=='__main__':
     parser=argparse.ArgumentParser()
     parser.add_argument('--query',default='official university graduate admissions scholarship application guidance')
-    parser.add_argument('--limit',type=int,default=2)
+    parser.add_argument('--minimum',type=int,default=3)
     args=parser.parse_args()
-    result=StandaloneBlogAgent().run(args.query,max(1,min(args.limit,10)))
-    if os.getenv('AGENT_ALLOW_OUTBOUND')=='true':
-        notifier=NotificationAgent()
-        result['user_notifications']=notifier.run(None,[])
-        result['admin_notifications']=notifier.notify_admins('standalone-blog',result,None,'success')
-    else:
-        result['notifications']={'skipped':'outbound disabled'}
-    print(json.dumps(result,indent=2))
+    notifier=NotificationAgent();result={}
+    try:
+        result=StandaloneBlogAgent().run(args.query,max(1,args.minimum))
+        status='success' if result.get('minimum_met') else 'partial'
+        if os.getenv('AGENT_ALLOW_OUTBOUND')=='true':
+            # A blog-only run must never send old opportunity digests to users.
+            result['admin_notifications']=notifier.notify_admins('standalone-blog',result,None,status)
+        else:result['admin_notifications']={'skipped':'outbound disabled'}
+        print(json.dumps(result,indent=2))
+        if status=='partial':raise SystemExit(2)
+    except Exception as exc:
+        if os.getenv('AGENT_ALLOW_OUTBOUND')=='true':
+            notifier.notify_admins('standalone-blog',{'error':str(exc),'metrics':result},None,'failed')
+        raise

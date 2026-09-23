@@ -53,7 +53,7 @@ def generate_article(kind,key,record):
 
 class ArticleReconciliationAgent:
     name='opportunity-article-reconciliation'
-    def run(self,run_id=None,limit=4):
+    def run(self,run_id=None,limit=None):
         count=0;failed=0
         # Every public opportunity must have a corresponding detail article.
         # Verification state is included in the source record and article copy;
@@ -62,19 +62,32 @@ class ArticleReconciliationAgent:
             try:
                 if generate_article('opportunity',row['id'],row):count+=1
             except Exception as exc:failed+=1;log_event(self.name,f"Article {row['id']}: {type(exc).__name__}",'warn',run_id)
-            if count+failed>=limit:break
+            if limit is not None and count+failed>=limit:break
         return {'created':count,'failed':failed}
 
 class StandaloneBlogAgent:
     name='standalone-blog-research'
-    def run(self,query,limit=2):
-        rows,provider=SEARCH.search(query,8);count=0
-        for row in rows:
-            try:
-                page=FETCH.fetch(row['url'])
-                key=re.sub(r'[^a-z0-9]+','-',str(row.get('title','research')).lower()).strip('-')[:70]+'-'+hash_text(canonical_url(page['final_url']))[:10]
-                record={'title':row.get('title'),'url':page['final_url'],'source_text':page['text'][:22000],'search_provider':provider}
-                if generate_article('standalone',key,record):count+=1
-            except Exception as exc:log_event(self.name,type(exc).__name__,'warn')
-            if count>=limit:break
-        return {'standalone_articles_created':count}
+    def run(self,query,minimum=3):
+        topics=[
+            query,
+            'official university scholarship application eligibility funding guidance international students',
+            'official graduate admissions funding deadline application guidance international students',
+        ]
+        count=0;discovered=0;failed=0;article_titles=[];seen=set()
+        for topic in topics:
+            try:rows,provider=SEARCH.search(topic,8)
+            except Exception as exc:log_event(self.name,f'search: {type(exc).__name__}','warn');continue
+            for row in rows:
+                url=canonical_url(row.get('url'))
+                if not url or url in seen:continue
+                seen.add(url);discovered+=1
+                try:
+                    page=FETCH.fetch(url)
+                    key=re.sub(r'[^a-z0-9]+','-',str(row.get('title','research')).lower()).strip('-')[:70]+'-'+hash_text(canonical_url(page['final_url']))[:10]
+                    record={'title':row.get('title'),'url':page['final_url'],'source_text':page['text'][:22000],'search_provider':provider}
+                    if generate_article('standalone',key,record):
+                        count+=1;article_titles.append(row.get('title') or key)
+                except Exception as exc:failed+=1;log_event(self.name,type(exc).__name__,'warn')
+            # Continue to another independent source pool only when necessary.
+            if count>=minimum:break
+        return {'standalone_articles_created':count,'minimum_target':minimum,'minimum_met':count>=minimum,'shortfall':max(0,minimum-count),'sources_discovered':discovered,'failed':failed,'article_titles':article_titles}

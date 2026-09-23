@@ -14,7 +14,7 @@ on:
 jobs:
   run-agents:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -63,6 +63,9 @@ jobs:
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
           LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+          ADMIN_LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.ADMIN_LINE_CHANNEL_ACCESS_TOKEN }}
+          ADMIN_LINE_RECIPIENT_ID: ${{ secrets.ADMIN_LINE_RECIPIENT_ID }}
+          MIN_OPPORTUNITIES_PER_RUN: ${{ vars.MIN_OPPORTUNITIES_PER_RUN || '3' }}
 
           # Existing social publishing remains optional and receives only verified content.
           FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
