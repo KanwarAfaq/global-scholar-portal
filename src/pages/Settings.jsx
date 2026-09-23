@@ -36,6 +36,9 @@ const defaults = {
 };
 
 const timezoneOptions = ['UTC', 'Asia/Taipei', 'Asia/Tokyo', 'Asia/Seoul', 'Asia/Singapore', 'Asia/Dubai', 'Europe/London', 'Europe/Berlin', 'America/New_York', 'America/Los_Angeles', 'Australia/Sydney'];
+const LINE_BASIC_ID = '@438locrj';
+const LINE_ADD_FRIEND_URL = 'https://line.me/R/ti/p/%40438locrj';
+const LINE_QR_CODE_URL = 'https://qr-official.line.me/gs/M_438locrj_GW.png';
 
 function MultiSelect({ label, values, options, onChange }) {
   return <div>
@@ -56,6 +59,7 @@ export default function Settings() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [copied, setCopied] = useState(false);
+  const [checkingLine, setCheckingLine] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -98,6 +102,27 @@ export default function Settings() {
     const { error } = await supabase.from('user_settings').upsert({ user_id: user.id, ...next, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
     if (error) { setMessage(`Could not create LINE verification code: ${error.message}`); return; }
     setSettings(prev => ({ ...prev, ...next }));
+  };
+
+  const checkLineConnection = async () => {
+    setCheckingLine(true);
+    setMessage('');
+    const { data, error } = await supabase
+      .from('user_settings')
+      .select('line_user_id,line_alerts_enabled')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    setCheckingLine(false);
+    if (error) {
+      setMessage(`Could not check LINE connection: ${error.message}`);
+      return;
+    }
+    if (data?.line_user_id) {
+      setSettings(prev => ({ ...prev, line_user_id: data.line_user_id, line_alerts_enabled: true }));
+      setMessage('LINE is connected. Direct alerts are ready.');
+      return;
+    }
+    setMessage('LINE is not connected yet. Add the bot, send the 6-digit code in LINE, then check again.');
   };
 
   const save = async e => {
@@ -145,7 +170,22 @@ export default function Settings() {
         <Toggle label="Urgent changes immediately" checked={settings.urgent_change_alerts} onChange={v=>update('urgent_change_alerts',v)}/>
       </div></div>
 
-      {settings.line_alerts_enabled && !settings.line_user_id && <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-4 flex gap-3"><MessageCircle className="text-emerald-500 shrink-0"/><div><p className="font-bold text-slate-900 dark:text-white">Connect LINE</p><p className="text-sm text-slate-500">Send this 6-digit verification code to your configured ScholarPortal LINE bot. It expires after 15 minutes:</p><div className="mt-2 inline-flex items-center gap-3 bg-slate-950 text-white px-4 py-2 rounded-lg"><span className="font-mono font-black tracking-[.2em]">{settings.line_verification_code}</span><button type="button" onClick={async()=>{await navigator.clipboard.writeText(settings.line_verification_code);setCopied(true);setTimeout(()=>setCopied(false),1500)}}>{copied?<CheckCircle2 className="w-4 h-4 text-emerald-400"/>:<Copy className="w-4 h-4"/>}</button></div></div></div>}
+      {settings.line_alerts_enabled && !settings.line_user_id && <div className="rounded-2xl bg-emerald-500/10 border border-emerald-500/20 p-5">
+        <div className="flex items-start gap-3"><MessageCircle className="text-emerald-500 shrink-0 mt-0.5"/><div><p className="font-extrabold text-slate-900 dark:text-white">Connect ScholarPortal on LINE</p><p className="text-sm text-slate-500 mt-1">Complete all three steps. Your LINE user ID is securely captured by the bot webhook after you send the code.</p></div></div>
+        <div className="mt-5 grid gap-4 lg:grid-cols-[180px_1fr]">
+          <div className="rounded-2xl bg-white p-3 border border-emerald-200 shadow-sm self-start">
+            <img src={LINE_QR_CODE_URL} alt="QR code to add the ScholarPortal LINE Official Account" className="w-full aspect-square object-contain" loading="lazy"/>
+            <p className="mt-2 text-center text-xs font-bold text-slate-600">{LINE_BASIC_ID}</p>
+          </div>
+          <ol className="space-y-4 text-sm">
+            <li className="rounded-xl bg-white/70 dark:bg-slate-950/40 border border-emerald-500/10 p-4"><strong className="block text-slate-900 dark:text-white">1. Add the official account</strong><span className="text-slate-500">Scan the QR code with LINE, or use the button below on this device.</span><div className="mt-3"><a href={LINE_ADD_FRIEND_URL} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl bg-[#06C755] px-4 py-2.5 font-extrabold text-white hover:bg-[#05b84e]">Add on LINE <ExternalLink className="w-4 h-4"/></a></div></li>
+            <li className="rounded-xl bg-white/70 dark:bg-slate-950/40 border border-emerald-500/10 p-4"><strong className="block text-slate-900 dark:text-white">2. Send this code to the bot</strong><span className="text-slate-500">The code expires after 15 minutes.</span><div className="mt-3 inline-flex items-center gap-3 bg-slate-950 text-white px-4 py-2.5 rounded-lg"><span className="font-mono font-black tracking-[.2em]">{settings.line_verification_code}</span><button type="button" aria-label="Copy LINE verification code" onClick={async()=>{await navigator.clipboard.writeText(settings.line_verification_code);setCopied(true);setTimeout(()=>setCopied(false),1500)}}>{copied?<CheckCircle2 className="w-4 h-4 text-emerald-400"/>:<Copy className="w-4 h-4"/>}</button></div></li>
+            <li className="rounded-xl bg-white/70 dark:bg-slate-950/40 border border-emerald-500/10 p-4"><strong className="block text-slate-900 dark:text-white">3. Confirm the connection</strong><span className="text-slate-500">After the bot accepts your code, return here and verify the connection.</span><div className="mt-3"><button type="button" disabled={checkingLine} onClick={checkLineConnection} className="inline-flex items-center gap-2 rounded-xl border border-emerald-500 px-4 py-2.5 font-extrabold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10 disabled:opacity-60">{checkingLine?<Loader2 className="w-4 h-4 animate-spin"/>:<CheckCircle2 className="w-4 h-4"/>}Check connection</button></div></li>
+          </ol>
+        </div>
+      </div>}
+
+      {settings.line_alerts_enabled && settings.line_user_id && <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-4 flex items-center gap-3"><CheckCircle2 className="text-emerald-500 shrink-0"/><div><p className="font-bold text-slate-900 dark:text-white">LINE connected</p><p className="text-sm text-slate-500">ScholarPortal alerts can now be delivered to your LINE account.</p></div></div>}
 
       <div className="grid md:grid-cols-2 gap-5">
         <div><label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Digest frequency</label><select value={settings.alert_frequency} onChange={e=>update('alert_frequency',e.target.value)} className="w-full rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 px-4 py-3"><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></div>
