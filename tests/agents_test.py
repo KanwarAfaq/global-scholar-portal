@@ -9,6 +9,9 @@ with patch('supabase.create_client'):
     import dispatch_notifications
 from content_pipeline import article_schema
 class AgentTests(unittest.TestCase):
+    def test_ai_list_type_is_normalized_without_crashing_run(self):
+        self.assertEqual(orchestrator.normalize_opportunity_type(['PhD','Scholarship']),'PhD')
+        self.assertEqual(orchestrator.normalize_opportunity_type(['Unknown','Other']),'Scholarship')
     def test_user_match_rules_respect_all_saved_preferences(self):
         settings={'alert_countries_v2':['Taiwan'],'alert_levels_v2':['PhD'],'alert_fields_v2':['Computer Science']}
         matching={'country':'Taiwan','type':'PhD Scholarship','field':'Computer Science','tags':[]}

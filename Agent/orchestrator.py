@@ -17,6 +17,13 @@ REGIONS={
 ALLOWED_TYPES={'Bachelor','Master','PhD','MPhil','Fellowship','Internship','Course','Workshop','Scholarship'}
 AUTO_PUBLISH_SCORE=70
 
+def normalize_opportunity_type(value):
+    candidates=value if isinstance(value,list) else [value]
+    for candidate in candidates:
+        text=str(candidate or '').strip()
+        if text in ALLOWED_TYPES:return text
+    return 'Scholarship'
+
 def verification_status(score):
     return 'verified' if max(0,min(100,int(score or 0)))>AUTO_PUBLISH_SCORE else 'needs_review'
 
@@ -91,7 +98,14 @@ def queue_review(candidate, verification, run_id=None, note='Borderline automate
 class ResearchAgent:
     name='research-agent'
     def discover(self,run_id=None):
-        targets=REGIONS[datetime.now(timezone.utc).weekday()]; found=[]; seen=set()
+        # Search today's region first, then rotate through the remaining regions.
+        # This removes the old 30-candidate ceiling and gives every run multiple
+        # independent source pools without lowering verification standards.
+        weekday=datetime.now(timezone.utc).weekday()
+        targets=[]
+        for offset in range(len(REGIONS)):
+            targets.extend(REGIONS[(weekday+offset)%len(REGIONS)])
+        found=[]; seen=set()
         for target in targets:
             q=f'{target} official application deadline 2026 2027 fully funded'
             try: rows,provider=SEARCH.search(q,10); log_event(self.name,f'{provider} returned {len(rows)} results for {target}',run_id=run_id)
@@ -102,7 +116,7 @@ class ResearchAgent:
                 u=canonical_url(r['url']); d=domain(u)
                 if not u or u in seen or d in AGGREGATOR_DOMAINS: continue
                 seen.add(u); found.append({'query':target,**r,'url':u,'search_provider':provider})
-        return found[:30]
+        return found
 
 class VerificationAgent:
     name='verification-agent'
@@ -124,8 +138,10 @@ class VerificationAgent:
         score,checks=self.score(candidate,page)
         try: data,ai=self.extract(candidate,page)
         except Exception as e: log_event(self.name,f"extraction failed: {e}",'warn',run_id); return None
-        typ=data.get('type') or 'Scholarship'; typ=typ if typ in ALLOWED_TYPES else 'Scholarship'
-        deadline=(data.get('deadline') or 'Unknown').strip()
+        typ=normalize_opportunity_type(data.get('type'))
+        raw_deadline=data.get('deadline')
+        if isinstance(raw_deadline,list):raw_deadline=next((x for x in raw_deadline if isinstance(x,str) and x.strip()),'Unknown')
+        deadline=str(raw_deadline or 'Unknown').strip()
         if deadline not in ('Rolling','Unknown') and not re.match(r'^\d{4}-\d{2}-\d{2}$',deadline): deadline='Unknown'
         if deadline=='Unknown': score-=12
         if deadline not in ('Rolling','Unknown'):
@@ -432,7 +448,10 @@ class OpportunityPipeline:
             # Avoid reprocessing canonical source URLs.
             exist=supabase.table('global_opportunities').select('id').eq('source_url',c['url']).limit(1).execute().data or []
             if exist: continue
-            v=verifier.verify_candidate(c,run_id)
+            try:v=verifier.verify_candidate(c,run_id)
+            except Exception as e:
+                log_event('opportunity-pipeline',f"candidate failed {c.get('url')}: {type(e).__name__}",'warn',run_id)
+                continue
             if not v: continue
             d=v['data']; payload={'title':d.get('title') or c.get('title'),'organization':d.get('organization') or domain(c['url']),'country':d.get('country') or 'Global','type':d.get('type') or 'Scholarship','field':d.get('field') or 'All Fields','funding_details':d.get('funding_details') or 'See official source','description':d.get('description') or c.get('snippet') or 'Verified opportunity. See official source.','tags':d.get('tags') or [],'deadline':d.get('deadline') or 'Unknown','url':c['url'],'source_url':c['url'],'official_source_url':v['page']['final_url'],'verified':v['status']=='verified','verification_status':v['status'],'verification_confidence':v['score'],'verified_at':datetime.now(timezone.utc).isoformat() if v['status']=='verified' else None,'last_checked_at':datetime.now(timezone.utc).isoformat(),'requirements':d.get('requirements') or {},'eligibility':d.get('eligibility') or {},'application_requirements':d.get('application_requirements') or {},'change_hash':hash_text(v['page']['text'])}
             if v['status']!='verified':
@@ -444,7 +463,8 @@ class OpportunityPipeline:
                 supabase.table('opportunity_verifications').insert({'opportunity_id':row['id'],'status':'verified','confidence':v['score'],'checks':v['checks'],'evidence':[v['page']['final_url']],'verifier':self.__class__.__name__}).execute()
                 verified+=1; inserted.append(row)
             except Exception as e: log_event('opportunity-pipeline',f"insert failed {payload['title']}: {e}",'warn',run_id)
-        return {'discovered':len(discovered),'verified_inserted':verified,'needs_review':review,'discovered_titles':[c.get('title') or c.get('url') for c in discovered],'published_titles':[o.get('title') for o in inserted],'review_titles':review_titles,'inserted':inserted}
+        minimum=max(1,int(os.getenv('MIN_OPPORTUNITIES_PER_RUN','3')))
+        return {'discovered':len(discovered),'verified_inserted':verified,'needs_review':review,'minimum_target':minimum,'minimum_met':verified>=minimum,'shortfall':max(0,minimum-verified),'discovered_titles':[c.get('title') or c.get('url') for c in discovered],'published_titles':[o.get('title') for o in inserted],'review_titles':review_titles,'inserted':inserted}
 
 def start_run():
     try: return supabase.table('agent_runs').insert({'agent_name':'daily-orchestrator','status':'running','provider_chain':['cgu','groq','openrouter','nvidia-nim','mistral','google-ai-studio','cerebras','openai']}).execute().data[0]['id']
@@ -463,7 +483,7 @@ def main():
         metrics['opportunities']=opp_metrics
         # Detail coverage is a public-route invariant, so reconcile it before
         # independent monitoring/specialist agents can fail the run.
-        metrics['opportunity_articles']=ContentAgent().run(run_id)
+        metrics['opportunity_articles']=ContentAgent().run(run_id,limit=None)
         changes=ChangeMonitorAgent().run(run_id); metrics['changes']=len(changes)
         metrics['programs_verified']=ProgramDiscoveryAgent().run(run_id)
         metrics['programs_changed']=ProgramMonitorAgent().run(run_id)
@@ -471,7 +491,7 @@ def main():
         metrics['source_audit']=SourceAuditor().run(run_id)
         metrics['application_completeness']=ApplicationCompletenessAgent().run(run_id)
         metrics['social_publications']=SocialGrowthAgent().run(inserted,run_id) if os.getenv('AGENT_ALLOW_OUTBOUND')=='true' else {'skipped':'outbound disabled'}
-        notifier=NotificationAgent(); metrics['notifications']=notifier.run(run_id,changes) if os.getenv('AGENT_ALLOW_OUTBOUND')=='true' else {'skipped':'outbound disabled'}
+        notifier=NotificationAgent(); metrics['notifications']=notifier.run(run_id,changes,inserted) if os.getenv('AGENT_ALLOW_OUTBOUND')=='true' else {'skipped':'outbound disabled'}
         metrics['campaign_leads_scored']=CampaignAgent().run(run_id)
         metrics['counselor_tasks_created']=CounselorAgent().run(run_id)
         metrics['growth']=GrowthAgent().run(run_id)
@@ -480,8 +500,11 @@ def main():
         metrics['opportunity_freshness']=OpportunityFreshnessAgent().run(run_id)
         metrics['community_moderation']=CommunityModerationAgent().run(run_id)
         metrics['application_coach']=ApplicationCoachAgent().run(run_id)
-        metrics['admin_notifications']=notifier.notify_admins('multi-agent',metrics,run_id,'success')
-        finish(run_id,'success',metrics); print(json.dumps(metrics,indent=2,default=str)); return metrics
+        run_status='success' if metrics['opportunities'].get('minimum_met') else 'partial'
+        metrics['admin_notifications']=notifier.notify_admins('multi-agent',metrics,run_id,run_status)
+        finish(run_id,run_status,metrics); print(json.dumps(metrics,indent=2,default=str))
+        if run_status=='partial':raise SystemExit(2)
+        return metrics
     except Exception as e:
         try:NotificationAgent().notify_admins('multi-agent',{'error':str(e),'metrics':metrics},run_id,'failed')
         except Exception:pass
