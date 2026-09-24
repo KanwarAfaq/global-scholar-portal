@@ -1,7 +1,7 @@
 import unittest,os,sys
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import MagicMock,patch
 os.environ['SUPABASE_URL']='https://example.supabase.co';os.environ['SUPABASE_SERVICE_ROLE_KEY']='test-placeholder'
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'Agent'))
 with patch('supabase.create_client'):
@@ -28,6 +28,13 @@ class AgentTests(unittest.TestCase):
         self.assertGreater(len(chunks),1)
         self.assertLessEqual(len(chunks),5)
         self.assertTrue(all(len(chunk)<=4800 for chunk in chunks))
+    def test_admin_numeric_summary_renders_integer_counts(self):
+        database=MagicMock();database.auth.admin.list_users.return_value=[]
+        report={'standalone_articles_created':3,'social_publications':{'published':3,'errors':0}}
+        with patch.object(dispatch_notifications,'supabase',database),patch.object(dispatch_notifications.EMAIL,'send',return_value='smtp') as send,patch.dict(os.environ,{'ADMIN_NOTIFICATION_EMAIL':'admin@example.org'},clear=False):
+            result=dispatch_notifications.NotificationAgent().notify_admins('standalone-blog',report,status='success')
+        self.assertEqual(result['email'],1)
+        self.assertIn('>3<',send.call_args.args[2])
     def test_opportunity_score_boundary_routes_to_correct_destination(self):
         self.assertEqual(orchestrator.verification_status(70),'needs_review')
         self.assertEqual(orchestrator.verification_status(71),'verified')
