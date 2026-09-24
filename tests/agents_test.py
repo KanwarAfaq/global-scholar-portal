@@ -1,5 +1,6 @@
 import unittest,os,sys
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 os.environ['SUPABASE_URL']='https://example.supabase.co';os.environ['SUPABASE_SERVICE_ROLE_KEY']='test-placeholder'
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'Agent'))
@@ -36,6 +37,27 @@ class AgentTests(unittest.TestCase):
         self.assertIn('NEW VERIFIED OPPORTUNITY',message)
         self.assertIn('https://scholarportal.site/opportunity/abc/blog',message)
         self.assertIn('official source is provided inside',message)
+    def test_social_agent_posts_every_inserted_verified_opportunity(self):
+        class Query:
+            def __init__(self,table):self.table=table;self.op='select'
+            def select(self,*a,**k):return self
+            def eq(self,*a,**k):return self
+            def neq(self,*a,**k):return self
+            def limit(self,*a,**k):return self
+            def single(self):return self
+            def insert(self,*a,**k):self.op='insert';return self
+            def execute(self):
+                if self.table=='global_opportunities':return SimpleNamespace(data={'verified':True})
+                if self.table=='opportunity_blogs':return SimpleNamespace(data=[{'id':'article'}])
+                return SimpleNamespace(data=[])
+        database=SimpleNamespace(table=lambda name:Query(name))
+        opportunities=[{'id':f'opp-{i}','title':f'Opportunity {i}','verified':True} for i in range(10)]
+        with patch.object(orchestrator,'supabase',database),patch('facebook_publisher.publish_post',return_value='post-id') as publish,patch.dict(os.environ,{'FACEBOOK_PUBLISH_ENABLED':'true'}):
+            result=orchestrator.SocialGrowthAgent().run(opportunities)
+        self.assertEqual(result['eligible'],10)
+        self.assertEqual(result['attempted'],10)
+        self.assertEqual(result['published'],10)
+        self.assertEqual(publish.call_count,10)
     def test_query_identifiers_survive_canonicalization(self):
         self.assertEqual(core.canonical_url('https://example.org/apply?id=42&utm_source=test'),'https://example.org/apply?id=42')
     @patch('core.platform_setting',return_value={})

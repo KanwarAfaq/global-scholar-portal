@@ -2,7 +2,7 @@
 import argparse,sys,json,os
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'Agent'))
-from content_pipeline import StandaloneBlogAgent
+from content_pipeline import StandaloneBlogAgent,publish_standalone_blogs
 from dispatch_notifications import NotificationAgent
 if __name__=='__main__':
     parser=argparse.ArgumentParser()
@@ -12,6 +12,8 @@ if __name__=='__main__':
     notifier=NotificationAgent();result={}
     try:
         result=StandaloneBlogAgent().run(args.query,max(1,args.minimum))
+        created_articles=result.pop('created_articles',[])
+        result['social_publications']=publish_standalone_blogs(created_articles) if os.getenv('AGENT_ALLOW_OUTBOUND')=='true' else {'skipped':'outbound disabled'}
         status='success' if result.get('minimum_met') else 'partial'
         if os.getenv('AGENT_ALLOW_OUTBOUND')=='true':
             # A blog-only run must never send old opportunity digests to users.
