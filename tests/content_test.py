@@ -57,4 +57,11 @@ class ContentTests(unittest.TestCase):
         self.db.fail_insert=True
         with self.assertRaises(RuntimeError):self.generate('opportunity','opp-1')
         self.assertEqual(self.db.rows['content_jobs'][0]['status'],'failed')
+    def test_standalone_social_posts_once_per_created_blog(self):
+        articles=[{'slug':f'guide-{i}','title':f'Guide {i}','excerpt':'Useful details'} for i in range(7)]
+        with patch('facebook_publisher.publish_post',return_value='post-id') as publish,patch.dict(os.environ,{'FACEBOOK_PUBLISH_ENABLED':'true'}):
+            result=pipeline.publish_standalone_blogs(articles)
+        self.assertEqual(result['eligible'],7)
+        self.assertEqual(result['published'],7)
+        self.assertEqual(publish.call_count,7)
 if __name__=='__main__':unittest.main()

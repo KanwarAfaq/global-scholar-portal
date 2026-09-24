@@ -338,21 +338,24 @@ class SocialGrowthAgent:
         except Exception as e:
             log_event(self.name,f'publisher unavailable: {e}','warn',run_id)
             return {'enabled':True,'attempted':0,'published':0,'errors':1}
-        max_posts=max(1,min(int(os.getenv('FACEBOOK_MAX_POSTS_PER_RUN','1')),5))
-        recent=supabase.table('global_opportunities').select('*').eq('verified',True).order('created_at',desc=True).limit(50).execute().data or []
-        candidates=[]; seen=set()
-        for o in list(inserted or [])+recent:
-            if o.get('id') and o['id'] not in seen: candidates.append(o);seen.add(o['id'])
-        published=0;attempted=0;errors=0;facebook_titles=[]
+        # Publish every verified opportunity created by this run. Do not pull
+        # older rows into the batch: the post count should exactly describe
+        # this run and retries remain protected by the publication ledger.
+        candidates=[];seen=set()
+        for o in inserted or []:
+            if o.get('id') and o['id'] not in seen:candidates.append(o);seen.add(o['id'])
+        published=0;attempted=0;errors=0;facebook_titles=[];missing_articles=0
         for o in candidates:
-            if published>=max_posts:break
             if not o.get('verified'): continue
             latest=supabase.table('global_opportunities').select('verified').eq('id',o['id']).single().execute().data
             if not latest or not latest.get('verified'):continue
             existing=supabase.table('social_publications').select('id').eq('opportunity_id',o['id']).eq('channel','facebook').limit(1).execute().data or []
             if existing: continue
             ready=supabase.table('opportunity_blogs').select('id').eq('opportunity_id',o['id']).neq('content','').limit(1).execute().data
-            if not ready: continue
+            if not ready:
+                missing_articles+=1
+                log_event(self.name,f"{o.get('title')}: Facebook skipped because its article is missing",'warn',run_id)
+                continue
             base=(os.getenv('SCHOLARPORTAL_BASE_URL') or 'https://scholarportal.site').rstrip('/')
             article=f"{base}/opportunity/{o['id']}/blog"
             msg=facebook_opportunity_message(o,article)
@@ -363,7 +366,7 @@ class SocialGrowthAgent:
                 published+=1;facebook_titles.append(o.get('title') or 'Untitled opportunity')
             except Exception as e:
                 errors+=1;log_event(self.name,f"{o.get('title')}: {e}",'warn',run_id)
-        return {'enabled':True,'attempted':attempted,'published':published,'errors':errors,'facebook_titles':facebook_titles}
+        return {'enabled':True,'eligible':len(candidates),'attempted':attempted,'published':published,'missing_articles':missing_articles,'errors':errors,'facebook_titles':facebook_titles}
 
 class OpportunitySafetyAgent:
     name='opportunity-safety-agent'
@@ -458,13 +461,29 @@ class OpportunityPipeline:
                 review+=1;review_titles.append(payload['title']);queue_review(c,v,run_id); continue # low confidence never auto-publishes
             try:
                 row=supabase.table('global_opportunities').insert(payload).execute().data[0]
+                # A verified opportunity is publishable only after its full
+                # detail article exists. Roll back the parent row if article
+                # generation fails so the public opportunity/article counts
+                # cannot drift apart.
+                from content_pipeline import generate_article
+                try:
+                    generated=generate_article('opportunity',row['id'],row)
+                    ready=supabase.table('opportunity_blogs').select('id').eq('opportunity_id',row['id']).neq('content','').limit(1).execute().data or []
+                    if not generated or not ready:raise RuntimeError('Opportunity article was not published')
+                except Exception:
+                    supabase.table('global_opportunities').delete().eq('id',row['id']).execute()
+                    raise
+                verified+=1;inserted.append(row)
+            except Exception as e:
+                log_event('opportunity-pipeline',f"insert/article failed {payload['title']}: {e}",'warn',run_id)
+                continue
+            try:
                 supabase.table('opportunity_sources').insert({'opportunity_id':row['id'],'source_url':v['page']['final_url'],'source_domain':domain(v['page']['final_url']),'source_type':'official','is_official':True,'http_status':v['page']['status'],'content_hash':payload['change_hash'],'metadata':{'search_provider':c.get('search_provider'),'fetch_strategy':v['page']['strategy']}}).execute()
                 supabase.table('opportunity_versions').insert({'opportunity_id':row['id'],'content_hash':payload['change_hash'],'snapshot':d,'changed_fields':['created']}).execute()
                 supabase.table('opportunity_verifications').insert({'opportunity_id':row['id'],'status':'verified','confidence':v['score'],'checks':v['checks'],'evidence':[v['page']['final_url']],'verifier':self.__class__.__name__}).execute()
-                verified+=1; inserted.append(row)
-            except Exception as e: log_event('opportunity-pipeline',f"insert failed {payload['title']}: {e}",'warn',run_id)
+            except Exception as e:log_event('opportunity-pipeline',f"audit metadata failed {payload['title']}: {e}",'warn',run_id)
         minimum=max(1,int(os.getenv('MIN_OPPORTUNITIES_PER_RUN','3')))
-        return {'discovered':len(discovered),'verified_inserted':verified,'needs_review':review,'minimum_target':minimum,'minimum_met':verified>=minimum,'shortfall':max(0,minimum-verified),'discovered_titles':[c.get('title') or c.get('url') for c in discovered],'published_titles':[o.get('title') for o in inserted],'review_titles':review_titles,'inserted':inserted}
+        return {'discovered':len(discovered),'verified_inserted':verified,'articles_created':verified,'needs_review':review,'minimum_target':minimum,'minimum_met':verified>=minimum,'shortfall':max(0,minimum-verified),'discovered_titles':[c.get('title') or c.get('url') for c in discovered],'published_titles':[o.get('title') for o in inserted],'review_titles':review_titles,'inserted':inserted}
 
 def start_run():
     try: return supabase.table('agent_runs').insert({'agent_name':'daily-orchestrator','status':'running','provider_chain':['cgu','groq','openrouter','nvidia-nim','mistral','google-ai-studio','cerebras','openai']}).execute().data[0]['id']

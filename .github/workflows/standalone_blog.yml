@@ -74,6 +74,6 @@ jobs:
           FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
           FACEBOOK_PAGE_ACCESS_TOKEN: ${{ secrets.FACEBOOK_PAGE_ACCESS_TOKEN }}
           FACEBOOK_GRAPH_API_VERSION: ${{ secrets.FACEBOOK_GRAPH_API_VERSION }}
-          FACEBOOK_PUBLISH_ENABLED: ${{ vars.FACEBOOK_PUBLISH_ENABLED || 'false' }}
+          FACEBOOK_PUBLISH_ENABLED: 'true'
           SCHOLARPORTAL_BASE_URL: ${{ vars.SCHOLARPORTAL_BASE_URL }}
         run: python ../Blog_Agent/blog_agent.py --minimum "$MIN_STANDALONE_BLOGS_PER_RUN"

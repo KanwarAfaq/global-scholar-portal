@@ -5,11 +5,22 @@
 
 @layer base {
   body {
-    @apply bg-slate-50 text-slate-900 transition-colors duration-300;
+    @apply bg-slate-50 text-slate-900 antialiased transition-colors duration-300;
+    font-size: 16px;
+    line-height: 1.55;
   }
   /* Fallback for body background if layout wrapper doesn't catch it */
   :is(.dark) body {
     @apply bg-[#0B0F19] text-slate-50;
+  }
+  button, [role="button"] {
+    min-height: 2.5rem;
+    font-weight: 700;
+    border: 1px solid transparent;
+  }
+  button:not(:disabled), [role="button"] { cursor: pointer; }
+  input, select, textarea {
+    @apply border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100;
   }
 }
 
@@ -59,9 +70,29 @@
     @apply inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition;
   }
   .admin-icon {
-    @apply inline-flex items-center justify-center w-9 h-9 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition;
+    @apply inline-flex items-center justify-center w-10 h-10 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition;
   }
 }
+
+/* Strong, consistent action and surface contrast across legacy and new pages. */
+.border-slate-200 { border-color: #cbd5e1; }
+.dark .dark\:border-slate-800 { border-color: #475569; }
+button[class*="bg-slate-100"], a[class*="bg-slate-100"] {
+  border-color: #cbd5e1;
+  color: #334155;
+}
+.dark button[class*="dark:bg-slate-800"], .dark a[class*="dark:bg-slate-800"] {
+  border-color: #64748b;
+  color: #f1f5f9;
+}
+button[class*="bg-indigo"], a[class*="bg-indigo"],
+button[class*="from-indigo"], a[class*="from-indigo"] {
+  border-color: #3730a3;
+  box-shadow: 0 6px 16px rgb(79 70 229 / 22%);
+}
+button[class*="bg-emerald"], a[class*="bg-emerald"] { border-color: #047857; }
+button[class*="bg-rose"], a[class*="bg-rose"] { border-color: #be123c; }
+button:hover:not(:disabled), a[role="button"]:hover { filter: brightness(1.06); }
 
 .admin-shell, .admin-shell * { min-width: 0; }
 .admin-scroll { scrollbar-width: thin; }

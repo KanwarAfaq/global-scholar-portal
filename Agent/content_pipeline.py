@@ -51,6 +51,32 @@ def generate_article(kind,key,record):
         finish(kind,key,'failed',last_error=type(exc).__name__)
         raise
 
+def facebook_blog_message(article,article_url):
+    """Build a concise Facebook caption for a newly published research article."""
+    title=' '.join(str(article.get('title') or 'New ScholarPortal guide').split())[:220]
+    excerpt=' '.join(str(article.get('excerpt') or 'Evidence-based guidance for international students.').split())[:260]
+    return '\n'.join([
+        '📘 NEW SCHOLARPORTAL GUIDE','',title,'',excerpt,'',
+        'Read the complete article:',article_url,'',
+        '#ScholarPortal #Scholarships #StudyAbroad #InternationalStudents',
+    ])
+
+def publish_standalone_blogs(articles,run_id=None):
+    """Publish one Facebook post for every standalone article made this run."""
+    if __import__('os').getenv('FACEBOOK_PUBLISH_ENABLED','false').lower() not in ('1','true','yes','on'):
+        return {'enabled':False,'eligible':len(articles or []),'attempted':0,'published':0,'errors':0}
+    try:from facebook_publisher import publish_post
+    except Exception as exc:
+        log_event('standalone-blog-social',f'publisher unavailable: {exc}','warn',run_id)
+        return {'enabled':True,'eligible':len(articles or []),'attempted':0,'published':0,'errors':1}
+    base=(__import__('os').getenv('SCHOLARPORTAL_BASE_URL') or 'https://scholarportal.site').rstrip('/')
+    attempted=0;published=0;errors=0
+    for article in articles or []:
+        url=f"{base}/blog/{article['slug']}";attempted+=1
+        try:publish_post(facebook_blog_message(article,url),url);published+=1
+        except Exception as exc:errors+=1;log_event('standalone-blog-social',f"{article.get('slug')}: {exc}",'warn',run_id)
+    return {'enabled':True,'eligible':len(articles or []),'attempted':attempted,'published':published,'errors':errors}
+
 class ArticleReconciliationAgent:
     name='opportunity-article-reconciliation'
     def run(self,run_id=None,limit=None):
@@ -73,7 +99,7 @@ class StandaloneBlogAgent:
             'official university scholarship application eligibility funding guidance international students',
             'official graduate admissions funding deadline application guidance international students',
         ]
-        count=0;discovered=0;failed=0;article_titles=[];seen=set()
+        count=0;discovered=0;failed=0;article_titles=[];created_articles=[];seen=set()
         for topic in topics:
             try:rows,provider=SEARCH.search(topic,8)
             except Exception as exc:log_event(self.name,f'search: {type(exc).__name__}','warn');continue
@@ -87,7 +113,9 @@ class StandaloneBlogAgent:
                     record={'title':row.get('title'),'url':page['final_url'],'source_text':page['text'][:22000],'search_provider':provider}
                     if generate_article('standalone',key,record):
                         count+=1;article_titles.append(row.get('title') or key)
+                        saved=supabase.table('blog_posts').select('slug,title,excerpt').eq('slug',key).limit(1).execute().data or []
+                        created_articles.append(saved[0] if saved else {'slug':key,'title':row.get('title'),'excerpt':row.get('snippet')})
                 except Exception as exc:failed+=1;log_event(self.name,type(exc).__name__,'warn')
             # Continue to another independent source pool only when necessary.
             if count>=minimum:break
-        return {'standalone_articles_created':count,'minimum_target':minimum,'minimum_met':count>=minimum,'shortfall':max(0,minimum-count),'sources_discovered':discovered,'failed':failed,'article_titles':article_titles}
+        return {'standalone_articles_created':count,'minimum_target':minimum,'minimum_met':count>=minimum,'shortfall':max(0,minimum-count),'sources_discovered':discovered,'failed':failed,'article_titles':article_titles,'created_articles':created_articles}

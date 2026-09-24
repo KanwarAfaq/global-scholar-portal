@@ -288,7 +288,7 @@ class NotificationAgent:
                 ('Discovered',opportunities.get('discovered',0),'#2563eb'),
                 ('Published',opportunities.get('verified_inserted',0),'#059669'),
                 ('For review',opportunities.get('needs_review',0),'#d97706'),
-                ('Articles',articles.get('created',0),'#7c3aed'),
+                ('Articles',opportunities.get('articles_created',articles.get('created',0)),'#7c3aed'),
             ])
         else:cards.append(('Blogs published',report.get('standalone_articles_created',0),'#7c3aed'))
         cards.extend([
@@ -317,7 +317,7 @@ class NotificationAgent:
         if opportunities:line_rows.append(f"🎓 Opportunities: {opportunities.get('discovered',0)} found · {opportunities.get('verified_inserted',0)} published · {opportunities.get('needs_review',0)} review")
         else:line_rows.append(f"📰 Blogs published: {report.get('standalone_articles_created',0)}")
         line_rows.extend([
-            f"📝 Articles: {articles.get('created',0)}",
+            f"📝 Articles: {opportunities.get('articles_created',articles.get('created',0)) if opportunities else articles.get('created',0)}",
             f"📘 Facebook posts: {social.get('published',0)}",
             f"🔔 Users: {user_alerts.get('email_users',user_alerts.get('email',0))} email · {user_alerts.get('line_users',user_alerts.get('line',0))} LINE",
             f"⚠️ Errors: {error_count}",
