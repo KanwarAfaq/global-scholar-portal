@@ -30,27 +30,26 @@ def verification_status(score):
 GENERIC_ORG_WORDS={'university','college','institute','institution','foundation','ministry','department','government','international','national','school','programme','program','scholarship','scholarships','education','research','office','organization','organisation'}
 
 def facebook_opportunity_message(opportunity,article_url):
-    """Create a readable Facebook caption that sends visitors to ScholarPortal first."""
+    """Create a distinctive, scan-friendly Facebook opportunity caption."""
     def short(value,limit=180):
         text=re.sub(r'\s+',' ',str(value or '')).strip()
         return text if len(text)<=limit else text[:limit-1].rstrip()+'…'
-    title=short(opportunity.get('title') or 'New verified opportunity',180)
+    title=short(opportunity.get('title') or 'New verified opportunity',140)
     organization=short(opportunity.get('organization') or 'Official institution',90)
     country=short(opportunity.get('country') or 'International',60)
     deadline=short(opportunity.get('deadline') or 'Check the official source',60)
-    funding=short(opportunity.get('funding_details') or 'Funding details are available in the ScholarPortal guide.',180)
+    funding=short(opportunity.get('funding_details') or 'See the complete funding details in the guide.',120)
+    level=short(opportunity.get('type') or 'Scholarship',40)
     kind=re.sub(r'[^A-Za-z0-9]','',str(opportunity.get('type') or 'Scholarship')) or 'Scholarship'
     return '\n'.join([
-        '🎓 NEW VERIFIED OPPORTUNITY',
-        '',
-        title,
-        f'🏛️ {organization}',
-        f'🌍 {country}',
+        f'🎓 {title}',
+        f'🌍 {country}  •  🎓 {level}',
         f'💰 {funding}',
-        f'📅 Deadline: {deadline}',
+        f'⏳ Deadline: {deadline}',
+        f'🏛️ {organization}',
         '',
-        '✅ ScholarPortal checked the source and prepared the eligibility, funding, deadline, and application details for you.',
-        '👇 Read the complete guide on ScholarPortal first. The authentic official source is provided inside the guide:',
+        '✅ Source checked by ScholarPortal',
+        '🔎 See eligibility, benefits and how to apply:',
         article_url,
         '',
         f'#ScholarPortal #{kind} #StudyAbroad #InternationalStudents #FundingOpportunity',
