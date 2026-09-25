@@ -8,7 +8,7 @@ with patch('supabase.create_client'):
     import core
     import orchestrator
     import dispatch_notifications
-from content_pipeline import article_schema
+from content_pipeline import article_schema,facebook_blog_message
 class AgentTests(unittest.TestCase):
     def test_ai_list_type_is_normalized_without_crashing_run(self):
         self.assertEqual(orchestrator.normalize_opportunity_type(['PhD','Scholarship']),'PhD')
@@ -41,9 +41,15 @@ class AgentTests(unittest.TestCase):
         self.assertEqual(orchestrator.verification_status(100),'verified')
     def test_facebook_caption_routes_reader_through_scholarportal(self):
         message=orchestrator.facebook_opportunity_message({'title':'Global Scholarship','organization':'Example University','country':'Taiwan','deadline':'2027-01-15','funding_details':'Full tuition and stipend','type':'Scholarship'},'https://scholarportal.site/opportunity/abc/blog')
-        self.assertIn('NEW VERIFIED OPPORTUNITY',message)
+        self.assertTrue(message.startswith('🎓 Global Scholarship'))
+        self.assertIn('🌍 Taiwan  •  🎓 Scholarship',message)
         self.assertIn('https://scholarportal.site/opportunity/abc/blog',message)
-        self.assertIn('official source is provided inside',message)
+        self.assertNotIn('NEW VERIFIED OPPORTUNITY',message)
+    def test_facebook_blog_caption_leads_with_real_title(self):
+        message=facebook_blog_message({'title':'How to Write a Winning Scholarship Essay','excerpt':'A practical guide to creating a focused essay.','tags':['Scholarship essay','Applications']},'https://scholarportal.site/blog/winning-essay')
+        self.assertTrue(message.startswith('📘 How to Write a Winning Scholarship Essay'))
+        self.assertIn('🧭 Scholarship essay • Applications',message)
+        self.assertNotIn('NEW SCHOLARPORTAL GUIDE',message)
     def test_social_agent_posts_every_inserted_verified_opportunity(self):
         class Query:
             def __init__(self,table):self.table=table;self.op='select'
