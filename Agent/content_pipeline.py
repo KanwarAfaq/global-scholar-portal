@@ -52,13 +52,24 @@ def generate_article(kind,key,record):
         raise
 
 def facebook_blog_message(article,article_url):
-    """Build a concise Facebook caption for a newly published research article."""
-    title=' '.join(str(article.get('title') or 'New ScholarPortal guide').split())[:220]
-    excerpt=' '.join(str(article.get('excerpt') or 'Evidence-based guidance for international students.').split())[:260]
+    """Build a distinctive, scan-friendly caption for a standalone guide."""
+    def short(value,limit):
+        text=' '.join(str(value or '').split())
+        return text if len(text)<=limit else text[:limit-1].rstrip()+'…'
+    title=short(article.get('title') or 'New ScholarPortal guide',140)
+    excerpt=short(article.get('excerpt') or 'Practical, evidence-based guidance for international students.',180)
+    tags=article.get('tags') or []
+    topic=short(' • '.join(str(tag) for tag in tags[:3]),80) or 'Scholarship guidance • International students'
     return '\n'.join([
-        '📘 NEW SCHOLARPORTAL GUIDE','',title,'',excerpt,'',
-        'Read the complete article:',article_url,'',
-        '#ScholarPortal #Scholarships #StudyAbroad #InternationalStudents',
+        f'📘 {title}',
+        f'🧭 {topic}',
+        '',
+        f'✨ {excerpt}',
+        '',
+        '🔎 Read the complete guide:',
+        article_url,
+        '',
+        '#ScholarPortal #ScholarshipGuide #StudyAbroad #InternationalStudents',
     ])
 
 def publish_standalone_blogs(articles,run_id=None):
