@@ -9,6 +9,7 @@ with patch('supabase.create_client'):
     import orchestrator
     import dispatch_notifications
 from content_pipeline import article_schema,facebook_blog_message
+import content_pipeline
 class AgentTests(unittest.TestCase):
     def test_ai_list_type_is_normalized_without_crashing_run(self):
         self.assertEqual(orchestrator.normalize_opportunity_type(['PhD','Scholarship']),'PhD')
@@ -96,6 +97,19 @@ class AgentTests(unittest.TestCase):
         with patch.object(orchestrator,'log_event'):
             result=orchestrator.safe_step('optional',lambda:(_ for _ in ()).throw(RuntimeError('boom')),default={'failed':1})
         self.assertEqual(result,{'failed':1})
+    def test_standalone_agent_continues_across_source_pools_until_minimum(self):
+        agent=content_pipeline.StandaloneBlogAgent()
+        search_calls={'count':0}
+        def search(*args,**kwargs):
+            search_calls['count']+=1
+            n=search_calls['count']
+            return ([{'title':f'Guide {n}','url':f'https://example.edu/guide-{n}'}],'test')
+        def fetch(url):return {'final_url':url,'text':'x'*500}
+        with patch.object(content_pipeline.SEARCH,'search',side_effect=search),patch.object(content_pipeline.FETCH,'fetch',side_effect=fetch),patch.object(content_pipeline,'generate_article',side_effect=[False,False,True,True,True]),patch.object(content_pipeline,'canonical_url',side_effect=lambda value:value),patch.object(content_pipeline,'hash_text',return_value='abc123'),patch.object(content_pipeline.supabase,'table') as table:
+            table.return_value.select.return_value.eq.return_value.limit.return_value.execute.return_value.data=[]
+            result=agent.run('first topic',3)
+        self.assertEqual(result['standalone_articles_created'],3)
+        self.assertTrue(result['minimum_met'])
     @patch('core.platform_setting',return_value={})
     def test_schema_failure_falls_through(self,_):
         ai=core.AICascade();valid='{"title":"A","content":"'+('x'*210)+'","tags":[]}'

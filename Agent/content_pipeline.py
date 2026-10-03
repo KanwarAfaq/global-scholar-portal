@@ -109,6 +109,13 @@ class StandaloneBlogAgent:
             query,
             'official university scholarship application eligibility funding guidance international students',
             'official graduate admissions funding deadline application guidance international students',
+            'site:edu international student financial aid scholarship application guide',
+            'site:ac.uk postgraduate scholarship application guidance international students',
+            'official university fellowship funding guide graduate students',
+            'official government scholarship application guidance international students',
+            'official university admissions personal statement scholarship guide',
+            'official university scholarship interview preparation guide',
+            'official university research degree funding application guide',
         ]
         count=0;discovered=0;failed=0;article_titles=[];created_articles=[];seen=set()
         for topic in topics:
@@ -126,7 +133,9 @@ class StandaloneBlogAgent:
                         count+=1;article_titles.append(row.get('title') or key)
                         saved=supabase.table('blog_posts').select('slug,title,excerpt').eq('slug',key).limit(1).execute().data or []
                         created_articles.append(saved[0] if saved else {'slug':key,'title':row.get('title'),'excerpt':row.get('snippet')})
-                except Exception as exc:failed+=1;log_event(self.name,type(exc).__name__,'warn')
+                except Exception as exc:
+                    failed+=1
+                    log_event(self.name,f'{type(exc).__name__}: {str(exc)[:260]}','warn')
             # Continue to another independent source pool only when necessary.
             if count>=minimum:break
         return {'standalone_articles_created':count,'minimum_target':minimum,'minimum_met':count>=minimum,'shortfall':max(0,minimum-count),'sources_discovered':discovered,'failed':failed,'article_titles':article_titles,'created_articles':created_articles}
