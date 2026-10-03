@@ -81,6 +81,21 @@ class AgentTests(unittest.TestCase):
     def test_empty_response_falls_through(self,_):
         ai=core.AICascade();ai.providers=[('cgu',lambda *a:('','test')),('nvidia-nim',lambda *a:('OK','test'))]
         self.assertEqual(ai.run('test')['provider'],'nvidia-nim')
+    def test_cgu_uses_local_then_compatible_fallback(self):
+        ai=core.AICascade();calls=[]
+        def compatible(key,url,model,prompt,json_mode=False,headers=None):
+            calls.append((model,json_mode))
+            if model=='gpt-oss:20b':raise RuntimeError('temporarily unavailable')
+            return '{"ok":true}',model
+        with patch.object(ai,'_compatible',side_effect=compatible),patch.dict(os.environ,{'CGU_API_KEY':'test','CGU_MODEL':'gpt-oss:20b','CGU_FALLBACK_MODELS':'gpt-6-luna'}):
+            text,model=ai._cgu('return json',True)
+        self.assertEqual((text,model),('{"ok":true}','gpt-6-luna'))
+        self.assertIn(('gpt-oss:20b',True),calls)
+        self.assertIn(('gpt-6-luna',True),calls)
+    def test_safe_step_contains_optional_failure(self):
+        with patch.object(orchestrator,'log_event'):
+            result=orchestrator.safe_step('optional',lambda:(_ for _ in ()).throw(RuntimeError('boom')),default={'failed':1})
+        self.assertEqual(result,{'failed':1})
     @patch('core.platform_setting',return_value={})
     def test_schema_failure_falls_through(self,_):
         ai=core.AICascade();valid='{"title":"A","content":"'+('x'*210)+'","tags":[]}'

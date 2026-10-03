@@ -43,7 +43,8 @@ jobs:
           # Multi-provider AI router. Configure every key you have; missing providers are skipped.
           CGU_API_KEY: ${{ secrets.CGU_API_KEY }}
           AI_PROVIDER_ORDER: ${{ vars.AI_PROVIDER_ORDER || 'cgu,groq,nvidia-nim,mistral,openrouter' }}
-          CGU_MODEL: ${{ vars.CGU_MODEL || 'gpt-4o' }}
+          CGU_MODEL: ${{ vars.CGU_MODEL || 'gpt-oss:20b' }}
+          CGU_FALLBACK_MODELS: ${{ vars.CGU_FALLBACK_MODELS || 'gpt-oss:20b,gpt-6-luna,gpt-5.6-luna' }}
           NVIDIA_NIM_MODEL: ${{ vars.NVIDIA_NIM_MODEL || 'openai/gpt-oss-20b' }}
           MISTRAL_MODEL: ${{ vars.MISTRAL_MODEL || 'mistral-small-latest' }}
           OPENROUTER_MODEL: ${{ vars.OPENROUTER_MODEL || 'openrouter/free' }}

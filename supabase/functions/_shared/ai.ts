@@ -26,8 +26,9 @@ function geminiProvider(key:string|undefined,model:string,messages:AiMessage[],j
 
 export async function runAiCascade(messages: AiMessage[], jsonMode=false):Promise<AiResult>{
   const site=Deno.env.get('SITE_URL')||'https://scholarportal.site';
+  const cguModels=[Deno.env.get('CGU_MODEL')||'gpt-oss:20b',...(Deno.env.get('CGU_FALLBACK_MODELS')||'gpt-oss:20b,gpt-6-luna,gpt-5.6-luna').split(',')].map(x=>x.trim()).filter((x,i,a)=>x&&a.indexOf(x)===i);
   const providers=[
-    openAiCompatibleProvider('cgu',Deno.env.get('CGU_API_URL')||'https://air.cgu.edu.tw/cgullmapi/v1/chat/completions',Deno.env.get('CGU_API_KEY'),Deno.env.get('CGU_MODEL')||'gpt-4o',messages,jsonMode),
+    ...cguModels.map(model=>openAiCompatibleProvider('cgu',Deno.env.get('CGU_API_URL')||'https://air.cgu.edu.tw/cgullmapi/v1/chat/completions',Deno.env.get('CGU_API_KEY'),model,messages,jsonMode)),
     openAiCompatibleProvider('groq','https://api.groq.com/openai/v1/chat/completions',Deno.env.get('GROQ_API_KEY'),Deno.env.get('GROQ_MODEL')||'openai/gpt-oss-120b',messages,jsonMode),
     openAiCompatibleProvider('openrouter','https://openrouter.ai/api/v1/chat/completions',Deno.env.get('OPENROUTER_API_KEY'),Deno.env.get('OPENROUTER_MODEL')||'openrouter/free',messages,jsonMode,{'HTTP-Referer':site,'X-Title':'ScholarPortal'}),
     openAiCompatibleProvider('nvidia-nim',Deno.env.get('NVIDIA_NIM_URL')||'https://integrate.api.nvidia.com/v1/chat/completions',Deno.env.get('NVIDIA_NIM_API_KEY'),Deno.env.get('NVIDIA_NIM_MODEL')||'openai/gpt-oss-20b',messages,jsonMode),

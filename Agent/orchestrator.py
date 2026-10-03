@@ -493,31 +493,41 @@ def finish(run_id,status,metrics,error=None):
     try: supabase.table('agent_runs').update({'status':status,'metrics':metrics,'error':error,'finished_at':datetime.now(timezone.utc).isoformat()}).eq('id',run_id).execute()
     except Exception: pass
 
+def safe_step(name,fn,run_id=None,default=None):
+    """Keep optional agents from blocking publishing, social, and alerts."""
+    try:return fn()
+    except Exception as exc:
+        detail=re.sub(r'\s+',' ',str(exc))[:300]
+        log_event(name,f'non-fatal step failed: {detail}','error',run_id)
+        return default if default is not None else {'failed':1,'error':detail}
+
 def main():
     run_id=start_run(); metrics={}
     try:
         opp_metrics=OpportunityPipeline().run(run_id)
         inserted=opp_metrics.pop('inserted',[])
         metrics['opportunities']=opp_metrics
-        # Detail coverage is a public-route invariant, so reconcile it before
-        # independent monitoring/specialist agents can fail the run.
+        # Complete public content, Facebook, and user alerts before optional
+        # specialist and analytics agents are attempted.
         metrics['opportunity_articles']=ContentAgent().run(run_id,limit=None)
-        changes=ChangeMonitorAgent().run(run_id); metrics['changes']=len(changes)
-        metrics['programs_verified']=ProgramDiscoveryAgent().run(run_id)
-        metrics['programs_changed']=ProgramMonitorAgent().run(run_id)
+        changes=safe_step('change-monitor-agent',lambda:ChangeMonitorAgent().run(run_id),run_id,[]) or []
+        metrics['changes']=len(changes)
+        metrics['social_publications']=safe_step('social-growth-agent',lambda:SocialGrowthAgent().run(inserted,run_id),run_id,{'enabled':True,'attempted':0,'published':0,'errors':1}) if os.getenv('AGENT_ALLOW_OUTBOUND')=='true' else {'skipped':'outbound disabled'}
+        notifier=NotificationAgent()
+        metrics['notifications']=safe_step('notification-agent',lambda:notifier.run(run_id,changes,inserted),run_id,{'email':0,'line':0,'in_app':0,'failed':1}) if os.getenv('AGENT_ALLOW_OUTBOUND')=='true' else {'skipped':'outbound disabled'}
+        metrics['programs_verified']=safe_step('program-discovery-agent',lambda:ProgramDiscoveryAgent().run(run_id),run_id)
+        metrics['programs_changed']=safe_step('program-monitor-agent',lambda:ProgramMonitorAgent().run(run_id),run_id)
         from specialists import SourceAuditor, ApplicationCompletenessAgent
-        metrics['source_audit']=SourceAuditor().run(run_id)
-        metrics['application_completeness']=ApplicationCompletenessAgent().run(run_id)
-        metrics['social_publications']=SocialGrowthAgent().run(inserted,run_id) if os.getenv('AGENT_ALLOW_OUTBOUND')=='true' else {'skipped':'outbound disabled'}
-        notifier=NotificationAgent(); metrics['notifications']=notifier.run(run_id,changes,inserted) if os.getenv('AGENT_ALLOW_OUTBOUND')=='true' else {'skipped':'outbound disabled'}
-        metrics['campaign_leads_scored']=CampaignAgent().run(run_id)
-        metrics['counselor_tasks_created']=CounselorAgent().run(run_id)
-        metrics['growth']=GrowthAgent().run(run_id)
-        metrics['cost_abuse']=CostAbuseAgent().run(run_id)
-        metrics['opportunity_safety']=OpportunitySafetyAgent().run(run_id)
-        metrics['opportunity_freshness']=OpportunityFreshnessAgent().run(run_id)
-        metrics['community_moderation']=CommunityModerationAgent().run(run_id)
-        metrics['application_coach']=ApplicationCoachAgent().run(run_id)
+        metrics['source_audit']=safe_step('source-auditor',lambda:SourceAuditor().run(run_id),run_id)
+        metrics['application_completeness']=safe_step('application-completeness-agent',lambda:ApplicationCompletenessAgent().run(run_id),run_id)
+        metrics['campaign_leads_scored']=safe_step('sponsor-campaign-agent',lambda:CampaignAgent().run(run_id),run_id)
+        metrics['counselor_tasks_created']=safe_step('counselor-agent',lambda:CounselorAgent().run(run_id),run_id)
+        metrics['growth']=safe_step('growth-agent',lambda:GrowthAgent().run(run_id),run_id)
+        metrics['cost_abuse']=safe_step('cost-abuse-agent',lambda:CostAbuseAgent().run(run_id),run_id)
+        metrics['opportunity_safety']=safe_step('opportunity-safety-agent',lambda:OpportunitySafetyAgent().run(run_id),run_id)
+        metrics['opportunity_freshness']=safe_step('opportunity-freshness-agent',lambda:OpportunityFreshnessAgent().run(run_id),run_id)
+        metrics['community_moderation']=safe_step('community-moderation-agent',lambda:CommunityModerationAgent().run(run_id),run_id)
+        metrics['application_coach']=safe_step('application-coach-agent',lambda:ApplicationCoachAgent().run(run_id),run_id)
         run_status='success' if metrics['opportunities'].get('minimum_met') else 'partial'
         metrics['admin_notifications']=notifier.notify_admins('multi-agent',metrics,run_id,run_status)
         finish(run_id,run_status,metrics); print(json.dumps(metrics,indent=2,default=str))

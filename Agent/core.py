@@ -62,8 +62,10 @@ class AICascade:
             ('mistral',self._mistral),('google-ai-studio',self._gemini),('cerebras',self._cerebras),('openai',self._openai)
         ]
     def _post(self,url,headers,payload,timeout=45):
-        r=requests.post(url,headers=headers,json=payload,timeout=timeout); 
-        if not r.ok: raise RuntimeError(f'Provider HTTP {r.status_code}')
+        r=requests.post(url,headers=headers,json=payload,timeout=timeout)
+        if not r.ok:
+            detail=re.sub(r'\s+',' ',(r.text or '')).strip()[:240]
+            raise RuntimeError(f'Provider HTTP {r.status_code}: {detail or "empty response"}')
         return r.json()
     def _compatible(self,key,url,model,prompt,json_mode=False,headers=None):
         if not key: raise RuntimeError('missing API key')
@@ -71,7 +73,23 @@ class AICascade:
         if json_mode: payload['response_format']={'type':'json_object'}
         h={'Authorization':f'Bearer {key}','Content-Type':'application/json',**(headers or {})}
         data=self._post(url,h,payload); return data['choices'][0]['message']['content'], model
-    def _cgu(self,prompt,json_mode=False): return self._compatible(os.getenv('CGU_API_KEY'),os.getenv('CGU_API_URL','https://air.cgu.edu.tw/cgullmapi/v1/chat/completions'),os.getenv('CGU_MODEL','gpt-4o'),prompt,json_mode)
+    def _cgu(self,prompt,json_mode=False):
+        """Try CGU's configured local model, then listed compatible chat models."""
+        configured=[os.getenv('CGU_MODEL','gpt-oss:20b'),*os.getenv('CGU_FALLBACK_MODELS','gpt-oss:20b,gpt-6-luna,gpt-5.6-luna').split(',')]
+        models=[]
+        for model in configured:
+            model=model.strip()
+            if model and model not in models:models.append(model)
+        errors=[]
+        for model in models:
+            try:
+                return self._compatible(os.getenv('CGU_API_KEY'),os.getenv('CGU_API_URL','https://air.cgu.edu.tw/cgullmapi/v1/chat/completions'),model,prompt,json_mode)
+            except Exception as exc:
+                errors.append(f'{model}: {str(exc)[:180]}')
+                if json_mode:
+                    try:return self._compatible(os.getenv('CGU_API_KEY'),os.getenv('CGU_API_URL','https://air.cgu.edu.tw/cgullmapi/v1/chat/completions'),model,prompt,False)
+                    except Exception as retry_exc:errors.append(f'{model} (plain): {str(retry_exc)[:180]}')
+        raise RuntimeError('CGU models failed: '+' | '.join(errors))
     def _groq(self,prompt,json_mode=False): return self._compatible(os.getenv('GROQ_API_KEY'),'https://api.groq.com/openai/v1/chat/completions',os.getenv('GROQ_MODEL','openai/gpt-oss-120b'),prompt,json_mode)
     def _openrouter(self,prompt,json_mode=False): return self._compatible(os.getenv('OPENROUTER_API_KEY'),'https://openrouter.ai/api/v1/chat/completions',os.getenv('OPENROUTER_MODEL','openrouter/free'),prompt,json_mode,{'HTTP-Referer':os.getenv('SCHOLARPORTAL_BASE_URL','https://scholarportal.site'),'X-Title':'ScholarPortal'})
     def _nvidia(self,prompt,json_mode=False): return self._compatible(os.getenv('NVIDIA_NIM_API_KEY'),os.getenv('NVIDIA_NIM_URL','https://integrate.api.nvidia.com/v1/chat/completions'),os.getenv('NVIDIA_NIM_MODEL','openai/gpt-oss-20b'),prompt,json_mode)
@@ -102,7 +120,7 @@ class AICascade:
                 attempts.append({'provider':name,'ok':True,'ms':int((time.time()-started)*1000)})
                 return {'text':text,'provider':name,'model':model,'attempts':attempts}
             except Exception as e:
-                last=type(e).__name__; attempts.append({'provider':name,'ok':False,'error':type(e).__name__})
+                last=type(e).__name__; attempts.append({'provider':name,'ok':False,'error':type(e).__name__,'detail':re.sub(r'\s+',' ',str(e))[:220]})
         raise RuntimeError('AI providers failed: '+json.dumps(attempts))
 
 AI=AICascade()
