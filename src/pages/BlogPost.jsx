@@ -6,6 +6,7 @@ import { Helmet } from 'react-helmet-async';
 import { Calendar, Clock, ArrowLeft, Tag, Globe, ExternalLink, Loader2 } from 'lucide-react';
 import { sanitizeRichHtml } from '../lib/sanitize';
 import Engagement from '../components/Engagement';
+import { articleCover, articleFallback } from '../lib/articleImages';
 
 // Initialize Supabase
 
@@ -133,11 +134,11 @@ export default function BlogPost() {
         {/* Featured Image */}
         <div className="w-full h-64 sm:h-96 rounded-3xl overflow-hidden mb-10 border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900">
           <img 
-            src={post.image || 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&q=80&w=1200'} 
+            src={articleCover(post)}
             alt={post.title} 
             onError={(e) => {
               e.target.onerror = null;
-              e.target.src = 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&q=80&w=1200';
+              e.target.src = articleFallback(post, 1);
             }}
             className="w-full h-full object-cover" 
           />

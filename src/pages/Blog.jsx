@@ -2,6 +2,7 @@ import {supabase} from '../lib/supabase';
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, Clock, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { articleCover, articleFallback } from '../lib/articleImages';
 
 // Initialize Supabase
 
@@ -13,6 +14,11 @@ export default function Blog() {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const imageCounts = blogs.reduce((counts, post) => {
+    const image = String(post.image || '').trim();
+    if (image) counts[image] = (counts[image] || 0) + 1;
+    return counts;
+  }, {});
 
   useEffect(() => {
     async function fetchBlogs() {
@@ -71,7 +77,7 @@ export default function Blog() {
         <>
           {/* Blog Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {blogs.map((post) => (
+            {blogs.map((post, index) => (
               <Link 
                 key={post.id} 
                 to={`/blog/${post.slug}`}
@@ -80,11 +86,11 @@ export default function Blog() {
                 {/* Image */}
                 <div className="h-48 overflow-hidden relative bg-slate-100 dark:bg-slate-800">
                   <img 
-                    src={post.image || 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&q=80&w=1200'} 
+                    src={articleCover(post, index, imageCounts[String(post.image || '').trim()] > 1)}
                     alt={post.title} 
                     onError={(e) => {
                       e.target.onerror = null;
-                      e.target.src = 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&q=80&w=1200';
+                      e.target.src = articleFallback(post, index + 1);
                     }}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
                   />
