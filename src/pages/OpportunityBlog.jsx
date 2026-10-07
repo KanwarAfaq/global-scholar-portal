@@ -185,8 +185,14 @@ export default function OpportunityBlog() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#020617] transition-colors duration-300 pb-24 selection:bg-indigo-500/30">
       
-      {blog._structuredFallback&&<Helmet><meta name="robots" content="noindex,follow"/></Helmet>}
-      <ArticleMetadata title={blog.title} description={blog.excerpt} path={`/opportunity/${id}/blog`} image={blog.image} date={blog.updated_at||blog.created_at}/>
+      <ArticleMetadata
+        title={blog.title}
+        description={blog.excerpt}
+        path={`/opportunity/${id}/blog`}
+        image={blog.image}
+        date={blog.updated_at||blog.created_at}
+        indexable={!blog._structuredFallback}
+      />
       {/* Navigation Bar */}
       <div className="sticky top-0 z-40 bg-white/80 dark:bg-[#020617]/80 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800/80">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center">

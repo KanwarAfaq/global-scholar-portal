@@ -1,4 +1,6 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "trailingSlash": false,
   "headers": [
     {
       "source": "/(.*)",
@@ -19,13 +21,25 @@
       "headers": [{ "key": "Content-Type", "value": "text/plain; charset=utf-8" }]
     }
   ],
+  "redirects": [
+    {
+      "source": "/index.html",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/dashboard",
+      "destination": "/",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/cgullmapi/:match*",
       "destination": "https://air.cgu.edu.tw/cgullmapi/:match*"
     },
     {
-      "source": "/(.*)",
+      "source": "^/(auth|reset-password|change-email|resume-builder|applications|settings|profiles|analytics|copilot|intelligence|notifications|sponsored|sponsor|counselor|counselor-invites|account|quality|admin)$",
       "destination": "/index.html"
     }
   ]

@@ -31,7 +31,16 @@ const pages = {
   '/privacy-policy': { title: 'Privacy Policy', description: 'How ScholarPortal handles account, profile and application data.' },
 };
 
-export function ArticleMetadata({ title, description, path, image, date, modified, author = 'ScholarPortal Editorial Team' }) {
+export function ArticleMetadata({
+  title,
+  description,
+  path,
+  image,
+  date,
+  modified,
+  author = 'ScholarPortal Editorial Team',
+  indexable = true,
+}) {
   const url = SITE + path;
   const summary = description || title;
   const data = {
@@ -47,52 +56,70 @@ export function ArticleMetadata({ title, description, path, image, date, modifie
     publisher: ORGANIZATION,
     ...(image ? { image: [image] } : {}),
   };
+
   return <Helmet>
     <title>{title} | ScholarPortal</title>
     <meta name="description" content={summary} />
-    <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1" />
-    <link rel="canonical" href={url} />
+    <meta
+      name="robots"
+      content={indexable
+        ? 'index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1'
+        : 'noindex,follow,noarchive'}
+    />
+    {indexable && <link rel="canonical" href={url} />}
     <meta property="og:site_name" content="ScholarPortal" />
     <meta property="og:type" content="article" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={summary} />
-    <meta property="og:url" content={url} />
+    {indexable && <meta property="og:url" content={url} />}
     {image && <meta property="og:image" content={image} />}
     <meta name="twitter:card" content={image ? 'summary_large_image' : 'summary'} />
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={summary} />
-    <script type="application/ld+json">{JSON.stringify(data).replace(/</g, '\\u003c')}</script>
+    {indexable && <script type="application/ld+json">{JSON.stringify(data).replace(/</g, '\\u003c')}</script>}
   </Helmet>;
 }
 
 export default function PageMetadata() {
   const { pathname } = useLocation();
   if (/^\/(blog\/|opportunity\/)/.test(pathname)) return null;
+
   const page = pages[pathname];
   const publicPage = Boolean(page);
-  const canonicalPath = pathname === '/dashboard' ? '/' : pathname;
   const title = page?.title || 'Your Workspace';
   const description = page?.description || 'Your private ScholarPortal workspace.';
+  const canonical = publicPage ? SITE + pathname : null;
   const structured = publicPage ? {
     '@context': 'https://schema.org',
     '@graph': [
       ORGANIZATION,
       { '@type': 'WebSite', name: 'ScholarPortal', url: SITE },
-      { '@type': 'WebPage', name: title, description, url: SITE + canonicalPath, isPartOf: { '@type': 'WebSite', name: 'ScholarPortal', url: SITE } },
+      {
+        '@type': 'WebPage',
+        name: title,
+        description,
+        url: canonical,
+        isPartOf: { '@type': 'WebSite', name: 'ScholarPortal', url: SITE },
+      },
     ],
   } : null;
+
   return <Helmet>
     <title>{title} | ScholarPortal</title>
     <meta name="description" content={description} />
-    <meta name="robots" content={publicPage ? 'index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1' : 'noindex,nofollow,noarchive'} />
-    <link rel="canonical" href={SITE + canonicalPath} />
+    <meta
+      name="robots"
+      content={publicPage
+        ? 'index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1'
+        : 'noindex,follow,noarchive'}
+    />
+    {canonical && <link rel="canonical" href={canonical} />}
     <meta property="og:site_name" content="ScholarPortal" />
     <meta property="og:type" content="website" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
-    <meta property="og:url" content={SITE + canonicalPath} />
+    {canonical && <meta property="og:url" content={canonical} />}
     <meta name="twitter:card" content="summary" />
     {structured && <script type="application/ld+json">{JSON.stringify(structured).replace(/</g, '\\u003c')}</script>}
   </Helmet>;
 }
-
