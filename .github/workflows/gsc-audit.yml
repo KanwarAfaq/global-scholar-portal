@@ -1,6 +1,11 @@
 name: Google Search Console Read-Only Audit
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/gsc-audit.yml'
+      - 'scripts/gsc_readonly_audit.py'
   schedule:
     - cron: '29 3 * * 1'
 jobs:
