@@ -55,13 +55,21 @@ export default function BlogPost() {
 
         const { data: sidebarData, error: sidebarError } = await supabase
           .from('blog_posts')
-          .select('title, slug, read_time')
+          .select('title, slug, read_time, tags')
           .neq('slug', slug)
           .order('created_at', { ascending: false })
-          .limit(3);
+          .limit(16);
           
         if (!sidebarError && sidebarData) {
-          setRecentPosts(sidebarData);
+          // Prioritize contextual internal links instead of an unrelated recent-post list.
+          const terms = new Set((postData.tags || []).map((tag) => String(tag).toLowerCase()));
+          const words = new Set(String(postData.title || '').toLowerCase().match(/[a-z]{4,}/g) || []);
+          const relevance = (candidate) => {
+            const tags = (candidate.tags || []).filter((tag) => terms.has(String(tag).toLowerCase())).length;
+            const titleWords = String(candidate.title || '').toLowerCase().match(/[a-z]{4,}/g) || [];
+            return tags * 5 + titleWords.filter((word) => words.has(word)).length;
+          };
+          setRecentPosts([...sidebarData].sort((a, b) => relevance(b) - relevance(a)).slice(0, 3));
         }
       } catch (err) {
         console.error("Error fetching post:", err.message);
@@ -172,7 +180,7 @@ export default function BlogPost() {
       {/* Right Sidebar: Related Posts */}
       <aside className="w-full lg:w-80 shrink-0 space-y-6">
         <div className="sticky top-24 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm dark:shadow-xl transition-colors">
-          <h3 className="text-lg font-extrabold text-slate-900 dark:text-white mb-4 border-b border-slate-100 dark:border-slate-800 pb-2 transition-colors">Related Intelligence</h3>
+          <h3 className="text-lg font-extrabold text-slate-900 dark:text-white mb-4 border-b border-slate-100 dark:border-slate-800 pb-2 transition-colors">Related Scholarship Guides</h3>
           
           <div className="space-y-4">
             {recentPosts.length === 0 ? (
