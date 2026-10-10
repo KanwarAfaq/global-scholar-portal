@@ -17,3 +17,11 @@ jobs:
           GSC_SERVICE_ACCOUNT_JSON: ${{ secrets.GSC_SERVICE_ACCOUNT_JSON }}
           GSC_DOMAIN: scholarportal.site
         run: python scripts/gsc_readonly_audit.py
+      - name: Upload SEO audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gsc-seo-audit
+          path: reports/gsc-audit.json
+          if-no-files-found: warn
+          retention-days: 30
