@@ -32,7 +32,20 @@ def build(output=None):
         if not oid or oid in seen or not (row.get('content') or '').strip():continue
         seen.add(oid)
         pages.append({'path':f'/opportunity/{quote(oid,safe="")}/blog','title':row['title'],'description':row.get('excerpt') or row['title'],'content':row['content'],'date':row.get('updated_at') or row.get('created_at'),'kind':'Article','image':row.get('image')})
-    # A sitemap must contain only one entry for each canonical route. Preserve the\n    # first occurrence so that repeated records do not create duplicate URLs.\n    unique_pages=[]\n    included_paths=set()\n    for page in pages:\n        if page['path'] in included_paths:\n            continue\n        included_paths.add(page['path'])\n        unique_pages.append(page)\n    pages=unique_pages\n    root=Element('urlset',xmlns='http://www.sitemaps.org/schemas/sitemap/0.9')\n    for page in pages:\n        node=SubElement(root,'url');SubElement(node,'loc').text=base+page['path']\n        if page.get('date'):SubElement(node,'lastmod').text=page['date']
+    # A sitemap must contain only one entry for each canonical route. Preserve the
+    # first occurrence so that repeated records do not create duplicate URLs.
+    unique_pages=[]
+    included_paths=set()
+    for page in pages:
+        if page['path'] in included_paths:
+            continue
+        included_paths.add(page['path'])
+        unique_pages.append(page)
+    pages=unique_pages
+    root=Element('urlset',xmlns='http://www.sitemaps.org/schemas/sitemap/0.9')
+    for page in pages:
+        node=SubElement(root,'url');SubElement(node,'loc').text=base+page['path']
+        if page.get('date'):SubElement(node,'lastmod').text=page['date']
     (out/'sitemap.xml').write_bytes(tostring(root,encoding='utf-8',xml_declaration=True))
     private=['/admin','/quality','/account','/applications','/settings','/profiles','/analytics','/copilot','/notifications','/resume-builder']
     (out/'robots.txt').write_text('User-agent: *\nAllow: /\n'+''.join(f'Disallow: {p}\n' for p in private)+'\nSitemap: '+base+'/sitemap.xml\n')
