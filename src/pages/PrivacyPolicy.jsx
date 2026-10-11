@@ -9,11 +9,14 @@ export default function PrivacyPolicy() {
           Privacy Policy
         </h1>
 
+        <p className="text-base text-slate-600 dark:text-slate-300 mb-3">The ScholarPortal Privacy Policy explains how student account information, application preferences, and service data are collected, used and protected.</p>
+
         <p className="text-sm text-slate-500 mb-10">
           Last updated: September 4, 2026
         </p>
 
         <div className="space-y-8 text-slate-700 dark:text-slate-300 leading-relaxed">
+          <section><h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-3">Privacy Policy Overview</h2><p>Review the sections below for how ScholarPortal handles personal data, third-party services, account security and deletion requests.</p></section>
 
           <section>
             <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-3">
