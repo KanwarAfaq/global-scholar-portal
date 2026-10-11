@@ -227,7 +227,8 @@ export default function OpportunityBlog() {
             {blog.title}
           </h1>
 
-          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 text-sm font-semibold text-slate-500 dark:text-slate-400">
+          <p className="text-base text-slate-600 dark:text-slate-300 mb-6">{blog.title} — {blog.excerpt || "Review funding, eligibility and application deadlines for this opportunity."}</p>
+           <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 text-sm font-semibold text-slate-500 dark:text-slate-400">
             <span className="flex items-center gap-2 bg-white dark:bg-slate-900 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
               <Clock className="w-4 h-4 text-indigo-500" />
               {blog.read_time || '3 min read'}
@@ -263,6 +264,8 @@ export default function OpportunityBlog() {
         {/* Focused Reading Column */}
         <div className="max-w-4xl mx-auto bg-white dark:bg-[#0b1120] rounded-[2.5rem] p-8 sm:p-12 md:p-16 shadow-2xl border border-slate-200 dark:border-slate-800/80 relative">
           <div className="absolute top-0 left-10 right-10 h-1.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-500 rounded-b-full opacity-80"></div>
+          
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6">About {blog.title}</h2>
           
           {renderContent(blog.content)}
         </div>

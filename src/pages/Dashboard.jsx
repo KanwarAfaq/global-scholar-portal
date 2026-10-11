@@ -307,6 +307,7 @@ export default function Dashboard() {
               Global Opportunity
             </span>
           </motion.h1>
+          <p className="mb-7 max-w-2xl text-base sm:text-lg text-slate-200">Discover verified global scholarships, fellowships and internships from official sources, with application guidance and deadline information.</p>
 
           <motion.div 
             initial={{ opacity: 0, y: 15 }}
@@ -334,7 +335,7 @@ export default function Dashboard() {
       <div className="space-y-5">
         <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-3">
-            <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">Active Opportunities</h2>
+            <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">Verified Scholarships, Fellowships and Internships</h2>
             <span className="shrink-0 text-xs font-bold px-3 py-1 bg-indigo-500/15 rounded-full text-indigo-700 dark:text-indigo-300 border border-indigo-500/30">
               {filteredData.length} Live Postings
             </span>

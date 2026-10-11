@@ -127,7 +127,8 @@ export default function BlogPost() {
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-white leading-tight transition-colors">
             {post.title}
           </h1>
-          <div className="flex items-center gap-4 text-sm font-semibold text-slate-500 dark:text-slate-400 pt-2 transition-colors">
+          <p className="text-base text-slate-600 dark:text-slate-300">{post.title} — {post.excerpt || "Explore eligibility, deadlines and application details in this guide."}</p>
+           <div className="flex items-center gap-4 text-sm font-semibold text-slate-500 dark:text-slate-400 pt-2 transition-colors">
             <span className="flex items-center gap-1.5">
               <Calendar className="w-4 h-4" /> 
               {new Date(post.created_at).toLocaleDateString()}
@@ -152,6 +153,7 @@ export default function BlogPost() {
           />
         </div>
 
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-5">About {post.title}</h2>
         {/* Dynamic HTML Content (Fully Adaptive to Theme) */}
         <div 
           className="prose dark:prose-invert prose-indigo max-w-none text-slate-700 dark:text-slate-300 leading-relaxed text-base sm:text-lg 

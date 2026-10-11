@@ -57,12 +57,14 @@ export default function Blog() {
       {/* Blog Hero */}
       <div className="text-center space-y-4">
         <h1 className="text-4xl sm:text-5xl font-extrabold text-slate-900 dark:text-white tracking-tight transition-colors">
-          Opportunity <span className="text-indigo-600 dark:text-indigo-400">Insights</span>
+          Scholarship and <span className="text-indigo-600 dark:text-indigo-400">Application Guides</span>
         </h1>
         <p className="text-slate-600 dark:text-slate-400 max-w-2xl mx-auto text-lg transition-colors">
-          Daily curated intelligence, application strategies, and deadline alerts scoured from top universities globally.
+          Scholarship and application guides covering verified funding opportunities, deadlines and university application strategies.
         </p>
       </div>
+
+      <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Latest Scholarship and Application Guides</h2>
 
       {/* Loading State */}
       {loading ? (

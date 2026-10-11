@@ -23,7 +23,7 @@ def build(output=None):
     ]]
     for row in all_rows('blog_posts'):
         if not (row.get('content') or '').strip() or not row.get('slug'):continue
-        pages.append({'path':'/blog/'+quote(row['slug'],safe=''),'title':row['title'],'description':row.get('excerpt') or row['title'],'content':row['content'],'date':row.get('updated_at') or row.get('created_at'),'kind':'Article','image':row.get('image')})
+        pages.append({'path':'/blog/'+quote(row['slug'],safe=''),'title':row['title'],'description':row.get('excerpt') or row['title'],'content':row['content'],'date':row.get('updated_at') or row.get('created_at'),'kind':'Article','image':row.get('image'),'source_url':row.get('original_link')})
     seen=set()
     # Stable iteration, one canonical per opportunity. Never index missing/empty articles.
     blogs=list(all_rows('opportunity_blogs'))
@@ -31,7 +31,7 @@ def build(output=None):
         oid=row.get('opportunity_id')
         if not oid or oid in seen or not (row.get('content') or '').strip():continue
         seen.add(oid)
-        pages.append({'path':f'/opportunity/{quote(oid,safe="")}/blog','title':row['title'],'description':row.get('excerpt') or row['title'],'content':row['content'],'date':row.get('updated_at') or row.get('created_at'),'kind':'Article','image':row.get('image')})
+        pages.append({'path':f'/opportunity/{quote(oid,safe="")}/blog','title':row['title'],'description':row.get('excerpt') or row['title'],'content':row['content'],'date':row.get('updated_at') or row.get('created_at'),'kind':'Article','image':row.get('image'),'source_url':row.get('original_link')})
     # A sitemap must contain only one entry for each canonical route. Preserve the
     # first occurrence so that repeated records do not create duplicate URLs.
     unique_pages=[]
