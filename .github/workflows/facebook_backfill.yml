@@ -1,0 +1,49 @@
+name: Facebook Opportunity Backfill
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/facebook_backfill.yml'
+
+concurrency:
+  group: facebook-opportunity-backfill
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - name: Install Python dependencies
+        working-directory: ./Agent
+        run: pip install -r requirements.txt
+      - name: Publish the 29 missing opportunity posts
+        working-directory: ./Agent
+        env:
+          PYTHONUNBUFFERED: '1'
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || secrets.SUPABASE_KEY }}
+          FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+          FACEBOOK_PAGE_ACCESS_TOKEN: ${{ secrets.FACEBOOK_PAGE_ACCESS_TOKEN }}
+          FACEBOOK_GRAPH_API_VERSION: ${{ secrets.FACEBOOK_GRAPH_API_VERSION }}
+          FACEBOOK_PUBLISH_ENABLED: 'true'
+          SCHOLARPORTAL_BASE_URL: ${{ vars.SCHOLARPORTAL_BASE_URL }}
+          BACKFILL_START: '2026-10-12T00:00:00Z'
+          BACKFILL_END: '2026-10-14T12:16:37Z'
+          BACKFILL_EXPECTED: '29'
+          ADMIN_NOTIFICATION_EMAIL: ${{ secrets.ADMIN_NOTIFICATION_EMAIL }}
+          SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
+          ADMIN_LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.ADMIN_LINE_CHANNEL_ACCESS_TOKEN }}
+          ADMIN_LINE_RECIPIENT_ID: ${{ secrets.ADMIN_LINE_RECIPIENT_ID }}
+        run: python facebook_backfill.py
