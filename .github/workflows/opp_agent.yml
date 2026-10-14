@@ -67,6 +67,10 @@ jobs:
           ADMIN_LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.ADMIN_LINE_CHANNEL_ACCESS_TOKEN }}
           ADMIN_LINE_RECIPIENT_ID: ${{ secrets.ADMIN_LINE_RECIPIENT_ID }}
           MIN_OPPORTUNITIES_PER_RUN: ${{ vars.MIN_OPPORTUNITIES_PER_RUN || '3' }}
+          OPPORTUNITY_PIPELINE_SECONDS: ${{ vars.OPPORTUNITY_PIPELINE_SECONDS || '2700' }}
+          CHANGE_MONITOR_LIMIT: ${{ vars.CHANGE_MONITOR_LIMIT || '4' }}
+          CHANGE_MONITOR_SECONDS: ${{ vars.CHANGE_MONITOR_SECONDS || '300' }}
+          PYTHONUNBUFFERED: '1'
 
           # Existing social publishing remains optional and receives only verified content.
           FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}

@@ -1,5 +1,5 @@
 from urllib.parse import urlparse
-import os, json, re, hashlib
+import os, json, re, hashlib, time
 from datetime import datetime, timezone, timedelta
 from urllib.parse import urlparse
 from core import supabase, AI, SEARCH, FETCH, domain, canonical_url, hash_text, AGGREGATOR_DOMAINS, log_event, clean_json, platform_setting
@@ -16,6 +16,14 @@ REGIONS={
 
 ALLOWED_TYPES={'Bachelor','Master','PhD','MPhil','Fellowship','Internship','Course','Workshop','Scholarship'}
 AUTO_PUBLISH_SCORE=70
+UNSUITABLE_SOURCE_DOMAINS={
+    'facebook.com','instagram.com','youtube.com','youtu.be','x.com','twitter.com',
+    'linkedin.com','tiktok.com','pinterest.com'
+}
+
+def unsuitable_source(url):
+    d=domain(url)
+    return any(d==blocked or d.endswith('.'+blocked) for blocked in UNSUITABLE_SOURCE_DOMAINS)
 
 def normalize_opportunity_type(value):
     candidates=value if isinstance(value,list) else [value]
@@ -113,7 +121,7 @@ class ResearchAgent:
             rows=sorted(rows,key=lambda x:(domain(x['url']) in AGGREGATOR_DOMAINS, not any(t in domain(x['url']) for t in ['.edu','.ac.','.gov','.org'])))
             for r in rows:
                 u=canonical_url(r['url']); d=domain(u)
-                if not u or u in seen or d in AGGREGATOR_DOMAINS: continue
+                if not u or u in seen or d in AGGREGATOR_DOMAINS or unsuitable_source(u): continue
                 seen.add(u); found.append({'query':target,**r,'url':u,'search_provider':provider})
         return found
 
@@ -131,9 +139,10 @@ class VerificationAgent:
     def extract(self,candidate,page):
         prompt=f'''Extract ONE real opportunity from this fetched source page. Never infer a deadline, eligibility rule or benefit not stated in the page. Return JSON only.\nToday: {datetime.now(timezone.utc).date()}\nSource URL: {page['final_url']}\nSearch title: {candidate.get('title')}\nPAGE TEXT:\n{page['text'][:18000]}\n\nSchema: {{"title":"","organization":"","country":"","type":"Scholarship|Bachelor|Master|PhD|MPhil|Fellowship|Internship|Course|Workshop","field":"","funding_details":"","description":"","tags":[],"deadline":"YYYY-MM-DD|Rolling|Unknown","eligibility":{{"citizenships":[],"levels":[],"fields":[],"min_gpa":null,"age_max":null,"language_tests":[{{"type":"IELTS|TOEFL|Other","min_score":null}}]}},"requirements":{{"min_gpa":null,"work_experience":null}},"application_requirements":{{"documents":[],"recommendation_letters":null,"language_tests":[{{"type":"IELTS|TOEFL|Other","min_score":null}}]}}}}'''
         r=AI.run(prompt,True); return clean_json(r['text']),r
-    def verify_candidate(self,candidate,run_id=None):
-        try: page=FETCH.fetch(candidate['url'])
-        except Exception as e: log_event(self.name,f"fetch failed {candidate['url']}: {e}",'warn',run_id); return None
+    def verify_candidate(self,candidate,run_id=None,page=None):
+        if page is None:
+            try: page=FETCH.fetch(candidate['url'])
+            except Exception as e: log_event(self.name,f"fetch failed {candidate['url']}: {e}",'warn',run_id); return None
         score,checks=self.score(candidate,page)
         try: data,ai=self.extract(candidate,page)
         except Exception as e: log_event(self.name,f"extraction failed: {e}",'warn',run_id); return None
@@ -158,11 +167,16 @@ class VerificationAgent:
 
 class ChangeMonitorAgent:
     name='change-monitor-agent'
-    def run(self,run_id=None,limit=80):
+    def run(self,run_id=None,limit=None):
+        limit=max(1,int(limit or os.getenv('CHANGE_MONITOR_LIMIT','4')))
+        deadline=time.monotonic()+max(60,int(os.getenv('CHANGE_MONITOR_SECONDS','300')))
         rows=(supabase.table('global_opportunities').select('*').eq('verified',True).order('last_checked_at').limit(limit).execute().data or [])
         changes=[]
         verifier=VerificationAgent()
         for opp in rows:
+            if time.monotonic() >= deadline:
+                log_event(self.name,f'time budget reached after {len(changes)} changes; remaining sources continue next run','info',run_id)
+                break
             url=opp.get('official_source_url') or opp.get('source_url') or opp.get('url')
             if not url: continue
             try: page=FETCH.fetch(url)
@@ -170,7 +184,9 @@ class ChangeMonitorAgent:
             h=hash_text(page['text'])
             if h==opp.get('change_hash'):
                 supabase.table('global_opportunities').update({'last_checked_at':datetime.now(timezone.utc).isoformat()}).eq('id',opp['id']).execute(); continue
-            v=verifier.verify_candidate({'url':url,'title':opp.get('title')},run_id)
+            # Reuse the page already fetched above. The previous implementation
+            # fetched changed pages twice, multiplying slow 403/timeout retries.
+            v=verifier.verify_candidate({'url':url,'title':opp.get('title')},run_id,page=page)
             if not v: continue
             if v['status'] != 'verified':
                 queue_review({'url':url,'title':opp.get('title')},v,run_id,'Existing verified source changed and now requires manual review')
@@ -259,7 +275,7 @@ Schema: {{"institution":"","title":"","country":"","level":"Bachelor|Master|PhD|
 
 class ProgramMonitorAgent:
     name='program-monitor-agent'
-    def run(self,run_id=None,limit=30):
+    def run(self,run_id=None,limit=4):
         rows=supabase.table('programs').select('*').eq('verified',True).order('last_checked_at').limit(limit).execute().data or []; changed=0
         extractor=ProgramDiscoveryAgent()
         for p in rows:
@@ -446,7 +462,12 @@ class ApplicationCoachAgent:
 class OpportunityPipeline:
     def run(self,run_id=None):
         discovered=ResearchAgent().discover(run_id); verified=0; review=0; inserted=[]; review_titles=[]; verifier=VerificationAgent()
+        minimum=max(1,int(os.getenv('MIN_OPPORTUNITIES_PER_RUN','3')))
+        deadline=time.monotonic()+max(300,int(os.getenv('OPPORTUNITY_PIPELINE_SECONDS','2700')))
         for c in discovered:
+            if time.monotonic() >= deadline:
+                log_event('opportunity-pipeline',f'time budget reached with {verified} published and {review} queued; remaining candidates continue next run','info',run_id)
+                break
             # Avoid reprocessing canonical source URLs.
             exist=supabase.table('global_opportunities').select('id').eq('source_url',c['url']).limit(1).execute().data or []
             if exist: continue
@@ -481,11 +502,15 @@ class OpportunityPipeline:
                 supabase.table('opportunity_versions').insert({'opportunity_id':row['id'],'content_hash':payload['change_hash'],'snapshot':d,'changed_fields':['created']}).execute()
                 supabase.table('opportunity_verifications').insert({'opportunity_id':row['id'],'status':'verified','confidence':v['score'],'checks':v['checks'],'evidence':[v['page']['final_url']],'verifier':self.__class__.__name__}).execute()
             except Exception as e:log_event('opportunity-pipeline',f"audit metadata failed {payload['title']}: {e}",'warn',run_id)
-        minimum=max(1,int(os.getenv('MIN_OPPORTUNITIES_PER_RUN','3')))
         return {'discovered':len(discovered),'verified_inserted':verified,'articles_created':verified,'needs_review':review,'minimum_target':minimum,'minimum_met':verified>=minimum,'shortfall':max(0,minimum-verified),'discovered_titles':[c.get('title') or c.get('url') for c in discovered],'published_titles':[o.get('title') for o in inserted],'review_titles':review_titles,'inserted':inserted}
 
 def start_run():
-    try: return supabase.table('agent_runs').insert({'agent_name':'daily-orchestrator','status':'running','provider_chain':['cgu','groq','openrouter','nvidia-nim','mistral','google-ai-studio','cerebras','openai']}).execute().data[0]['id']
+    try:
+        # A hard GitHub cancellation cannot execute our exception handler. Mark
+        # those abandoned rows before opening the next run.
+        cutoff=(datetime.now(timezone.utc)-timedelta(hours=3)).isoformat()
+        supabase.table('agent_runs').update({'status':'failed','error':'Previous GitHub Actions run ended before cleanup','finished_at':datetime.now(timezone.utc).isoformat()}).eq('agent_name','daily-orchestrator').eq('status','running').lt('started_at',cutoff).execute()
+        return supabase.table('agent_runs').insert({'agent_name':'daily-orchestrator','status':'running','provider_chain':['cgu','groq','openrouter','nvidia-nim','mistral','google-ai-studio','cerebras','openai']}).execute().data[0]['id']
     except Exception: return None
 
 def finish(run_id,status,metrics,error=None):
@@ -507,16 +532,24 @@ def main():
         opp_metrics=OpportunityPipeline().run(run_id)
         inserted=opp_metrics.pop('inserted',[])
         metrics['opportunities']=opp_metrics
-        # Complete public content, Facebook, and user alerts before optional
-        # specialist and analytics agents are attempted.
-        metrics['opportunity_articles']=ContentAgent().run(run_id,limit=None)
-        changes=safe_step('change-monitor-agent',lambda:ChangeMonitorAgent().run(run_id),run_id,[]) or []
-        metrics['changes']=len(changes)
+        # Every inserted opportunity already has its matching article. Publish
+        # Facebook posts immediately so maintenance work cannot delay this run's
+        # required outbound actions until the GitHub job timeout.
         metrics['social_publications']=safe_step('social-growth-agent',lambda:SocialGrowthAgent().run(inserted,run_id),run_id,{'enabled':True,'attempted':0,'published':0,'errors':1}) if os.getenv('AGENT_ALLOW_OUTBOUND')=='true' else {'skipped':'outbound disabled'}
         notifier=NotificationAgent()
-        metrics['notifications']=safe_step('notification-agent',lambda:notifier.run(run_id,changes,inserted),run_id,{'email':0,'line':0,'in_app':0,'failed':1}) if os.getenv('AGENT_ALLOW_OUTBOUND')=='true' else {'skipped':'outbound disabled'}
+        metrics['notifications']=safe_step('notification-agent',lambda:notifier.run(run_id,[],inserted),run_id,{'email':0,'line':0,'in_app':0,'failed':1}) if os.getenv('AGENT_ALLOW_OUTBOUND')=='true' else {'skipped':'outbound disabled'}
+        run_status='success' if metrics['opportunities'].get('minimum_met') else 'partial'
+        # Send the short admin numbers summary while the core result is safe;
+        # optional maintenance must never prevent this notification.
+        metrics['admin_notifications']=notifier.notify_admins('multi-agent',metrics,run_id,run_status)
+        # Reconciliation and source monitoring are maintenance tasks. They run
+        # only after this run's articles, Facebook posts, and user alerts.
+        metrics['opportunity_articles']=safe_step('opportunity-content-agent',lambda:ContentAgent().run(run_id,limit=25),run_id,{'created':0,'failed':1})
+        changes=safe_step('change-monitor-agent',lambda:ChangeMonitorAgent().run(run_id),run_id,[]) or []
+        metrics['changes']=len(changes)
+        metrics['change_notifications']=safe_step('change-notification-agent',lambda:notifier.run(run_id,changes,[]),run_id,{'email':0,'line':0,'in_app':0,'failed':1}) if changes and os.getenv('AGENT_ALLOW_OUTBOUND')=='true' else {'skipped':'no changes or outbound disabled'}
         metrics['programs_verified']=safe_step('program-discovery-agent',lambda:ProgramDiscoveryAgent().run(run_id),run_id)
-        metrics['programs_changed']=safe_step('program-monitor-agent',lambda:ProgramMonitorAgent().run(run_id),run_id)
+        metrics['programs_changed']=safe_step('program-monitor-agent',lambda:ProgramMonitorAgent().run(run_id,limit=4),run_id)
         from specialists import SourceAuditor, ApplicationCompletenessAgent
         metrics['source_audit']=safe_step('source-auditor',lambda:SourceAuditor().run(run_id),run_id)
         metrics['application_completeness']=safe_step('application-completeness-agent',lambda:ApplicationCompletenessAgent().run(run_id),run_id)
@@ -528,8 +561,6 @@ def main():
         metrics['opportunity_freshness']=safe_step('opportunity-freshness-agent',lambda:OpportunityFreshnessAgent().run(run_id),run_id)
         metrics['community_moderation']=safe_step('community-moderation-agent',lambda:CommunityModerationAgent().run(run_id),run_id)
         metrics['application_coach']=safe_step('application-coach-agent',lambda:ApplicationCoachAgent().run(run_id),run_id)
-        run_status='success' if metrics['opportunities'].get('minimum_met') else 'partial'
-        metrics['admin_notifications']=notifier.notify_admins('multi-agent',metrics,run_id,run_status)
         finish(run_id,run_status,metrics); print(json.dumps(metrics,indent=2,default=str))
         if run_status=='partial':raise SystemExit(2)
         return metrics

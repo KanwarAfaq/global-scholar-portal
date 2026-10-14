@@ -97,6 +97,22 @@ class AgentTests(unittest.TestCase):
         with patch.object(orchestrator,'log_event'):
             result=orchestrator.safe_step('optional',lambda:(_ for _ in ()).throw(RuntimeError('boom')),default={'failed':1})
         self.assertEqual(result,{'failed':1})
+    def test_research_rejects_slow_social_media_sources(self):
+        self.assertTrue(orchestrator.unsuitable_source('https://www.instagram.com/p/example'))
+        self.assertTrue(orchestrator.unsuitable_source('https://facebook.com/groups/example'))
+        self.assertFalse(orchestrator.unsuitable_source('https://example.edu/scholarships'))
+    def test_change_monitor_reuses_first_fetch(self):
+        opportunity={'id':'opp-1','title':'Scholarship','official_source_url':'https://example.edu/scholarship','change_hash':'old'}
+        page={'text':'scholarship application eligibility funding '+('x'*1600),'final_url':'https://example.edu/scholarship','status':200,'strategy':'standard'}
+        database=MagicMock()
+        database.table.return_value.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value.data=[opportunity]
+        database.table.return_value.update.return_value.eq.return_value.execute.return_value.data=[]
+        database.table.return_value.upsert.return_value.execute.return_value.data=[]
+        verified={'data':{},'page':page,'score':90,'checks':{},'status':'verified','ai':{}}
+        with patch.object(orchestrator,'supabase',database),patch.object(orchestrator.FETCH,'fetch',return_value=page) as fetch,patch.object(orchestrator.VerificationAgent,'verify_candidate',return_value=verified) as verify:
+            orchestrator.ChangeMonitorAgent().run(limit=1)
+        fetch.assert_called_once_with('https://example.edu/scholarship')
+        self.assertIs(verify.call_args.kwargs['page'],page)
     def test_standalone_agent_continues_across_source_pools_until_minimum(self):
         agent=content_pipeline.StandaloneBlogAgent()
         search_calls={'count':0}
