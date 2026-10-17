@@ -56,3 +56,13 @@ test('public page snapshots contain SEO headings, source links, image alt and va
     assert.equal(homeSchema.mainEntity.length, 3);
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
+
+test('private workspaces use HTTP noindex and remain crawlable to see that directive', () => {
+  const here=path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+  const vercel=JSON.parse(fs.readFileSync(path.join(here,'vercel.json'),'utf8'));
+  const protectedRoutes=vercel.headers.filter(rule=>rule.headers.some(item=>item.key==='X-Robots-Tag'&&item.value.includes('noindex')));
+  assert.ok(protectedRoutes.some(rule=>rule.source.includes('admin')&&rule.source.includes('settings')&&rule.source.includes('auth')),'private routes missing HTTP noindex');
+  const robots=fs.readFileSync(path.join(here,'public/robots.txt'),'utf8');
+  assert.doesNotMatch(robots,/^Disallow:\s*\/(?:admin|auth|settings)/m,'robots block hides noindex from crawlers');
+  assert.match(robots,/^Sitemap:\s+https:\/\/scholarportal\.site\/sitemap\.xml/m);
+});
