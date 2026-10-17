@@ -3,6 +3,15 @@
   "trailingSlash": false,
   "headers": [
     {
+      "source": "^/(auth|reset-password|change-email|resume-builder|applications|settings|profiles|analytics|copilot|intelligence|notifications|sponsored|sponsor|counselor|counselor-invites|account|quality|admin)(/.*)?$",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        }
+      ]
+    },
+    {
       "source": "/(.*)",
       "headers": [
         {
