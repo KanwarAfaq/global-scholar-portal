@@ -57,10 +57,10 @@ export default function Blog() {
       {/* Blog Hero */}
       <div className="text-center space-y-4">
         <h1 className="text-4xl sm:text-5xl font-extrabold text-slate-900 dark:text-white tracking-tight transition-colors">
-          Scholarship and <span className="text-indigo-600 dark:text-indigo-400">Application Guides</span>
+          Scholarship <span className="text-indigo-600 dark:text-indigo-400">Application Guides 2026–2027</span>
         </h1>
         <p className="text-slate-600 dark:text-slate-400 max-w-2xl mx-auto text-lg transition-colors">
-          Scholarship and application guides covering verified funding opportunities, deadlines and university application strategies.
+          Scholarship application guides for international students: research fully funded scholarships 2026–2027, check eligibility, prepare personal statements and meet official deadlines.
         </p>
       </div>
 

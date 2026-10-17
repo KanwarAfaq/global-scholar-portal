@@ -13,17 +13,18 @@ def build(output=None):
     if urlparse(base).scheme!='https':raise ValueError('Use the public HTTPS origin')
     out=Path(output) if output else Path(__file__).resolve().parents[1]/'public'
     out.mkdir(parents=True,exist_ok=True)
-    pages=[{'path':path,'title':title,'description':desc} for path,title,desc in [
-        ('/', 'Verified Global Scholarships, Fellowships and Internships','Discover verified scholarships, fellowships, internships and degree programs worldwide, compare official sources and prepare stronger applications.'),
-        ('/blog','Scholarship and Application Guides','Evidence-based scholarship research, deadline guidance and practical application strategies from ScholarPortal.'),
-        ('/programs','Verified Degree Programs Worldwide','Compare verified degree programs, official admission sources, tuition information and personalized academic fit.'),
-        ('/pricing','ScholarPortal Plans and Pricing','Compare ScholarPortal plans for opportunity discovery, application preparation and organization workflows.'),
-        ('/terms','Terms of Service','Terms governing the use of ScholarPortal.'),
-        ('/privacy-policy','Privacy Policy','How ScholarPortal handles account, profile and application data.'),
+    # Primary keyword clusters: international scholarships, funding and study-abroad guides.
+    pages=[{'path':path,'title':title,'description':desc,'focus_keyword':keyword} for path,title,desc,keyword in [
+        ('/', 'Fully Funded Scholarships 2026–2027 for International Students','Explore fully funded scholarships 2026–2027 for international students, including master’s, PhD, fellowships and internships. Compare eligibility, funding, deadlines and official sources.','fully funded scholarships 2026–2027'),
+        ('/blog','Scholarship Application Guides 2026–2027','Scholarship application guides for international students: eligibility, personal statements, funding, deadlines and how to apply for study abroad scholarships.','scholarship application guides 2026–2027'),
+        ('/programs','Study Abroad Degree Programs for International Students','Find study abroad degree programs for international students, compare academic admission requirements, tuition, funding and official university sources.','study abroad degree programs'),
+        ('/pricing','ScholarPortal Plans and Pricing','Compare ScholarPortal plans for opportunity discovery, application preparation and organization workflows.','ScholarPortal pricing'),
+        ('/terms','Terms of Service','Terms governing the use of ScholarPortal.','Terms of Service'),
+        ('/privacy-policy','Privacy Policy','How ScholarPortal handles account, profile and application data.','Privacy Policy'),
     ]]
     for row in all_rows('blog_posts'):
         if not (row.get('content') or '').strip() or not row.get('slug'):continue
-        pages.append({'path':'/blog/'+quote(row['slug'],safe=''),'title':row['title'],'description':row.get('excerpt') or row['title'],'content':row['content'],'date':row.get('updated_at') or row.get('created_at'),'kind':'Article','image':row.get('image'),'source_url':row.get('original_link')})
+        pages.append({'path':'/blog/'+quote(row['slug'],safe=''),'title':row['title'],'focus_keyword':row['title'],'description':row.get('excerpt') or row['title'],'content':row['content'],'date':row.get('updated_at') or row.get('created_at'),'kind':'Article','image':row.get('image'),'source_url':row.get('original_link')})
     seen=set()
     # Stable iteration, one canonical per opportunity. Never index missing/empty articles.
     blogs=list(all_rows('opportunity_blogs'))
@@ -31,7 +32,7 @@ def build(output=None):
         oid=row.get('opportunity_id')
         if not oid or oid in seen or not (row.get('content') or '').strip():continue
         seen.add(oid)
-        pages.append({'path':f'/opportunity/{quote(oid,safe="")}/blog','title':row['title'],'description':row.get('excerpt') or row['title'],'content':row['content'],'date':row.get('updated_at') or row.get('created_at'),'kind':'Article','image':row.get('image'),'source_url':row.get('original_link')})
+        pages.append({'path':f'/opportunity/{quote(oid,safe="")}/blog','title':row['title'],'focus_keyword':row['title'],'description':row.get('excerpt') or row['title'],'content':row['content'],'date':row.get('updated_at') or row.get('created_at'),'kind':'Article','image':row.get('image'),'source_url':row.get('original_link')})
     # A sitemap must contain only one entry for each canonical route. Preserve the
     # first occurrence so that repeated records do not create duplicate URLs.
     unique_pages=[]

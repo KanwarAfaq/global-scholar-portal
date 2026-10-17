@@ -48,6 +48,11 @@ const relatedLinks = page => {
     link.path !== page.path && all.findIndex(entry => entry.path === link.path) === index &&
     pages.some(item => item.path === link.path)).slice(0, 4);
 };
+const homeFaqs = [
+  ['What does a fully funded scholarship cover?', 'Coverage varies by program. It can include tuition and a living allowance; travel, housing and insurance may or may not be included. Check each provider’s official funding terms.'],
+  ["How can I find 2027 master's and PhD scholarships?", 'Search the opportunities above by degree, country and field of study. Compare the closing date, eligibility rules and official application page before applying.'],
+  ['Where can I get scholarship application help?', 'Read our scholarship application guides for research and preparation, and compare study abroad degree programs. Official university and funder instructions always take precedence.'],
+];
 const officialResources = {
   '/': { url: 'https://educationusa.state.gov/', label: 'EducationUSA official international study guidance' },
   '/blog': { url: 'https://www.daad.de/en/', label: 'DAAD official academic exchange resources' },
@@ -60,7 +65,26 @@ const officialLink = page => {
     : (officialResources[page.path] || null);
 };
 
+// Keep crawlable HTML titles synchronized even before the next scheduled sitemap refresh.
+const landingSeo = {
+  '/': {
+    title: 'Fully Funded Scholarships 2026–2027 for International Students',
+    description: 'Explore fully funded scholarships 2026–2027 for international students, including master’s, PhD, fellowships and internships. Compare eligibility, funding, deadlines and official sources.',
+    focus_keyword: 'fully funded scholarships 2026–2027',
+  },
+  '/blog': {
+    title: 'Scholarship Application Guides 2026–2027',
+    description: 'Scholarship application guides for international students: eligibility, personal statements, funding, deadlines and how to apply for study abroad scholarships.',
+    focus_keyword: 'scholarship application guides 2026–2027',
+  },
+  '/programs': {
+    title: 'Study Abroad Degree Programs for International Students',
+    description: 'Find study abroad degree programs for international students, compare academic admission requirements, tuition, funding and official university sources.',
+    focus_keyword: 'study abroad degree programs',
+  },
+};
 for (const page of pages) {
+  if (landingSeo[page.path]) Object.assign(page, landingSeo[page.path]);
   if (!page.path.startsWith('/') || page.path.includes('..')) throw new Error('Unsafe SEO path');
   const canonical = base + page.path;
   const description = text(page.description || page.title);
@@ -81,11 +105,15 @@ for (const page of pages) {
     ...(validWebUrl(page.image) ? { image: [validWebUrl(page.image)] } : {}),
   } : {
     '@context': 'https://schema.org',
-    '@type': 'WebPage',
+    '@type': page.path === '/' ? 'FAQPage' : 'WebPage',
     name: page.title,
     description,
     url: canonical,
     isPartOf: { '@type': 'WebSite', name: 'ScholarPortal', url: base },
+    ...(page.path === '/' ? { mainEntity: homeFaqs.map(([question, answer]) => ({
+      '@type': 'Question', name: question,
+      acceptedAnswer: { '@type': 'Answer', text: answer },
+    })) } : {}),
   };
   const head = [
     `<title>${escape(page.title)} | ScholarPortal</title>`,
@@ -117,6 +145,9 @@ for (const page of pages) {
     bodyText && bodyText !== description ? '<div>' + escape(bodyText) + '</div>' : '',
     links.length ? '<nav aria-label="Related ScholarPortal pages"><h2>Related scholarships and guides</h2>' +
       links.map(link => '<a href="' + escape(link.path) + '">' + escape(link.label) + '</a>').join(' · ') + '</nav>' : '',
+    page.path === '/' ? '<section aria-labelledby="scholarship-faq-heading"><h2 id="scholarship-faq-heading">Fully Funded Scholarships for International Students: FAQs</h2>' +
+      homeFaqs.map(([question, answer]) => '<section><h3>' + escape(question) + '</h3><p>' + escape(answer) + '</p></section>').join('') +
+      '<p>Explore <a href="/blog">scholarship application guides</a> and <a href="/programs">study abroad degree programs</a>.</p></section>' : '',
     source ? '<p>Further information: <a href="' + escape(source.url) + '" rel="noopener noreferrer">' +
       escape(source.label) + '</a>. Confirm details with the official provider.</p>' : '',
     '</article>',

@@ -33,7 +33,7 @@ def normalize_opportunity_type(value):
     return 'Scholarship'
 
 def verification_status(score):
-    return 'verified' if max(0,min(100,int(score or 0)))>AUTO_PUBLISH_SCORE else 'needs_review'
+    return 'verified' if max(0,min(100,int(score or 0)))>=AUTO_PUBLISH_SCORE else 'needs_review'
 
 GENERIC_ORG_WORDS={'university','college','institute','institution','foundation','ministry','department','government','international','national','school','programme','program','scholarship','scholarships','education','research','office','organization','organisation'}
 

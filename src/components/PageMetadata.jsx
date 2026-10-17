@@ -12,16 +12,16 @@ const ORGANIZATION = {
 
 const pages = {
   '/': {
-    title: 'Verified Global Scholarships, Fellowships and Internships',
-    description: 'Discover verified scholarships, fellowships, internships and degree programs worldwide, compare official sources and prepare stronger applications.',
+    title: 'Fully Funded Scholarships 2026–2027 for International Students',
+    description: 'Explore fully funded scholarships 2026–2027 for international students, including master’s, PhD, fellowships and internships. Compare eligibility, funding, deadlines and official sources.',
   },
   '/blog': {
-    title: 'Scholarship and Application Guides',
-    description: 'Evidence-based scholarship research, deadline guidance and practical application strategies from ScholarPortal.',
+    title: 'Scholarship Application Guides 2026–2027',
+    description: 'Scholarship application guides for international students: eligibility, personal statements, funding, deadlines and how to apply for study abroad scholarships.',
   },
   '/programs': {
-    title: 'Verified Degree Programs Worldwide',
-    description: 'Compare verified degree programs, official admission sources, tuition information and personalized academic fit.',
+    title: 'Study Abroad Degree Programs for International Students',
+    description: 'Find study abroad degree programs for international students, compare academic admission requirements, tuition, funding and official university sources.',
   },
   '/pricing': {
     title: 'ScholarPortal Plans and Pricing',

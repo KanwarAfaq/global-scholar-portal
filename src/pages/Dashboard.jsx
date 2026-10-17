@@ -302,12 +302,12 @@ export default function Dashboard() {
             animate={{ opacity: 1, y: 0 }}
             className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white tracking-tight mb-6"
           >
-            Discover Your Next <br className="hidden sm:block" />
+            Fully Funded Scholarships <br className="hidden sm:block" />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-sky-400 to-teal-300">
-              Global Opportunity
+              2026–2027 for International Students
             </span>
           </motion.h1>
-          <p className="mb-7 max-w-2xl text-base sm:text-lg text-slate-200">Discover verified global scholarships, fellowships and internships from official sources, with application guidance and deadline information.</p>
+          <p className="mb-7 max-w-2xl text-base sm:text-lg text-slate-200">Explore fully funded scholarships 2026–2027, including master’s and PhD scholarships, research fellowships and internships. Compare funding, eligibility and application deadlines using official sources.</p>
 
           <motion.div 
             initial={{ opacity: 0, y: 15 }}
@@ -335,7 +335,7 @@ export default function Dashboard() {
       <div className="space-y-5">
         <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-3">
-            <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">Verified Scholarships, Fellowships and Internships</h2>
+            <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">Browse Scholarships, Fellowships and Internships Worldwide</h2>
             <span className="shrink-0 text-xs font-bold px-3 py-1 bg-indigo-500/15 rounded-full text-indigo-700 dark:text-indigo-300 border border-indigo-500/30">
               {filteredData.length} Live Postings
             </span>
@@ -704,6 +704,16 @@ export default function Dashboard() {
           </>
         )}
       </AnimatePresence>
+
+      {/* Public scholarship guidance, mirrored in the initial HTML snapshot for crawlers. */}
+      <section aria-labelledby="scholarship-faq-heading" className="rounded-3xl border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-900 sm:p-8">
+        <h2 id="scholarship-faq-heading" className="mb-5 text-2xl font-extrabold text-slate-900 dark:text-white">Fully Funded Scholarships for International Students: FAQs</h2>
+        <div className="space-y-5 text-slate-700 dark:text-slate-300">
+          <div><h3 className="font-bold text-slate-900 dark:text-white">What does a fully funded scholarship cover?</h3><p>Coverage varies by program. It can include tuition and a living allowance; travel, housing and insurance may or may not be included. Check each provider’s official funding terms.</p></div>
+          <div><h3 className="font-bold text-slate-900 dark:text-white">How can I find 2027 master's and PhD scholarships?</h3><p>Search the opportunities above by degree, country and field of study. Compare the closing date, eligibility rules and official application page before applying.</p></div>
+          <div><h3 className="font-bold text-slate-900 dark:text-white">Where can I get scholarship application help?</h3><p>Read our <a className="font-semibold text-indigo-700 underline dark:text-indigo-300" href="/blog">scholarship application guides</a> for research and preparation, and compare <a className="font-semibold text-indigo-700 underline dark:text-indigo-300" href="/programs">study abroad degree programs</a>. Official university and funder instructions always take precedence.</p></div>
+        </div>
+      </section>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 """Separate, resumable content pipelines with a shared AI cascade."""
 import json,re,html
 from datetime import datetime,timezone
-from core import AI,SEARCH,FETCH,supabase,canonical_url,hash_text,clean_json,log_event
+from core import AI,SEARCH,FETCH,supabase,canonical_url,hash_text,clean_json,log_event,domain
 
 def article_schema(value):
     if not isinstance(value.get('title'),str) or not value['title'].strip():raise ValueError('Article title required')
@@ -117,14 +117,23 @@ class StandaloneBlogAgent:
             'official university scholarship interview preparation guide',
             'official university research degree funding application guide',
         ]
-        count=0;discovered=0;failed=0;article_titles=[];created_articles=[];seen=set()
+        # Skip inaccessible social/aggregator sources; prioritize primary evidence.
+        blocked_domains={'facebook.com','instagram.com','youtube.com','youtu.be',
+            'reddit.com','tiktok.com','x.com','twitter.com','linkedin.com',
+            'pinterest.com','usnews.com','bold.org'}
+        count=0;discovered=0;failed=0;skipped=0;article_titles=[];created_articles=[];seen=set();failed_hosts=set()
         for topic in topics:
             try:rows,provider=SEARCH.search(topic,8)
             except Exception as exc:log_event(self.name,f'search: {type(exc).__name__}','warn');continue
             for row in rows:
                 url=canonical_url(row.get('url'))
                 if not url or url in seen:continue
-                seen.add(url);discovered+=1
+                seen.add(url)
+                hostname=domain(url)
+                if not hostname or any(hostname==blocked or hostname.endswith('.'+blocked) for blocked in blocked_domains) or hostname in failed_hosts:
+                    skipped+=1
+                    continue
+                discovered+=1
                 try:
                     page=FETCH.fetch(url)
                     key=re.sub(r'[^a-z0-9]+','-',str(row.get('title','research')).lower()).strip('-')[:70]+'-'+hash_text(canonical_url(page['final_url']))[:10]
@@ -135,7 +144,10 @@ class StandaloneBlogAgent:
                         created_articles.append(saved[0] if saved else {'slug':key,'title':row.get('title'),'excerpt':row.get('snippet')})
                 except Exception as exc:
                     failed+=1
-                    log_event(self.name,f'{type(exc).__name__}: {str(exc)[:260]}','warn')
+                    detail=str(exc)
+                    if any(code in detail.lower() for code in ('403 client error','429 client error','read timed out')):
+                        failed_hosts.add(hostname)
+                    log_event(self.name,f'{type(exc).__name__}: {detail[:260]}','warn')
             # Continue to another independent source pool only when necessary.
             if count>=minimum:break
-        return {'standalone_articles_created':count,'minimum_target':minimum,'minimum_met':count>=minimum,'shortfall':max(0,minimum-count),'sources_discovered':discovered,'failed':failed,'article_titles':article_titles,'created_articles':created_articles}
+        return {'standalone_articles_created':count,'minimum_target':minimum,'minimum_met':count>=minimum,'shortfall':max(0,minimum-count),'sources_discovered':discovered,'sources_skipped':skipped,'failed':failed,'article_titles':article_titles,'created_articles':created_articles}

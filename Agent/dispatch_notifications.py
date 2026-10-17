@@ -1,4 +1,4 @@
-import os, smtplib, json
+import os, smtplib, json, re
 from html import escape
 from datetime import datetime, timezone, timedelta
 from email.mime.multipart import MIMEMultipart
@@ -120,10 +120,14 @@ def line_message_chunks(text,limit=4800,max_messages=5):
     return chunks[:max_messages]
 
 def line_send(line_id,text,token=None):
+    recipient=str(line_id or '').strip()
+    # LINE Messaging API recipients are U/C/R IDs followed by 32 hex digits.
+    if not re.fullmatch(r'[UCR][0-9a-fA-F]{32}',recipient):
+        raise ValueError('Invalid LINE recipient ID; reconnect LINE in Settings')
     token=token or os.getenv('LINE_CHANNEL_ACCESS_TOKEN')
     if not token: raise RuntimeError('LINE not configured')
     messages=[{'type':'text','text':chunk} for chunk in line_message_chunks(text)]
-    r=requests.post('https://api.line.me/v2/bot/message/push',headers={'Authorization':f'Bearer {token}','Content-Type':'application/json'},json={'to':line_id,'messages':messages},timeout=25)
+    r=requests.post('https://api.line.me/v2/bot/message/push',headers={'Authorization':f'Bearer {token}','Content-Type':'application/json'},json={'to':recipient,'messages':messages},timeout=25)
     if not r.ok:
         try: detail=(r.json() or {}).get('message') or r.text
         except Exception: detail=r.text

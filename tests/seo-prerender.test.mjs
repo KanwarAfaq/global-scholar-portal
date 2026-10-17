@@ -47,5 +47,12 @@ test('public page snapshots contain SEO headings, source links, image alt and va
     assert.match(article, /href="\/blog\/second"/);
     assert.doesNotMatch(fs.readFileSync(path.join(root, 'dist/blog/second/index.html'), 'utf8'), /<img\b/);
     assert.match(fs.readFileSync(path.join(root, 'dist/index.html'), 'utf8'), /href="https:\/\/educationusa.state.gov\/"/);
+    const home = fs.readFileSync(path.join(root, 'dist/index.html'), 'utf8');
+    assert.match(home, /Fully Funded Scholarships 2026–2027 for International Students/);
+    assert.match(home, /What does a fully funded scholarship cover\?/);
+    assert.match(home, /href="\/blog"/);
+    const homeSchema = JSON.parse(home.match(/<script type="application\/ld\+json">([^<]+)<\/script>/)[1]);
+    assert.equal(homeSchema['@type'], 'FAQPage');
+    assert.equal(homeSchema.mainEntity.length, 3);
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
