@@ -48,8 +48,9 @@ def build(output=None):
         node=SubElement(root,'url');SubElement(node,'loc').text=base+page['path']
         if page.get('date'):SubElement(node,'lastmod').text=page['date']
     (out/'sitemap.xml').write_bytes(tostring(root,encoding='utf-8',xml_declaration=True))
-    private=['/admin','/quality','/account','/applications','/settings','/profiles','/analytics','/copilot','/notifications','/resume-builder']
-    (out/'robots.txt').write_text('User-agent: *\nAllow: /\n'+''.join(f'Disallow: {p}\n' for p in private)+'\nSitemap: '+base+'/sitemap.xml\n')
+    # HTTP X-Robots-Tag handles private routes. Do not disallow crawler access to
+    # those routes here: a robots.txt block prevents crawlers seeing noindex.
+    (out/'robots.txt').write_text('User-agent: *\nAllow: /\n\nSitemap: '+base+'/sitemap.xml\n')
     (out/'seo-pages.json').write_text(json.dumps({'base':base,'pages':pages},ensure_ascii=False),encoding='utf-8')
     (out/'llms.txt').write_text(
         '# ScholarPortal\n\n'
