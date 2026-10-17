@@ -48,6 +48,27 @@ const relatedLinks = page => {
     link.path !== page.path && all.findIndex(entry => entry.path === link.path) === index &&
     pages.some(item => item.path === link.path)).slice(0, 4);
 };
+// Link each public article from a crawlable HTML hub, not solely from XML sitemaps.
+// Google's crawler can follow these anchors even if client-side data requests fail.
+const hubLinks = page => {
+  if (page.path !== '/' && page.path !== '/blog') return '';
+  const articles = pages.filter(item => item.kind === 'Article')
+    .sort((left, right) => String(right.date || '').localeCompare(String(left.date || '')));
+  const sections = [
+    { heading: 'Scholarship application guides', items: articles.filter(item => item.path.startsWith('/blog/')) },
+    { heading: 'Scholarship and opportunity reports', items: articles.filter(item => item.path.startsWith('/opportunity/')) },
+  ];
+  const limit = page.path === '/' ? 12 : 250;
+  const lists = sections.map(section => {
+    const links = section.items.slice(0, limit);
+    if (!links.length) return '';
+    return '<section><h2>' + escape(section.heading) + '</h2><ul>' +
+      links.map(link => '<li><a href="' + escape(link.path) + '">' + escape(link.title) + '</a></li>').join('') +
+      '</ul></section>';
+  }).filter(Boolean);
+  return lists.length ? '<nav aria-label="Browse public scholarship articles" data-seo-article-hub="true">' +
+    lists.join('') + '</nav>' : '';
+};
 const homeFaqs = [
   ['What does a fully funded scholarship cover?', 'Coverage varies by program. It can include tuition and a living allowance; travel, housing and insurance may or may not be included. Check each provider’s official funding terms.'],
   ["How can I find 2027 master's and PhD scholarships?", 'Search the opportunities above by degree, country and field of study. Compare the closing date, eligibility rules and official application page before applying.'],
@@ -143,6 +164,7 @@ for (const page of pages) {
     imageUrl ? '<figure><img src="' + escape(imageUrl) + '" alt="' + escape('Cover image for ' + keyword) + '" loading="lazy"></figure>' : '',
     '<h2>' + escape('About ' + keyword) + '</h2>',
     bodyText && bodyText !== description ? '<div>' + escape(bodyText) + '</div>' : '',
+    hubLinks(page),
     links.length ? '<nav aria-label="Related ScholarPortal pages"><h2>Related scholarships and guides</h2>' +
       links.map(link => '<a href="' + escape(link.path) + '">' + escape(link.label) + '</a>').join(' · ') + '</nav>' : '',
     page.path === '/' ? '<section aria-labelledby="scholarship-faq-heading"><h2 id="scholarship-faq-heading">Fully Funded Scholarships for International Students: FAQs</h2>' +
