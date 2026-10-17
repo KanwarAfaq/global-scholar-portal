@@ -39,7 +39,8 @@ def generate_article(kind,key,record):
         source=record.get('official_source_url') or record.get('url')
         payload['content']+='\n\nSource: '+str(source or 'Unavailable')+'\nChecked: '+str(record.get('last_checked_at') or payload['updated_at'])+'\nConfirm details with the official institution before applying.'
         payload[identity]=key
-        if kind=='opportunity':payload['original_link']=source
+        # Preserve the researched source for both opportunity and standalone pages.
+        if source:payload['original_link']=source
         if current:supabase.table(table).update(payload).eq('id',current[0]['id']).execute()
         else:supabase.table(table).insert(payload).execute()
         # Count only rows retrievable using the route's identifier.
