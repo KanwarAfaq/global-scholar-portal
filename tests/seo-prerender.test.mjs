@@ -51,6 +51,11 @@ test('public page snapshots contain SEO headings, source links, image alt and va
     assert.match(home, /Fully Funded Scholarships 2026–2027 for International Students/);
     assert.match(home, /What does a fully funded scholarship cover\?/);
     assert.match(home, /href="\/blog"/);
+    assert.match(home, /data-seo-article-hub="true"/);
+    assert.match(home, /href="\/blog\/example"/);
+    const blogHub = fs.readFileSync(path.join(root, 'dist/blog/index.html'), 'utf8');
+    assert.match(blogHub, /href="\/blog\/second"/);
+    assert.match(blogHub, /Scholarship application guides/);
     const homeSchema = JSON.parse(home.match(/<script type="application\/ld\+json">([^<]+)<\/script>/)[1]);
     assert.equal(homeSchema['@type'], 'FAQPage');
     assert.equal(homeSchema.mainEntity.length, 3);
