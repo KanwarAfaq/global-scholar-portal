@@ -1,0 +1,22 @@
+name: Cross-site sitemap health
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '13 4 * * 1'
+  pull_request:
+    paths:
+      - 'scripts/check_site_sitemaps.py'
+      - '.github/workflows/cross-site-sitemaps.yml'
+permissions:
+  contents: read
+jobs:
+  verify-sitemaps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Check all live robots files, sitemaps and sample pages
+        run: python scripts/check_site_sitemaps.py
