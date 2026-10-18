@@ -60,7 +60,7 @@ export default function Blog() {
           Scholarship <span className="text-indigo-600 dark:text-indigo-400">Application Guides 2026–2027</span>
         </h1>
         <p className="text-slate-600 dark:text-slate-400 max-w-2xl mx-auto text-lg transition-colors">
-          Scholarship application guides for international students: research fully funded scholarships 2026–2027, check eligibility, prepare personal statements and meet official deadlines.
+          Explore scholarships, eligibility, application tips and official deadlines.
         </p>
       </div>
 
@@ -73,7 +73,7 @@ export default function Blog() {
         </div>
       ) : blogs.length === 0 ? (
         <div className="text-center py-20 text-slate-500">
-          <p>No intelligence reports found yet. The AI agent is gathering data!</p>
+          <p>No articles published yet.</p>
         </div>
       ) : (
         <>
