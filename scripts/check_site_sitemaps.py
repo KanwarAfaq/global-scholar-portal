@@ -95,7 +95,12 @@ def main():
                 if not final.startswith("https://kmafaq.online/"):
                     raise ValueError("www homepage does not redirect to canonical non-www host")
                 if len(urls) <= 15:
-                    print("WARNING: KM Afaq sitemap contains only 15 or fewer URLs; verify published DB records and build-time credentials.", flush=True)
+                    print("::warning::KM Afaq live sitemap contains only 15 or fewer URLs; compare against published DB rows and Vercel build-time configuration.", flush=True)
+                try:
+                    api_urls = validate_one(origin, origin + "/api/sitemap")
+                    print(f"INFO: KM Afaq /api/sitemap contains {len(api_urls)} URLs versus /sitemap.xml {len(urls)}", flush=True)
+                except Exception as error:
+                    print(f"::warning::KM Afaq /api/sitemap endpoint failed: {error}", flush=True)
         except Exception as exc:
             problems.append((name, str(exc)))
             print(f"FAIL: {exc}", flush=True)
