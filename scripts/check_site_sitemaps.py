@@ -8,7 +8,7 @@ from urllib.request import Request, urlopen
 
 SITES = {
     "KM Afaq": ("https://kmafaq.online", 13),
-    "AnyTool": ("https://www.anytool.online", 100),
+    "AnyTool": ("https://anytool.online", 100),
     "Worksheet": ("https://worksheet.live", 8),
     "ScholarPortal": ("https://scholarportal.site", 500),
 }
