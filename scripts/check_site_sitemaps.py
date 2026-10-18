@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 SITES = {
-    "KM Afaq": ("https://kmafaq.online", 13),
+    "KM Afaq": ("https://kmafaq.online", 300),
     "AnyTool": ("https://anytool.online", 100),
     "Worksheet": ("https://worksheet.live", 8),
     "ScholarPortal": ("https://scholarportal.site", 500),
@@ -96,11 +96,10 @@ def main():
                     raise ValueError("www homepage does not redirect to canonical non-www host")
                 if len(urls) <= 15:
                     print("::warning::KM Afaq live sitemap contains only 15 or fewer URLs; compare against published DB rows and Vercel build-time configuration.", flush=True)
-                try:
-                    api_urls = validate_one(origin, origin + "/api/sitemap")
-                    print(f"INFO: KM Afaq /api/sitemap contains {len(api_urls)} URLs versus /sitemap.xml {len(urls)}", flush=True)
-                except Exception as error:
-                    print(f"::warning::KM Afaq /api/sitemap endpoint failed: {error}", flush=True)
+                api_urls = validate_one(origin, origin + "/api/sitemap")
+                if set(api_urls) != set(urls):
+                    raise ValueError(f"KM Afaq public sitemap and API differ: {len(urls)} vs {len(api_urls)} entries")
+                print(f"PASS: KM Afaq public sitemap exactly matches {len(api_urls)} API URLs", flush=True)
         except Exception as exc:
             problems.append((name, str(exc)))
             print(f"FAIL: {exc}", flush=True)
