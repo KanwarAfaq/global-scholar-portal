@@ -1,12 +1,14 @@
-"""Read-only live SEO sitemap health check for the owner's four production sites."""
+"""Read-only live SEO sitemap health check for the owner's five production sites."""
 from __future__ import annotations
 import sys
+from html.parser import HTMLParser
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 SITES = {
+    "Portfolio": ("https://kmafaq.site", 9),
     "KM Afaq": ("https://kmafaq.online", 300),
     "AnyTool": ("https://anytool.online", 100),
     "Worksheet": ("https://worksheet.live", 8),
@@ -15,18 +17,31 @@ SITES = {
 NS = "{http://www.sitemaps.org/schemas/sitemap/0.9}"
 AGENT = "SitemapHealthAudit/1.0 (GitHub Actions; monitoring)"
 
+class PageSignals(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.noindex = False
+        self.canonical = None
+
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if tag == "meta" and attrs.get("name", "").lower() in ("robots", "googlebot"):
+            self.noindex |= "noindex" in attrs.get("content", "").lower()
+        if tag == "link" and attrs.get("rel", "").lower() == "canonical":
+            self.canonical = attrs.get("href")
+
 def get(url):
     request = Request(url, headers={"User-Agent": AGENT, "Cache-Control": "no-cache"})
     with urlopen(request, timeout=30) as response:
         content = response.read(52_000_001)
         if len(content) > 50_000_000:
             raise ValueError(f"sitemap exceeds 50 MB: {url}")
-        return response.geturl(), response.status, response.headers.get("Content-Type", ""), content
+        return response.geturl(), response.status, response.headers.get("Content-Type", ""), content, response.headers.get("X-Robots-Tag", "")
 
 def validate_one(origin, sitemap_url, depth=0):
     if depth > 1:
         raise ValueError("nested sitemap indexes are not supported")
-    final, status, mime, data = get(sitemap_url)
+    final, status, mime, data, _ = get(sitemap_url)
     if status != 200:
         raise ValueError(f"HTTP {status} for {sitemap_url}")
     if not final.startswith(origin + "/"):
@@ -69,7 +84,7 @@ def main():
     for name, (origin, min_urls) in SITES.items():
         print(f"\n### {name} {origin}", flush=True)
         try:
-            robots_final, _, _, robots_data = get(origin + "/robots.txt")
+            robots_final, _, _, robots_data, _ = get(origin + "/robots.txt")
             robots = robots_data.decode("utf-8-sig")
             if "Disallow: /" in robots.splitlines():
                 raise ValueError("robots.txt blocks crawling entire website")
@@ -82,16 +97,20 @@ def main():
                 raise ValueError(f"sitemap too small: {len(urls)} (minimum expected {min_urls})")
             print(f"PASS: robots.txt={robots_final}  sitemap_urls={len(urls)}", flush=True)
             for url in urls[:3]:
-                final, _, ctype, body = get(url)
+                final, _, ctype, body, robot_header = get(url)
                 if "text/html" not in ctype.lower():
                     raise ValueError(f"page not HTML: {url} ({ctype})")
-                if b"noindex" in body[:12000].lower():
+                head = PageSignals()
+                head.feed(body.decode("utf-8", errors="replace"))
+                if "noindex" in robot_header.lower() or head.noindex:
                     raise ValueError(f"sitemap page includes noindex: {url}")
+                if not head.canonical or head.canonical.rstrip("/") != url.rstrip("/"):
+                    raise ValueError(f"wrong/missing canonical: {url} -> {head.canonical}")
                 if not final.startswith(origin + "/"):
                     raise ValueError(f"page redirected off canonical domain: {url} -> {final}")
             print("PASS: sample pages respond with indexable HTML", flush=True)
             if name == "KM Afaq":
-                final, _, _, _ = get("https://www.kmafaq.online/")
+                final, _, _, _, _ = get("https://www.kmafaq.online/")
                 if not final.startswith("https://kmafaq.online/"):
                     raise ValueError("www homepage does not redirect to canonical non-www host")
                 if len(urls) <= 15:
@@ -108,7 +127,7 @@ def main():
         for name, why in problems:
             print(f"ERROR {name}: {why}", flush=True)
         return 1
-    print("PASS: all four production sitemaps passed structural checks", flush=True)
+    print("PASS: all five production sitemaps passed structural checks", flush=True)
     return 0
 
 if __name__ == "__main__":

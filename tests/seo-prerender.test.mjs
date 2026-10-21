@@ -71,3 +71,21 @@ test('private workspaces use HTTP noindex and remain crawlable to see that direc
   assert.doesNotMatch(robots,/^Disallow:\s*\/(?:admin|auth|settings)/m,'robots block hides noindex from crawlers');
   assert.match(robots,/^Sitemap:\s+https:\/\/scholarportal\.site\/sitemap\.xml/m);
 });
+
+test('a missing or invalid manifest cannot deploy missing public pages', () => {
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'seo-invalid-'));
+ const script=path.resolve('scripts/prerender.mjs');
+ try {
+  fs.mkdirSync(path.join(root,'public'));
+  assert.notEqual(spawnSync(process.execPath,[script],{cwd:root}).status,0);
+  for (const manifest of [
+   {base:'https://other.example',pages:[{path:'/'}]},
+   {base:'https://scholarportal.site',pages:[]},
+   {base:'https://scholarportal.site',pages:[{path:'/'},{path:'/'}]},
+   {base:'https://scholarportal.site',pages:[{path:'/../private'}]},
+  ]) {
+   fs.writeFileSync(path.join(root,'public/seo-pages.json'),JSON.stringify(manifest));
+   assert.notEqual(spawnSync(process.execPath,[script],{cwd:root}).status,0);
+  }
+ } finally { fs.rmSync(root,{recursive:true,force:true}); }
+});

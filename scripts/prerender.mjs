@@ -4,11 +4,20 @@ import path from 'node:path';
 
 const file = 'public/seo-pages.json';
 if (!fs.existsSync(file)) {
-  console.log('SEO snapshots skipped: run Agent/indexing_agent.py with backend credentials first.');
-  process.exit(0);
+  throw new Error('Missing public/seo-pages.json: refusing to deploy without existing public pages. Run Agent/indexing_agent.py first.');
 }
 
 const { base, pages } = JSON.parse(fs.readFileSync(file, 'utf8'));
+if (base?.replace(/\/$/, '') !== 'https://scholarportal.site' || !Array.isArray(pages) || !pages.length) {
+  throw new Error('Invalid public SEO manifest: expected ScholarPortal origin and nonempty pages.');
+}
+const paths = new Set();
+for (const page of pages) {
+  if (typeof page.path !== 'string' || !page.path.startsWith('/') || page.path.startsWith('//') || /[?#\\]/.test(page.path) || page.path.split('/').includes('..') || paths.has(page.path)) {
+    throw new Error(`Invalid or duplicate public page path: ${page.path}`);
+  }
+  paths.add(page.path);
+}
 const template = fs.readFileSync('dist/index.html', 'utf8');
 const escape = value => String(value || '').replace(/[&<>"']/g, character => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
