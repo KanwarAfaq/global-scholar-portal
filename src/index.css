@@ -137,3 +137,14 @@ button:disabled { cursor: not-allowed; opacity: .5; }
   main pre { font-size: .8rem; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+
+
+/* Design polish: calmer typography, smooth anchors under the sticky header, consistent numerals. */
+html { scroll-behavior: smooth; scroll-padding-top: 5rem; }
+h1, h2, h3 { text-wrap: balance; }
+p { text-wrap: pretty; }
+::selection { background: rgb(99 102 241 / .28); }
+summary { -webkit-tap-highlight-color: transparent; }
+details > summary::-webkit-details-marker { display: none; }
+a, button, [role="button"], summary { touch-action: manipulation; }
+@media (max-width: 640px) { main { overflow-wrap: anywhere; } }

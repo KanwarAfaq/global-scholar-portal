@@ -1,7 +1,9 @@
 import {supabase} from '../lib/supabase';
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Calendar, Clock, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Calendar, Clock, Loader2 } from 'lucide-react';
+import Pagination from '../components/Pagination';
+import { pageFromParam } from '../lib/pagination';
 import { articleCover, articleFallback } from '../lib/articleImages';
 
 // Initialize Supabase
@@ -12,8 +14,14 @@ const ITEMS_PER_PAGE = 10;
 export default function Blog() {
   const [blogs, setBlogs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [searchParams, setSearchParams] = useSearchParams();
+  // The page lives in the URL (?page=N): shareable, crawlable, and the Back button works.
+  // It is not clamped to totalPages here because the total is unknown until the first response.
+  const currentPage = pageFromParam(searchParams.get('page'));
   const [totalPages, setTotalPages] = useState(1);
+  const [totalPosts, setTotalPosts] = useState(0);
+  const gridTop = useRef(null);
+  const firstLoad = useRef(true);
   const imageCounts = blogs.reduce((counts, post) => {
     const image = String(post.image || '').trim();
     if (image) counts[image] = (counts[image] || 0) + 1;
@@ -38,7 +46,11 @@ export default function Blog() {
         
         if (data) {
           setBlogs(data);
-          if (count) setTotalPages(Math.ceil(count / ITEMS_PER_PAGE));
+          if (count) {
+            const pages = Math.max(1, Math.ceil(count / ITEMS_PER_PAGE));
+            setTotalPages(pages);
+            setTotalPosts(count);
+          }
         }
       } catch (err) {
         console.error("Error fetching blogs:", err.message);
@@ -48,11 +60,22 @@ export default function Blog() {
     }
     
     fetchBlogs();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Scroll to the top of the list after paging, but never yank the page on the first visit.
+    if (firstLoad.current) firstLoad.current = false;
+    else gridTop.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [currentPage]);
 
+  // A stale or hand-edited ?page=99 should land on the last real page, not an empty list.
+  useEffect(() => {
+    if (!loading && totalPosts > 0 && currentPage > totalPages) {
+      setSearchParams(prev => { const next = new URLSearchParams(prev); next.set('page', String(totalPages)); return next; }, { replace: true });
+    }
+  }, [loading, totalPosts, totalPages, currentPage, setSearchParams]);
+
+  const pageHref = page => (page <= 1 ? '/blog' : '/blog?page=' + page);
+
   return (
-    <div className="max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8 space-y-10">
+    <div className="mx-auto w-full space-y-10 py-4 sm:py-6">
       
       {/* Blog Hero */}
       <div className="text-center space-y-4">
@@ -78,7 +101,7 @@ export default function Blog() {
       ) : (
         <>
           {/* Blog Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div ref={gridTop} className="scroll-mt-20 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {blogs.map((post, index) => (
               <Link 
                 key={post.id} 
@@ -135,31 +158,14 @@ export default function Blog() {
           </div>
 
           {/* Pagination Controls */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-4 pt-12 pb-4 border-t border-slate-200 dark:border-slate-800 transition-colors">
-              <button
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-                className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                aria-label="Previous page"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              
-              <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                Page {currentPage} of {totalPages}
-              </span>
-
-              <button
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                disabled={currentPage === totalPages}
-                className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                aria-label="Next page"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
-            </div>
-          )}
+          <Pagination
+            page={Math.min(currentPage, totalPages)}
+            totalPages={totalPages}
+            getHref={pageHref}
+            totalItems={totalPosts}
+            pageSize={ITEMS_PER_PAGE}
+            noun="guides"
+          />
         </>
       )}
     </div>
