@@ -2,12 +2,29 @@ import { Helmet } from 'react-helmet-async';
 import { useLocation } from 'react-router-dom';
 
 const SITE = (import.meta.env.VITE_SITE_URL || 'https://scholarportal.site').replace(/\/$/, '');
-const DEFAULT_IMAGE = SITE + '/favicon.svg';
+// Social previews and rich results need a raster image (SVG favicons are ignored by most platforms).
+const DEFAULT_IMAGE = SITE + '/og-default.jpg';
+const LOGO = { '@type': 'ImageObject', url: SITE + '/logo-512.png', width: 512, height: 512 };
 const ORGANIZATION = {
   '@type': 'Organization',
+  '@id': SITE + '/#organization',
   name: 'ScholarPortal',
-  url: SITE,
-  logo: DEFAULT_IMAGE,
+  url: SITE + '/',
+  logo: LOGO,
+};
+const WEBSITE = {
+  '@type': 'WebSite',
+  '@id': SITE + '/#website',
+  name: 'ScholarPortal',
+  url: SITE + '/',
+  inLanguage: 'en',
+  publisher: { '@id': SITE + '/#organization' },
+  // The homepage genuinely supports /?q=term (the search box is pre-filled and filtered from it).
+  potentialAction: {
+    '@type': 'SearchAction',
+    target: { '@type': 'EntryPoint', urlTemplate: SITE + '/?q={search_term_string}' },
+    'query-input': 'required name=search_term_string',
+  },
 };
 
 const pages = {
@@ -52,9 +69,21 @@ export function ArticleMetadata({
     mainEntityOfPage: { '@type': 'WebPage', '@id': url },
     datePublished: date,
     dateModified: modified || date,
+    inLanguage: 'en',
+    isAccessibleForFree: true,
     author: { '@type': 'Organization', name: author },
     publisher: ORGANIZATION,
-    ...(image ? { image: [image] } : {}),
+    image: [image || DEFAULT_IMAGE],
+  };
+  const crumbs = [
+    { name: 'Home', path: '/' },
+    ...(path.startsWith('/blog/') ? [{ name: 'Application guides', path: '/blog' }] : []),
+    { name: title, path },
+  ];
+  const breadcrumbs = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: crumbs.map((crumb, index) => ({ '@type': 'ListItem', position: index + 1, name: crumb.name, item: SITE + crumb.path })),
   };
 
   return <Helmet>
@@ -72,35 +101,49 @@ export function ArticleMetadata({
     <meta property="og:title" content={title} />
     <meta property="og:description" content={summary} />
     {indexable && <meta property="og:url" content={url} />}
-    {image && <meta property="og:image" content={image} />}
-    <meta name="twitter:card" content={image ? 'summary_large_image' : 'summary'} />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:image" content={image || DEFAULT_IMAGE} />
+    <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={summary} />
+    <meta name="twitter:image" content={image || DEFAULT_IMAGE} />
     {indexable && <script type="application/ld+json">{JSON.stringify(data).replace(/</g, '\\u003c')}</script>}
+    {indexable && <script type="application/ld+json">{JSON.stringify(breadcrumbs).replace(/</g, '\\u003c')}</script>}
   </Helmet>;
 }
 
 export default function PageMetadata() {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   if (/^\/(blog\/|opportunity\/)/.test(pathname)) return null;
 
   const page = pages[pathname];
   const publicPage = Boolean(page);
-  const title = page?.title || 'Your Workspace';
+  // Paginated listings (?page=N) are distinct pages: give each its own title and self-referencing canonical.
+  const listingPage = Number.parseInt(new URLSearchParams(search).get('page') || '1', 10);
+  const pageNumber = (pathname === '/' || pathname === '/blog') && Number.isFinite(listingPage) && listingPage > 1 ? listingPage : 1;
+  const title = (page?.title || 'Your Workspace') + (pageNumber > 1 ? ` – Page ${pageNumber}` : '');
   const description = page?.description || 'Your private ScholarPortal workspace.';
-  const canonical = publicPage ? SITE + pathname : null;
+  const canonical = publicPage ? SITE + pathname + (pageNumber > 1 ? `?page=${pageNumber}` : '') : null;
   const structured = publicPage ? {
     '@context': 'https://schema.org',
     '@graph': [
       ORGANIZATION,
-      { '@type': 'WebSite', name: 'ScholarPortal', url: SITE },
+      WEBSITE,
       {
         '@type': 'WebPage',
         name: title,
         description,
         url: canonical,
-        isPartOf: { '@type': 'WebSite', name: 'ScholarPortal', url: SITE },
+        inLanguage: 'en',
+        isPartOf: { '@id': SITE + '/#website' },
       },
+      ...(pathname === '/' ? [] : [{
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Home', item: SITE + '/' },
+          { '@type': 'ListItem', position: 2, name: page.title, item: SITE + pathname },
+        ],
+      }]),
     ],
   } : null;
 
@@ -116,10 +159,15 @@ export default function PageMetadata() {
     {canonical && <link rel="canonical" href={canonical} />}
     <meta property="og:site_name" content="ScholarPortal" />
     <meta property="og:type" content="website" />
+    <meta property="og:locale" content="en_US" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
+    <meta property="og:image" content={DEFAULT_IMAGE} />
     {canonical && <meta property="og:url" content={canonical} />}
-    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={DEFAULT_IMAGE} />
     {structured && <script type="application/ld+json">{JSON.stringify(structured).replace(/</g, '\\u003c')}</script>}
   </Helmet>;
 }

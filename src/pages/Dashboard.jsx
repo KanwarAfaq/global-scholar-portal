@@ -4,16 +4,18 @@ import { notify } from '../lib/notify';
 import { activeProfileId, selectProfile } from '../lib/profile';
 import OpportunityFacts, { CountryLabel, InstitutionMark } from '../components/OpportunityFacts';
 import { officialUrl } from '../lib/opportunities';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {useAuth} from '../context/session';
 import { runAiAction } from '../lib/ai';
 import { track } from '../lib/analytics';
 import Engagement from '../components/Engagement';
+import Pagination from '../components/Pagination';
+import { pageFromParam } from '../lib/pagination';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams,useNavigate } from 'react-router-dom';
 import { 
   Search, Sparkles, Building2, Calendar, 
-  DollarSign, ChevronRight, ChevronLeft, X, ExternalLink, Tag,
+  DollarSign, ChevronRight, X, ExternalLink, Tag,
   UserCheck, Brain, Loader2, RefreshCw, BookOpen, Bell 
 } from 'lucide-react';
 
@@ -93,7 +95,9 @@ export default function Dashboard() {
   const [userProfile, setUserProfile] = useState(null);
   const [profiles,setProfiles]=useState([]);const [fitScores,setFitScores]=useState({});
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(() => {
+    try { return (new URLSearchParams(window.location.search).get('q') || '').slice(0, 120); } catch { return ''; }
+  });
   const [activeItem, setActiveItem] = useState(null);
   const [saving, setSaving] = useState(false);
   const navigate = useNavigate();
@@ -104,7 +108,6 @@ export default function Dashboard() {
   const [aiError, setAiError] = useState(null);
 
   // Pagination State
-  const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 9;
 
   // URL Parameters for Global Filtering
@@ -133,9 +136,36 @@ export default function Dashboard() {
     effectLoad();
   }, [user]);
 
+  // NOTE: react-router returns a NEW setSearchParams function after every URL change, so it must never be an
+  // effect dependency here (the effects would re-run on each navigation and strip ?page=). useEffectEvent
+  // gives the effects the latest setter without making it a trigger.
+  // Keep ?q= in the URL (replace, so typing never fills the history) and return to page 1 on a new search.
+  const syncQueryToUrl = useEffectEvent((value) => {
+    const q = value.trim();
+    setSearchParams(prev => {
+      if ((prev.get('q') || '') === q) return prev;
+      const next = new URLSearchParams(prev);
+      if (q) next.set('q', q); else next.delete('q');
+      next.delete('page');
+      return next;
+    }, { replace: true });
+  });
+  useEffect(() => { syncQueryToUrl(searchQuery); }, [searchQuery]);
+
+  // Profile matching is local state, so reset the URL page when it flips.
+  const lastProfileToggle = useRef(matchMyProfileOnly);
+  const resetPageParam = useEffectEvent(() => {
+    setSearchParams(prev => {
+      if (!prev.has('page')) return prev;
+      const next = new URLSearchParams(prev); next.delete('page'); return next;
+    }, { replace: true });
+  });
   useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, activeTab, activeCountry, activeField, matchMyProfileOnly]);
+    // Compare with the previous value (not a "first run" flag) so StrictMode's double-invoked effects are harmless.
+    if (lastProfileToggle.current === matchMyProfileOnly) return;
+    lastProfileToggle.current = matchMyProfileOnly;
+    resetPageParam();
+  }, [matchMyProfileOnly]);
 
   async function fetchOpportunities() {
     setLoading(true);
@@ -233,9 +263,11 @@ export default function Dashboard() {
 
   const handleFilterChange = (key, value) => {
     setSearchParams(prev => {
-      if (value === 'All') prev.delete(key);
-      else prev.set(key, value);
-      return prev;
+      const next = new URLSearchParams(prev);
+      if (value === 'All') next.delete(key);
+      else next.set(key, value);
+      next.delete('page');
+      return next;
     });
   };
 
@@ -270,6 +302,23 @@ export default function Dashboard() {
   }, [opportunities, activeTab, activeCountry, activeField, searchQuery, matchMyProfileOnly, userProfile]);
 
   const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE) || 1;
+  const currentPage = pageFromParam(searchParams.get('page'), totalPages);
+  const pageHref = page => {
+    const next = new URLSearchParams(searchParams);
+    if (page <= 1) next.delete('page'); else next.set('page', String(page));
+    const query = next.toString();
+    return query ? '/?' + query : '/';
+  };
+  const resultsRef = useRef(null);
+  const lastPage = useRef(currentPage);
+  useEffect(() => {
+    // Bring the new page of results into view after paging (not on first load).
+    if (lastPage.current !== currentPage) {
+      lastPage.current = currentPage;
+      resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [currentPage]);
+  const jumpToResults = () => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   const paginatedData = useMemo(() => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
     return filteredData.slice(start, start + ITEMS_PER_PAGE);
@@ -320,19 +369,34 @@ export default function Dashboard() {
                 type="text" 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') jumpToResults(); }}
+                aria-label="Search scholarships by degree, discipline, university, country or tag"
+                enterKeyHint="search"
                 placeholder="Search by degree, discipline, university, country, or tags..." 
                 className="w-full bg-transparent border-none text-slate-900 dark:text-white placeholder:text-slate-400 pl-12 pr-4 py-3 focus:outline-none focus:ring-0 text-sm sm:text-base"
               />
             </div>
-            <button className="bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white px-8 py-3 rounded-xl sm:rounded-full font-bold text-sm transition-all shadow-lg shadow-indigo-600/30 flex justify-center items-center gap-2">
+            <button className="bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white px-8 py-3 rounded-xl sm:rounded-full font-bold text-sm transition-all shadow-lg shadow-indigo-600/30 flex justify-center items-center gap-2" type="button" onClick={jumpToResults}>
               Explore <ChevronRight className="w-4 h-4" />
             </button>
           </motion.div>
+          {!loading && opportunities.length > 0 && (() => {
+            const open = opportunities.filter(o => isOpportunityActive(o.deadline));
+            const countries = new Set(open.map(o => o.country).filter(Boolean)).size;
+            const fields = new Set(open.map(o => o.field).filter(Boolean)).size;
+            return (
+              <ul aria-label="Directory at a glance" className="mt-6 flex flex-wrap justify-center gap-2 text-xs font-semibold text-slate-200 sm:text-sm">
+                {[[open.length, 'open opportunities'], [countries, 'countries'], [fields, 'fields of study']].filter(([n]) => n > 0).map(([n, label]) => (
+                  <li key={label} className="rounded-full border border-white/15 bg-white/10 px-3.5 py-1.5 backdrop-blur"><b className="text-white tabular-nums">{n}</b> {label}</li>
+                ))}
+              </ul>
+            );
+          })()}
         </div>
       </div>
 
       {/* --- CONTROLS & FILTER SECTION --- */}
-      <div className="space-y-5">
+      <div className="space-y-5 scroll-mt-20" id="opportunity-results" ref={resultsRef}>
         <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-3">
             <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">Browse Scholarships, Fellowships and Internships Worldwide</h2>
@@ -346,6 +410,7 @@ export default function Dashboard() {
             <select
               value={activeField}
               onChange={(e) => handleFilterChange('field', e.target.value)}
+              aria-label="Filter by discipline"
               className="bg-white/90 dark:bg-slate-900/90 text-slate-700 dark:text-slate-300 text-xs font-bold px-3.5 py-2.5 rounded-xl border border-slate-300/70 dark:border-slate-700/70 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 cursor-pointer shadow-sm"
             >
               <option value="All">All Disciplines</option>
@@ -357,6 +422,7 @@ export default function Dashboard() {
             <select
               value={activeTab}
               onChange={(e) => handleFilterChange('type', e.target.value)}
+              aria-label="Filter by level"
               className="bg-white/90 dark:bg-slate-900/90 text-slate-700 dark:text-slate-300 text-xs font-bold px-3.5 py-2.5 rounded-xl border border-slate-300/70 dark:border-slate-700/70 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 cursor-pointer shadow-sm"
             >
               <option value="All">All Levels</option>
@@ -368,6 +434,7 @@ export default function Dashboard() {
             <select
               value={activeCountry}
               onChange={(e) => handleFilterChange('country', e.target.value)}
+              aria-label="Filter by country"
               className="bg-white/90 dark:bg-slate-900/90 text-slate-700 dark:text-slate-300 text-xs font-bold px-3.5 py-2.5 rounded-xl border border-slate-300/70 dark:border-slate-700/70 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 cursor-pointer shadow-sm"
             >
               <option value="All">All Countries</option>
@@ -466,46 +533,14 @@ export default function Dashboard() {
         )}
 
         {/* --- PAGINATION --- */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between pt-6 border-t border-slate-200 dark:border-slate-800">
-            <p className="text-xs text-slate-600 dark:text-slate-400">
-              Showing page <span className="text-slate-900 dark:text-white font-bold">{currentPage}</span> of{' '}
-              <span className="text-slate-900 dark:text-white font-bold">{totalPages}</span>
-            </p>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
-                disabled={currentPage === 1}
-                className="p-2 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                <button
-                  key={page}
-                  onClick={() => setCurrentPage(page)}
-                  className={`w-8 h-8 rounded-xl text-xs font-bold transition-all ${
-                    currentPage === page
-                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
-                      : 'bg-slate-800/60 border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700'
-                  }`}
-                >
-                  {page}
-                </button>
-              ))}
-
-              <button
-                onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
-                disabled={currentPage === totalPages}
-                className="p-2 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
+        <Pagination
+          page={currentPage}
+          totalPages={totalPages}
+          getHref={pageHref}
+          totalItems={filteredData.length}
+          pageSize={ITEMS_PER_PAGE}
+          noun="opportunities"
+        />
       </div>
 
       {/* --- DETAILED MODAL WITH LIVE AI MATCHMAKER --- */}
@@ -708,10 +743,10 @@ export default function Dashboard() {
       {/* Public scholarship guidance, mirrored in the initial HTML snapshot for crawlers. */}
       <section aria-labelledby="scholarship-faq-heading" className="rounded-3xl border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-900 sm:p-8">
         <h2 id="scholarship-faq-heading" className="mb-5 text-2xl font-extrabold text-slate-900 dark:text-white">Fully Funded Scholarships for International Students: FAQs</h2>
-        <div className="space-y-5 text-slate-700 dark:text-slate-300">
-          <div><h3 className="font-bold text-slate-900 dark:text-white">What does a fully funded scholarship cover?</h3><p>Coverage varies by program. It can include tuition and a living allowance; travel, housing and insurance may or may not be included. Check each provider’s official funding terms.</p></div>
-          <div><h3 className="font-bold text-slate-900 dark:text-white">How can I find 2027 master's and PhD scholarships?</h3><p>Search the opportunities above by degree, country and field of study. Compare the closing date, eligibility rules and official application page before applying.</p></div>
-          <div><h3 className="font-bold text-slate-900 dark:text-white">Where can I get scholarship application help?</h3><p>Read our <a className="font-semibold text-indigo-700 underline dark:text-indigo-300" href="/blog">scholarship application guides</a> for research and preparation, and compare <a className="font-semibold text-indigo-700 underline dark:text-indigo-300" href="/programs">study abroad degree programs</a>. Official university and funder instructions always take precedence.</p></div>
+        <div className="space-y-3 text-slate-700 dark:text-slate-300">
+          <details className="group rounded-2xl border border-slate-200 bg-slate-50/70 open:bg-white open:shadow-sm dark:border-slate-700 dark:bg-slate-800/40 dark:open:bg-slate-800/70"><summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 [&::-webkit-details-marker]:hidden"><h3 className="font-bold text-slate-900 dark:text-white">What does a fully funded scholarship cover?</h3><ChevronRight className="h-5 w-5 shrink-0 text-indigo-600 transition-transform group-open:rotate-90 dark:text-indigo-300" aria-hidden="true" /></summary><p className="px-5 pb-5 leading-relaxed">Coverage varies by program. It can include tuition and a living allowance; travel, housing and insurance may or may not be included. Check each provider’s official funding terms.</p></details>
+          <details className="group rounded-2xl border border-slate-200 bg-slate-50/70 open:bg-white open:shadow-sm dark:border-slate-700 dark:bg-slate-800/40 dark:open:bg-slate-800/70"><summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 [&::-webkit-details-marker]:hidden"><h3 className="font-bold text-slate-900 dark:text-white">How can I find 2027 master's and PhD scholarships?</h3><ChevronRight className="h-5 w-5 shrink-0 text-indigo-600 transition-transform group-open:rotate-90 dark:text-indigo-300" aria-hidden="true" /></summary><p className="px-5 pb-5 leading-relaxed">Search the opportunities above by degree, country and field of study. Compare the closing date, eligibility rules and official application page before applying.</p></details>
+          <details className="group rounded-2xl border border-slate-200 bg-slate-50/70 open:bg-white open:shadow-sm dark:border-slate-700 dark:bg-slate-800/40 dark:open:bg-slate-800/70"><summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 [&::-webkit-details-marker]:hidden"><h3 className="font-bold text-slate-900 dark:text-white">Where can I get scholarship application help?</h3><ChevronRight className="h-5 w-5 shrink-0 text-indigo-600 transition-transform group-open:rotate-90 dark:text-indigo-300" aria-hidden="true" /></summary><p className="px-5 pb-5 leading-relaxed">Read our <a className="font-semibold text-indigo-700 underline dark:text-indigo-300" href="/blog">scholarship application guides</a> for research and preparation, and compare <a className="font-semibold text-indigo-700 underline dark:text-indigo-300" href="/programs">study abroad degree programs</a>. Official university and funder instructions always take precedence.</p></details>
         </div>
       </section>
     </div>

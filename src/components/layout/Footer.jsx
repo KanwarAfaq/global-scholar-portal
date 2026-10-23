@@ -21,6 +21,7 @@ export default function Footer() {
             <Link className="text-slate-600 dark:text-slate-300 hover:text-indigo-600" to="/">Scholarships</Link>
             <Link className="text-slate-600 dark:text-slate-300 hover:text-indigo-600" to="/blog">Application guides</Link>
             <Link className="text-slate-600 dark:text-slate-300 hover:text-indigo-600" to="/programs">Degree programs</Link>
+            <Link className="text-slate-600 dark:text-slate-300 hover:text-indigo-600" to="/pricing">Pricing</Link>
             <Link className="text-slate-600 dark:text-slate-300 hover:text-indigo-600" to="/privacy-policy">Privacy</Link>
             <Link className="text-slate-600 dark:text-slate-300 hover:text-indigo-600" to="/terms">Terms</Link>
             <a href="https://github.com/KanwarAfaq/global-scholar-portal" target="_blank" rel="noopener noreferrer"

@@ -18,6 +18,11 @@ for (const page of pages) {
   }
   paths.add(page.path);
 }
+const siteUrl = base.replace(/\/$/, '');
+// Default social/rich-result image (1200x630) for the many pages that have no cover image of their own.
+const DEFAULT_IMAGE = { url: siteUrl + '/og-default.jpg', width: 1200, height: 630, alt: 'ScholarPortal — verified global scholarships and opportunities' };
+const LOGO = { url: siteUrl + '/logo-512.png', width: 512, height: 512 };
+const SUFFIX = ' | ScholarPortal';
 const template = fs.readFileSync('dist/index.html', 'utf8');
 const escape = value => String(value || '').replace(/[&<>"']/g, character => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -28,6 +33,21 @@ const text = value => String(value || '')
   .replace(/<[^>]*>/g, ' ')
   .replace(/\s+/g, ' ')
   .trim();
+// Search results cut titles near 60 characters and descriptions near 160, so trim on a word boundary
+// for the <head> only (the full text stays in the page body). Brand suffix only when it still fits.
+const clamp = (value, max) => {
+  const clean = String(value || '').replace(/\s+/g, ' ').trim();
+  if (clean.length <= max) return clean;
+  const cut = clean.slice(0, max - 1);
+  return cut.slice(0, Math.max(cut.lastIndexOf(' '), Math.floor(max * 0.6))).replace(/[\s,;:–—-]+$/, '') + '…';
+};
+const metaTitle = title => { const t = String(title || '').replace(/\s+/g, ' ').trim(); return t.length + SUFFIX.length <= 65 ? t + SUFFIX : t; };
+const breadcrumbTrail = page => {
+  const home = { name: 'Home', path: '/' };
+  if (page.path === '/') return [home];
+  if (page.path.startsWith('/blog/')) return [home, { name: 'Application guides', path: '/blog' }, { name: page.title, path: page.path }];
+  return [home, { name: page.title, path: page.path }];
+};
 const removeManagedHead = html => html
   .replace(/<title>[\s\S]*?<\/title>/gi, '')
   .replace(/<meta\s+(?:name|property)="(?:description|robots|og:[^"]+|twitter:[^"]+)"[^>]*>/gi, '')
@@ -118,6 +138,9 @@ for (const page of pages) {
   if (!page.path.startsWith('/') || page.path.includes('..')) throw new Error('Unsafe SEO path');
   const canonical = base + page.path;
   const description = text(page.description || page.title);
+  const metaDescription = clamp(description, 158);
+  const ownImage = validWebUrl(page.image);
+  const socialImage = ownImage || DEFAULT_IMAGE.url;
   const keyword = text(page.focus_keyword || page.title);
   const article = page.kind === 'Article';
   const published = page.date && !Number.isNaN(Date.parse(page.date)) ? page.date : undefined;
@@ -130,34 +153,59 @@ for (const page of pages) {
     url: canonical,
     mainEntityOfPage: { '@type': 'WebPage', '@id': canonical },
     ...(published ? { datePublished: published, dateModified: modified } : {}),
+    inLanguage: 'en',
+    isAccessibleForFree: true,
     author: { '@type': 'Organization', name: 'ScholarPortal Editorial Team' },
-    publisher: { '@type': 'Organization', name: 'ScholarPortal', url: base, logo: { '@type': 'ImageObject', url: base + '/favicon.svg' } },
-    ...(validWebUrl(page.image) ? { image: [validWebUrl(page.image)] } : {}),
+    publisher: { '@type': 'Organization', name: 'ScholarPortal', url: base, logo: { '@type': 'ImageObject', url: LOGO.url, width: LOGO.width, height: LOGO.height } },
+    image: [socialImage],
   } : {
     '@context': 'https://schema.org',
     '@type': page.path === '/' ? 'FAQPage' : 'WebPage',
     name: page.title,
     description,
     url: canonical,
+    inLanguage: 'en',
     isPartOf: { '@type': 'WebSite', name: 'ScholarPortal', url: base },
     ...(page.path === '/' ? { mainEntity: homeFaqs.map(([question, answer]) => ({
       '@type': 'Question', name: question,
       acceptedAnswer: { '@type': 'Answer', text: answer },
     })) } : {}),
   };
+  // Second JSON-LD block (the first keeps the page's own type): who publishes the site, the site search
+  // (which the homepage really supports via /?q=), and the breadcrumb trail.
+  const trail = breadcrumbTrail(page);
+  const graph = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      { '@type': 'Organization', '@id': siteUrl + '/#organization', name: 'ScholarPortal', url: siteUrl + '/',
+        logo: { '@type': 'ImageObject', url: LOGO.url, width: LOGO.width, height: LOGO.height } },
+      { '@type': 'WebSite', '@id': siteUrl + '/#website', url: siteUrl + '/', name: 'ScholarPortal', inLanguage: 'en',
+        description: 'Verified global scholarships, fellowships, internships and degree programs with official sources.',
+        publisher: { '@id': siteUrl + '/#organization' },
+        potentialAction: { '@type': 'SearchAction', target: { '@type': 'EntryPoint', urlTemplate: siteUrl + '/?q={search_term_string}' }, 'query-input': 'required name=search_term_string' } },
+      ...(trail.length > 1 ? [{ '@type': 'BreadcrumbList', itemListElement: trail.map((item, index) => ({
+        '@type': 'ListItem', position: index + 1, name: item.name, item: siteUrl + item.path })) }] : []),
+    ],
+  };
   const head = [
-    `<title>${escape(page.title)} | ScholarPortal</title>`,
-    `<meta name="description" content="${escape(description)}">`,
+    `<title>${escape(metaTitle(page.title))}</title>`,
+    `<meta name="description" content="${escape(metaDescription)}">`,
     '<meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">',
     `<link rel="canonical" href="${escape(canonical)}">`,
     '<meta property="og:site_name" content="ScholarPortal">',
     `<meta property="og:type" content="${article ? 'article' : 'website'}">`,
     `<meta property="og:title" content="${escape(page.title)}">`,
-    `<meta property="og:description" content="${escape(description)}">`,
+    `<meta property="og:description" content="${escape(metaDescription)}">`,
     `<meta property="og:url" content="${escape(canonical)}">`,
-    page.image ? `<meta property="og:image" content="${escape(page.image)}">` : '',
-    `<meta name="twitter:card" content="${page.image ? 'summary_large_image' : 'summary'}">`,
+    '<meta property="og:locale" content="en_US">',
+    `<meta property="og:image" content="${escape(socialImage)}">`,
+    ownImage ? '' : `<meta property="og:image:width" content="${DEFAULT_IMAGE.width}"><meta property="og:image:height" content="${DEFAULT_IMAGE.height}"><meta property="og:image:type" content="image/jpeg"><meta property="og:image:alt" content="${escape(DEFAULT_IMAGE.alt)}">`,
+    '<meta name="twitter:card" content="summary_large_image">',
+    `<meta name="twitter:title" content="${escape(page.title)}">`,
+    `<meta name="twitter:description" content="${escape(metaDescription)}">`,
+    `<meta name="twitter:image" content="${escape(socialImage)}">`,
     `<script type="application/ld+json">${JSON.stringify(structured).replace(/</g, '\\u003c')}</script>`,
+    `<script type="application/ld+json">${JSON.stringify(graph).replace(/</g, '\\u003c')}</script>`,
   ].filter(Boolean).join('');
   const bodyText = text(page.content || '');
   const lead = description.toLowerCase().includes(keyword.toLowerCase())
@@ -168,8 +216,13 @@ for (const page of pages) {
   // Provide usable initial HTML for non-JS crawlers without fabricating images or URLs.
   const content = [
     '<article data-seo-snapshot="true">',
+    trail.length > 1 ? '<nav aria-label="Breadcrumb">' + trail.map((item, index) => index === trail.length - 1
+      ? '<span>' + escape(clamp(item.name, 80)) + '</span>'
+      : '<a href="' + escape(item.path) + '">' + escape(item.name) + '</a>').join(' › ') + '</nav>' : '',
     '<h1>' + escape(page.title) + '</h1>',
     '<p>' + escape(lead) + '</p>',
+    article && published ? '<p><small>By ScholarPortal Editorial Team · Published <time datetime="' + escape(published) + '">' + escape(published.slice(0, 10)) + '</time>' +
+      (modified && modified.slice(0, 10) !== published.slice(0, 10) ? ' · Updated <time datetime="' + escape(modified) + '">' + escape(modified.slice(0, 10)) + '</time>' : '') + '</small></p>' : '',
     imageUrl ? '<figure><img src="' + escape(imageUrl) + '" alt="' + escape('Cover image for ' + keyword) + '" loading="lazy"></figure>' : '',
     '<h2>' + escape('About ' + keyword) + '</h2>',
     bodyText && bodyText !== description ? '<div>' + escape(bodyText) + '</div>' : '',
@@ -191,5 +244,61 @@ for (const page of pages) {
   fs.mkdirSync(path.dirname(destination), { recursive: true });
   fs.writeFileSync(destination, html);
 }
-console.log(`SEO: generated ${pages.length} crawlable public snapshots`);
+
+// Pages that share a title compete with each other in search results. This is an editorial decision
+// (merge or 301 the weaker page), so the build reports them instead of silently changing anything.
+const byTitle = new Map();
+for (const page of pages) {
+  const key = String(page.title || '').trim().toLowerCase();
+  if (!key) continue;
+  if (!byTitle.has(key)) byTitle.set(key, []);
+  byTitle.get(key).push(page.path);
+}
+const duplicates = [...byTitle.entries()].filter(([, paths]) => paths.length > 1);
+if (duplicates.length) {
+  console.warn(`SEO WARNING: ${duplicates.length} title(s) are shared by multiple pages (consolidate or redirect):`);
+  for (const [title, paths] of duplicates.slice(0, 20)) console.warn(`  - "${title.slice(0, 70)}" → ${paths.join(', ')}`);
+  if (duplicates.length > 20) console.warn(`  … and ${duplicates.length - 20} more`);
+}
+
+// llms.txt for answer engines / AI crawlers: regenerated every build from the real manifest so the
+// "latest" list never goes stale. Plain facts only; nothing here is a ranking or traffic claim.
+const mdSafe = value => String(value || '').replace(/[[\]]/g, '').replace(/\s+/g, ' ').trim();
+const latest = pages.filter(page => page.kind === 'Article' && page.date && !Number.isNaN(Date.parse(page.date)))
+  .sort((a, b) => Date.parse(b.date) - Date.parse(a.date) || a.path.localeCompare(b.path)).slice(0, 30);
+const articleCount = pages.filter(page => page.kind === 'Article').length;
+const llms = [
+  '# ScholarPortal',
+  '',
+  '> ScholarPortal helps students discover verified global scholarships, fellowships, internships and degree programs, and prepare evidence-based applications. Every record links to its official source.',
+  '',
+  '## About',
+  `- Publisher: ScholarPortal Editorial Team (${siteUrl}/)`,
+  '- Audience: international students comparing funded study and research opportunities',
+  `- Coverage: ${articleCount} public guides and opportunity reports${latest[0] ? `; most recent published ${latest[0].date.slice(0, 10)}` : ''}`,
+  '- Language: English',
+  '- Accuracy: deadlines, eligibility and funding change. The official provider page linked from each record is authoritative; confirm details there before applying.',
+  '',
+  '## Core pages',
+  `- [Scholarship and opportunity directory](${siteUrl}/): searchable by degree level, country and field; supports ?q=keyword`,
+  `- [Scholarship application guides](${siteUrl}/blog): eligibility, deadlines, documents and how to apply`,
+  `- [Degree programs](${siteUrl}/programs): study abroad program comparisons with official university sources`,
+  `- [Pricing](${siteUrl}/pricing)`,
+  `- [Terms](${siteUrl}/terms)`,
+  `- [Privacy policy](${siteUrl}/privacy-policy)`,
+  '',
+  '## Latest guides and reports',
+  ...latest.map(page => `- [${mdSafe(page.title)}](${siteUrl}${page.path}): ${mdSafe(clamp(text(page.description || ''), 140))}`),
+  '',
+  '## Machine-readable',
+  `- [XML sitemap](${siteUrl}/sitemap.xml)`,
+  '',
+  '## Citing ScholarPortal',
+  '- Cite the specific page URL and its published date; link to the official provider page for deadlines and eligibility.',
+  '- AI-generated application guidance inside the product must be reviewed by the applicant before use.',
+  '',
+].join('\n');
+fs.writeFileSync('dist/llms.txt', llms);
+
+console.log(`SEO: generated ${pages.length} crawlable public snapshots, llms.txt (${latest.length} latest entries)`);
 

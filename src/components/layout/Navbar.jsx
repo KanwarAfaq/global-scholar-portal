@@ -4,7 +4,7 @@ import { useLocation, Link } from 'react-router-dom';
 import { useTheme } from 'next-themes';
 import {useAuth} from '../../context/session'; 
 import { 
-  Menu, Moon, Sun, GraduationCap, 
+  Menu, X, Moon, Sun, GraduationCap, School, Tag,
   BookOpen, LayoutDashboard, Sparkles, LogOut, User 
 } from 'lucide-react';
 
@@ -18,11 +18,24 @@ export default function Navbar({ toggleSidebar }) {
   const [avatarUrl, setAvatarUrl] = useState(null);
 
   // Top Header Navigation Links (Always visible)
+  // Link straight to '/', not '/dashboard' (which only redirects), so crawlers and users skip a hop.
   const navLinks = [
-    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-    { name: 'AI Copilot', path: '/copilot', icon: Sparkles },
+    { name: 'Scholarships', path: '/', icon: LayoutDashboard },
+    { name: 'Programs', path: '/programs', icon: School },
     { name: 'Blog', path: '/blog', icon: BookOpen },
+    { name: 'AI Copilot', path: '/copilot', icon: Sparkles },
+    { name: 'Pricing', path: '/pricing', icon: Tag, wideOnly: true },
   ];
+  const isActiveLink = path => (path === '/' ? location.pathname === '/' || location.pathname === '/dashboard' : location.pathname === path || location.pathname.startsWith(path + '/'));
+  const [menuOpen, setMenuOpen] = useState(false);
+  // Close the mobile menu after navigating and when Escape is pressed.
+  useEffect(() => { setMenuOpen(false); }, [location.pathname]);
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const onKey = event => { if (event.key === 'Escape') setMenuOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [menuOpen]);
 
   // Fetch User's Avatar Picture
   useEffect(() => {
@@ -46,7 +59,7 @@ export default function Navbar({ toggleSidebar }) {
   }, [user]);
 
   return (
-    <nav className="sticky top-0 z-50 w-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 transition-colors print:hidden">
+    <nav className="sticky top-0 z-50 w-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 transition-colors print:hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           
@@ -71,25 +84,24 @@ export default function Navbar({ toggleSidebar }) {
             </Link>
           </div>
           
-          {/* --- CENTER: Permanent Navigation Links --- */}
-          <div className="hidden md:flex items-center gap-1 lg:gap-2">
+          {/* --- CENTER: Permanent Navigation Links (tablet and up) --- */}
+          <div className="hidden md:flex items-center gap-0.5 lg:gap-2" role="navigation" aria-label="Primary">
             {navLinks.map((link) => {
-              const isActive = link.path === '/dashboard' 
-                ? (location.pathname === '/' || location.pathname === '/dashboard')
-                : location.pathname.startsWith(link.path);
+              const isActive = isActiveLink(link.path);
               const Icon = link.icon;
 
               return (
                 <Link
                   key={link.name}
                   to={link.path}
-                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                  aria-current={isActive ? 'page' : undefined}
+                  className={`${link.wideOnly ? 'hidden lg:flex' : 'flex'} items-center gap-2 px-2.5 lg:px-3.5 py-2 rounded-xl text-sm font-bold transition-all ${
                     isActive 
-                      ? 'bg-indigo-600/10 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 shadow-sm' 
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/50'
+                      ? 'bg-indigo-600/10 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20 shadow-sm' 
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/50 border border-transparent'
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon className="hidden lg:block w-4 h-4" aria-hidden="true" />
                   <span>{link.name}</span>
                 </Link>
               );
@@ -98,6 +110,18 @@ export default function Navbar({ toggleSidebar }) {
 
           {/* --- RIGHT: Theme & Account Actions --- */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {!toggleSidebar && (
+              <button
+                type="button"
+                onClick={() => setMenuOpen(open => !open)}
+                className="md:hidden p-2 sm:p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors border border-transparent dark:border-slate-700/50"
+                aria-label={menuOpen ? 'Close site menu' : 'Open site menu'}
+                aria-expanded={menuOpen}
+                aria-controls="mobile-site-menu"
+              >
+                {menuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+              </button>
+            )}
             <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
               className="p-2 sm:p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors border border-transparent dark:border-slate-700/50"
@@ -141,6 +165,28 @@ export default function Navbar({ toggleSidebar }) {
           
         </div>
       </div>
+      {!toggleSidebar && menuOpen && (
+        <div id="mobile-site-menu" className="md:hidden border-t border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-xl">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 grid gap-1" role="navigation" aria-label="Site menu">
+            {navLinks.map((link) => {
+              const Icon = link.icon;
+              const isActive = isActiveLink(link.path);
+              return (
+                <Link
+                  key={link.name}
+                  to={link.path}
+                  aria-current={isActive ? 'page' : undefined}
+                  className={`flex items-center gap-3 rounded-xl px-3 py-3 text-base font-bold ${isActive ? 'bg-indigo-600/10 text-indigo-700 dark:text-indigo-300' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                >
+                  <Icon className="w-5 h-5" aria-hidden="true" />
+                  {link.name}
+                </Link>
+              );
+            })}
+            <Link to="/auth" className="mt-2 rounded-xl bg-indigo-600 px-4 py-3 text-center text-base font-bold text-white hover:bg-indigo-500">Create a free account</Link>
+          </div>
+        </div>
+      )}
     </nav>
   );
 }
