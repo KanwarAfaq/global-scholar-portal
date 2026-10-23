@@ -85,12 +85,15 @@ test('snapshots show a visible breadcrumb and a dated byline for articles', () =
   } finally { b.done(); }
 });
 
-test('build reports duplicate titles without failing, and writes a fresh llms.txt', () => {
+test('build canonicalises duplicate titles without failing, and writes a fresh llms.txt', () => {
   const b = build(pages);
   try {
     assert.equal(b.run.status, 0);
-    assert.match(b.run.stderr, /1 title\(s\) are shared by multiple pages/);
-    assert.match(b.run.stderr, /\/blog\/no-image, \/opportunity\/abc\/blog/);
+    assert.match(b.run.stderr, /1 page\(s\) duplicate another page's title/);
+    assert.match(b.run.stderr, /\/opportunity\/abc\/blog → \/blog\/no-image/);
+    const dupHtml = b.read('opportunity/abc/blog/index.html');
+    assert.match(dupHtml, /<link rel="canonical" href="https:\/\/scholarportal\.site\/blog\/no-image">/);
+    assert.match(dupHtml, /<title>[^<]*\(Version 2\)[^<]*<\/title>/);
     const llms = b.read('llms.txt');
     assert.match(llms, /^# ScholarPortal/);
     assert.match(llms, /Coverage: 3 public guides and opportunity reports; most recent published 2026-10-03/);

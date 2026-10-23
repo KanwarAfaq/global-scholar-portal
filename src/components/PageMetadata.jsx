@@ -1,5 +1,6 @@
 import { Helmet } from 'react-helmet-async';
 import { useLocation } from 'react-router-dom';
+import { shortenTitle } from '../lib/seoTitle';
 
 const SITE = (import.meta.env.VITE_SITE_URL || 'https://scholarportal.site').replace(/\/$/, '');
 // Social previews and rich results need a raster image (SVG favicons are ignored by most platforms).
@@ -26,6 +27,14 @@ const WEBSITE = {
     'query-input': 'required name=search_term_string',
   },
 };
+
+// The prerendered snapshot may point a near-duplicate page at its primary page (canonical + distinct title).
+// Remember that on first load so hydration does not undo it.
+const PRERENDERED = typeof document !== 'undefined' ? {
+  path: window.location.pathname,
+  canonical: document.querySelector('link[rel="canonical"]')?.getAttribute('href') || null,
+  title: document.title || null,
+} : null;
 
 const pages = {
   '/': {
@@ -60,6 +69,9 @@ export function ArticleMetadata({
 }) {
   const url = SITE + path;
   const summary = description || title;
+  const pre = PRERENDERED && PRERENDERED.path === path && PRERENDERED.canonical && PRERENDERED.canonical !== url ? PRERENDERED : null;
+  const canonicalUrl = pre ? pre.canonical : url;
+  const headTitle = shortenTitle(title, 60);
   const data = {
     '@context': 'https://schema.org',
     '@type': 'Article',
@@ -87,7 +99,7 @@ export function ArticleMetadata({
   };
 
   return <Helmet>
-    <title>{title} | ScholarPortal</title>
+    <title>{pre?.title || `${headTitle} | ScholarPortal`}</title>
     <meta name="description" content={summary} />
     <meta
       name="robots"
@@ -95,16 +107,16 @@ export function ArticleMetadata({
         ? 'index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1'
         : 'noindex,follow,noarchive'}
     />
-    {indexable && <link rel="canonical" href={url} />}
+    {indexable && <link rel="canonical" href={canonicalUrl} />}
     <meta property="og:site_name" content="ScholarPortal" />
     <meta property="og:type" content="article" />
-    <meta property="og:title" content={title} />
+    <meta property="og:title" content={headTitle} />
     <meta property="og:description" content={summary} />
-    {indexable && <meta property="og:url" content={url} />}
+    {indexable && <meta property="og:url" content={canonicalUrl} />}
     <meta property="og:locale" content="en_US" />
     <meta property="og:image" content={image || DEFAULT_IMAGE} />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content={title} />
+    <meta name="twitter:title" content={headTitle} />
     <meta name="twitter:description" content={summary} />
     <meta name="twitter:image" content={image || DEFAULT_IMAGE} />
     {indexable && <script type="application/ld+json">{JSON.stringify(data).replace(/</g, '\\u003c')}</script>}
