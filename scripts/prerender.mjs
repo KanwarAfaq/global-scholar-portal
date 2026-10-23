@@ -1,6 +1,7 @@
 // Generate crawlable public HTML snapshots without exposing private workspace data.
 import fs from 'node:fs';
 import path from 'node:path';
+import { shortenTitle, findDuplicateTitles } from '../src/lib/seoTitle.js';
 
 const file = 'public/seo-pages.json';
 if (!fs.existsSync(file)) {
@@ -133,10 +134,23 @@ const landingSeo = {
     focus_keyword: 'study abroad degree programs',
   },
 };
+// Pages sharing a title: the first stays primary, the rest canonicalise to it and get a distinct title.
+const duplicateOf = findDuplicateTitles(pages);
+// Shortening can make two different titles identical; those keep their full (unique) title instead.
+const shortKey = page => {
+  const dup = duplicateOf.get(page.path);
+  return shortenTitle(landingSeo[page.path]?.title || page.title, 60 - (dup ? dup.titleSuffix.length : 0)) + (dup ? dup.titleSuffix : '');
+};
+const shortCounts = new Map();
+for (const page of pages) shortCounts.set(shortKey(page).toLowerCase(), (shortCounts.get(shortKey(page).toLowerCase()) || 0) + 1);
 for (const page of pages) {
   if (landingSeo[page.path]) Object.assign(page, landingSeo[page.path]);
   if (!page.path.startsWith('/') || page.path.includes('..')) throw new Error('Unsafe SEO path');
   const canonical = base + page.path;
+  const dup = duplicateOf.get(page.path);
+  const canonicalHref = base + (dup ? dup.canonicalPath : page.path);
+  const shortened = shortKey(page);
+  const headTitle = shortCounts.get(shortened.toLowerCase()) > 1 ? text(page.title) + (dup ? dup.titleSuffix : '') : shortened;
   const description = text(page.description || page.title);
   const metaDescription = clamp(description, 158);
   const ownImage = validWebUrl(page.image);
@@ -188,20 +202,20 @@ for (const page of pages) {
     ],
   };
   const head = [
-    `<title>${escape(metaTitle(page.title))}</title>`,
+    `<title>${escape(metaTitle(headTitle))}</title>`,
     `<meta name="description" content="${escape(metaDescription)}">`,
     '<meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">',
-    `<link rel="canonical" href="${escape(canonical)}">`,
+    `<link rel="canonical" href="${escape(canonicalHref)}">`,
     '<meta property="og:site_name" content="ScholarPortal">',
     `<meta property="og:type" content="${article ? 'article' : 'website'}">`,
-    `<meta property="og:title" content="${escape(page.title)}">`,
+    `<meta property="og:title" content="${escape(headTitle)}">`,
     `<meta property="og:description" content="${escape(metaDescription)}">`,
-    `<meta property="og:url" content="${escape(canonical)}">`,
+    `<meta property="og:url" content="${escape(canonicalHref)}">`,
     '<meta property="og:locale" content="en_US">',
     `<meta property="og:image" content="${escape(socialImage)}">`,
     ownImage ? '' : `<meta property="og:image:width" content="${DEFAULT_IMAGE.width}"><meta property="og:image:height" content="${DEFAULT_IMAGE.height}"><meta property="og:image:type" content="image/jpeg"><meta property="og:image:alt" content="${escape(DEFAULT_IMAGE.alt)}">`,
     '<meta name="twitter:card" content="summary_large_image">',
-    `<meta name="twitter:title" content="${escape(page.title)}">`,
+    `<meta name="twitter:title" content="${escape(headTitle)}">`,
     `<meta name="twitter:description" content="${escape(metaDescription)}">`,
     `<meta name="twitter:image" content="${escape(socialImage)}">`,
     `<script type="application/ld+json">${JSON.stringify(structured).replace(/</g, '\\u003c')}</script>`,
@@ -245,20 +259,11 @@ for (const page of pages) {
   fs.writeFileSync(destination, html);
 }
 
-// Pages that share a title compete with each other in search results. This is an editorial decision
-// (merge or 301 the weaker page), so the build reports them instead of silently changing anything.
-const byTitle = new Map();
-for (const page of pages) {
-  const key = String(page.title || '').trim().toLowerCase();
-  if (!key) continue;
-  if (!byTitle.has(key)) byTitle.set(key, []);
-  byTitle.get(key).push(page.path);
-}
-const duplicates = [...byTitle.entries()].filter(([, paths]) => paths.length > 1);
-if (duplicates.length) {
-  console.warn(`SEO WARNING: ${duplicates.length} title(s) are shared by multiple pages (consolidate or redirect):`);
-  for (const [title, paths] of duplicates.slice(0, 20)) console.warn(`  - "${title.slice(0, 70)}" → ${paths.join(', ')}`);
-  if (duplicates.length > 20) console.warn(`  … and ${duplicates.length - 20} more`);
+// Report what was consolidated so the editorial team can merge or 301 the near-identical pages.
+if (duplicateOf.size) {
+  console.warn(`SEO: ${duplicateOf.size} page(s) duplicate another page's title; each now canonicalises to its primary page and has a distinct title. Consider merging or redirecting:`);
+  for (const [dupPath, { canonicalPath }] of [...duplicateOf].slice(0, 20)) console.warn(`  - ${dupPath} → ${canonicalPath}`);
+  if (duplicateOf.size > 20) console.warn(`  … and ${duplicateOf.size - 20} more`);
 }
 
 // llms.txt for answer engines / AI crawlers: regenerated every build from the real manifest so the
