@@ -1,27 +1,4 @@
-# ScholarPortal — public scholarship guides and opportunity pages are open to every crawler.
-# Private workspace routes are protected by an "X-Robots-Tag: noindex" HTTP header (see vercel.json).
-# They are intentionally NOT disallowed here: a robots block would hide that noindex from search engines.
 User-agent: *
-Allow: /
-
-# AI search and answer engines that retrieve and cite pages. Listed explicitly so the intent is clear;
-# delete a block to opt that crawler out.
-User-agent: OAI-SearchBot
-Allow: /
-
-User-agent: ChatGPT-User
-Allow: /
-
-User-agent: Claude-SearchBot
-Allow: /
-
-User-agent: Claude-User
-Allow: /
-
-User-agent: PerplexityBot
-Allow: /
-
-User-agent: Perplexity-User
 Allow: /
 
 Sitemap: https://scholarportal.site/sitemap.xml
