@@ -1,12 +1,31 @@
 # ScholarPortal
 
-> ScholarPortal helps students discover verified global scholarships, fellowships, internships and degree programs and prepare evidence-based applications.
+> ScholarPortal helps students discover verified global scholarships, fellowships, internships and degree programs, and prepare evidence-based applications. Every record links to its official source.
 
-## Public resources
-- [Opportunity directory](https://scholarportal.site/): verified opportunity discovery and official-source links
-- [Application guides](https://scholarportal.site/blog): scholarship and application research
-- [Degree programs](https://scholarportal.site/programs): verified academic program comparisons
+## About
+- Publisher: ScholarPortal Editorial Team (https://scholarportal.site/)
+- Audience: international students comparing funded study and research opportunities
+- Language: English
+- Accuracy: deadlines, eligibility and funding change. The official provider page linked from each record is authoritative; confirm details there before applying.
+
+## Core pages
+- [Scholarship and opportunity directory](https://scholarportal.site/): searchable by degree level, country and field; supports ?q=keyword
+- [Scholarship application guides](https://scholarportal.site/blog): eligibility, deadlines, documents and how to apply
+- [Degree programs](https://scholarportal.site/programs): study abroad program comparisons with official university sources
+- [Pricing](https://scholarportal.site/pricing)
 - [Terms](https://scholarportal.site/terms)
-- [Privacy](https://scholarportal.site/privacy-policy)
+- [Privacy policy](https://scholarportal.site/privacy-policy)
 
-Official source pages linked from each record remain authoritative. AI-generated guidance must be reviewed before use.
+## Study guides
+- [Scholarships for International Students: How to Find and Apply](https://scholarportal.site/guides/scholarships-for-international-students): A practical method for finding and applying for scholarships as an international student: steps, a documents checklist, a timeline and how to avoid scams.
+- [Fully Funded Scholarships: What Is Usually Covered](https://scholarportal.site/guides/fully-funded-scholarships-what-is-covered): What fully funded scholarships usually cover, what they often leave out, and how to check exactly what a specific award pays for before you apply.
+- [How to Read Scholarship Eligibility and Deadlines](https://scholarportal.site/guides/how-to-read-scholarship-eligibility-and-deadlines): How to read scholarship eligibility criteria and deadlines correctly: key terms, time zones, application stages and a checklist to avoid ineligible or late entries.
+- [Study in Taiwan: Scholarships and How to Apply](https://scholarportal.site/guides/study-in-taiwan-scholarships-guide): General guidance for international students planning to study in Taiwan, with how to use official portals and government scholarship pages.
+
+## Machine-readable
+- [XML sitemap](https://scholarportal.site/sitemap.xml)
+- The production build replaces this file with a version that also lists the most recent guides and reports.
+
+## Citing ScholarPortal
+- Cite the specific page URL and its published date; link to the official provider page for deadlines and eligibility.
+- AI-generated application guidance inside the product must be reviewed by the applicant before use.
