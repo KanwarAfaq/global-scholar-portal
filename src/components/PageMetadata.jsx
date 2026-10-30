@@ -89,7 +89,7 @@ export function ArticleMetadata({
   };
   const crumbs = [
     { name: 'Home', path: '/' },
-    ...(path.startsWith('/blog/') ? [{ name: 'Application guides', path: '/blog' }] : []),
+    ...(path.startsWith('/blog/') || path.startsWith('/guides/') ? [{ name: 'Application guides', path: '/blog' }] : []),
     { name: title, path },
   ];
   const breadcrumbs = {
@@ -126,7 +126,7 @@ export function ArticleMetadata({
 
 export default function PageMetadata() {
   const { pathname, search } = useLocation();
-  if (/^\/(blog\/|opportunity\/)/.test(pathname)) return null;
+  if (/^\/(blog\/|opportunity\/|guides\/)/.test(pathname)) return null;
 
   const page = pages[pathname];
   const publicPage = Boolean(page);

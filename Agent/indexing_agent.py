@@ -33,6 +33,11 @@ def build(output=None):
         if not oid or oid in seen or not (row.get('content') or '').strip():continue
         seen.add(oid)
         pages.append({'path':f'/opportunity/{quote(oid,safe="")}/blog','title':row['title'],'focus_keyword':row['title'],'description':row.get('excerpt') or row['title'],'content':row['content'],'date':row.get('updated_at') or row.get('created_at'),'kind':'Article','image':row.get('image'),'source_url':row.get('original_link')})
+    # Evergreen guides live in src/content/guides.json (single source of truth, also rendered by the app).
+    gpath=Path(__file__).resolve().parents[1]/'src'/'content'/'guides.json'
+    guides=json.loads(gpath.read_text(encoding='utf-8')) if gpath.exists() else {'guides':[],'date':None}
+    for g in guides['guides']:
+        pages.append({'path':'/guides/'+g['slug'],'title':g['title'],'focus_keyword':g['focus_keyword'],'description':g['description'],'sections':g['sections'],'faqs':g['faqs'],'related':g.get('related',[]),'date':guides['date'],'kind':'Article'})
     # A sitemap must contain only one entry for each canonical route. Preserve the
     # first occurrence so that repeated records do not create duplicate URLs.
     unique_pages=[]
@@ -61,6 +66,7 @@ def build(output=None):
         f'- [Degree programs]({base}/programs): verified academic program comparisons\n'
         f'- [Terms]({base}/terms)\n'
         f'- [Privacy]({base}/privacy-policy)\n\n'
+        +('## Study guides\n'+''.join(f"- [{g['title']}]({base}/guides/{g['slug']}): {g['description']}\n" for g in guides['guides'])+'\n' if guides['guides'] else '')+
         'Official source pages linked from each record remain authoritative. AI-generated guidance must be reviewed before use.\n',
         encoding='utf-8')
     return {'public_pages':len(pages),'sitemap':base+'/sitemap.xml','status':'generated; deploy artifacts before submission'}

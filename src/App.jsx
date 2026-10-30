@@ -1,6 +1,6 @@
 import React, { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { Helmet, HelmetProvider } from 'react-helmet-async';
+import { HelmetProvider } from 'react-helmet-async';
 import { ThemeProvider } from './components/ThemeProvider';
 import { AuthProvider } from './context/AuthContext';
 import MainLayout from './components/layout/MainLayout';
@@ -31,6 +31,8 @@ const Terms = lazy(() => import('./pages/Terms'));
 const Quality = lazy(() => import('./pages/Quality'));
 const Admin = lazy(() => import('./pages/Admin'));
 const Notifications = lazy(() => import('./pages/Notifications'));
+const Guide = lazy(() => import('./pages/Guide'));
+import NotFound from './pages/NotFound';
 
 export default function App() {
   return (
@@ -44,6 +46,7 @@ export default function App() {
                 <Route path="reset-password" element={<PasswordReset />} />
                 <Route path="blog" element={<Blog />} />
                 <Route path="blog/:slug" element={<BlogPost />} />
+                <Route path="guides/:slug" element={<Guide />} />
                 <Route path="opportunity/:id/blog" element={<OpportunityBlog />} />
                 <Route path="privacy-policy" element={<PrivacyPolicy />} />
                 <Route path="terms" element={<Terms />} />
@@ -75,26 +78,5 @@ export default function App() {
         </AuthProvider>
       </ThemeProvider>
     </HelmetProvider>
-  );
-}
-
-function NotFound() {
-  return (
-    <div className="min-h-[60vh] grid place-items-center px-4 text-center">
-      <Helmet>
-        <title>Page not found | ScholarPortal</title>
-        <meta name="robots" content="noindex,follow,noarchive" />
-      </Helmet>
-      <div className="max-w-lg">
-        <p className="text-sm font-bold uppercase tracking-widest text-indigo-600 dark:text-indigo-400">404</p>
-        <h1 className="mt-2 text-3xl font-black text-slate-950 dark:text-white">Page not found</h1>
-        <p className="mt-3 text-slate-600 dark:text-slate-400">
-          This URL is no longer available or never existed.
-        </p>
-        <a href="/" className="mt-6 inline-flex rounded-xl bg-indigo-600 px-5 py-3 font-bold text-white hover:bg-indigo-700">
-          Go to ScholarPortal
-        </a>
-      </div>
-    </div>
   );
 }

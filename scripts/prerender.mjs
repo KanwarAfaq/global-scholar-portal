@@ -1,6 +1,7 @@
 // Generate crawlable public HTML snapshots without exposing private workspace data.
 import fs from 'node:fs';
 import path from 'node:path';
+import { parseInline, plainText } from '../src/lib/guideMarkup.js';
 import { shortenTitle, findDuplicateTitles } from '../src/lib/seoTitle.js';
 
 const file = 'public/seo-pages.json';
@@ -46,7 +47,7 @@ const metaTitle = title => { const t = String(title || '').replace(/\s+/g, ' ').
 const breadcrumbTrail = page => {
   const home = { name: 'Home', path: '/' };
   if (page.path === '/') return [home];
-  if (page.path.startsWith('/blog/')) return [home, { name: 'Application guides', path: '/blog' }, { name: page.title, path: page.path }];
+  if (page.path.startsWith('/blog/') || page.path.startsWith('/guides/')) return [home, { name: 'Application guides', path: '/blog' }, { name: page.title, path: page.path }];
   return [home, { name: page.title, path: page.path }];
 };
 const removeManagedHead = html => html
@@ -56,6 +57,17 @@ const removeManagedHead = html => html
   .replace(/<script\s+type="application\/ld\+json">[\s\S]*?<\/script>/gi, '');
 
 
+const inlineHtml = value => parseInline(value).map(part => part.href
+  ? '<a href="' + escape(part.href) + '"' + (part.href.startsWith('/') ? '' : ' rel="noopener noreferrer"') + '>' + escape(part.text) + '</a>'
+  : escape(part.text)).join('');
+const guideBody = page => page.sections.map(section => '<section><h2>' + escape(section.h) + '</h2>' +
+  (section.p || []).slice(0, section.ul || section.ol ? 1 : undefined).map(t => '<p>' + inlineHtml(t) + '</p>').join('') +
+  (section.ul ? '<ul>' + section.ul.map(t => '<li>' + inlineHtml(t) + '</li>').join('') + '</ul>' : '') +
+  (section.ol ? '<ol>' + section.ol.map(t => '<li>' + inlineHtml(t) + '</li>').join('') + '</ol>' : '') +
+  ((section.ul || section.ol) ? (section.p || []).slice(1).map(t => '<p>' + inlineHtml(t) + '</p>').join('') : '') + '</section>').join('') +
+  (page.faqs ? '<section aria-labelledby="guide-faq"><h2 id="guide-faq">Frequently asked questions</h2>' +
+    page.faqs.map(([q, a]) => '<div><h3>' + escape(q) + '</h3><p>' + inlineHtml(a) + '</p></div>').join('') + '</section>' : '');
+
 const validWebUrl = value => {
   if (typeof value !== 'string') return null;
   try {
@@ -64,6 +76,8 @@ const validWebUrl = value => {
   } catch { return null; }
 };
 const relatedLinks = page => {
+  if (page.related) return [...page.related, '/', '/programs'].filter((p, i, all) => all.indexOf(p) === i && p !== page.path)
+    .map(p => ({ path: p, label: pages.find(item => item.path === p)?.title || (p === '/' ? 'Browse verified scholarships' : 'Verified degree programs') }));
   const standard = page.kind === 'Article'
     ? [{ path: '/blog', label: 'More scholarship and application guides' }, { path: '/', label: 'Browse verified scholarships' }]
     : [{ path: '/', label: 'Verified scholarships and fellowships' }, { path: '/blog', label: 'Scholarship application guides' }, { path: '/programs', label: 'Verified degree programs' }];
@@ -86,6 +100,7 @@ const hubLinks = page => {
     .sort((left, right) => String(right.date || '').localeCompare(String(left.date || '')));
   const sections = [
     { heading: 'Scholarship application guides', items: articles.filter(item => item.path.startsWith('/blog/')) },
+    { heading: 'ScholarPortal study guides', items: articles.filter(item => item.path.startsWith('/guides/')) },
     { heading: 'Scholarship and opportunity reports', items: articles.filter(item => item.path.startsWith('/opportunity/')) },
   ];
   const limit = page.path === '/' ? 12 : 250;
@@ -201,6 +216,7 @@ for (const page of pages) {
         '@type': 'ListItem', position: index + 1, name: item.name, item: siteUrl + item.path })) }] : []),
     ],
   };
+  const faqSchema = page.faqs ? { '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: page.faqs.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: plainText(a) } })) } : null;
   const head = [
     `<title>${escape(metaTitle(headTitle))}</title>`,
     `<meta name="description" content="${escape(metaDescription)}">`,
@@ -219,6 +235,7 @@ for (const page of pages) {
     `<meta name="twitter:description" content="${escape(metaDescription)}">`,
     `<meta name="twitter:image" content="${escape(socialImage)}">`,
     `<script type="application/ld+json">${JSON.stringify(structured).replace(/</g, '\\u003c')}</script>`,
+    faqSchema ? `<script type="application/ld+json">${JSON.stringify(faqSchema).replace(/</g, '\\u003c')}</script>` : '',
     `<script type="application/ld+json">${JSON.stringify(graph).replace(/</g, '\\u003c')}</script>`,
   ].filter(Boolean).join('');
   const bodyText = text(page.content || '');
@@ -238,8 +255,8 @@ for (const page of pages) {
     article && published ? '<p><small>By ScholarPortal Editorial Team · Published <time datetime="' + escape(published) + '">' + escape(published.slice(0, 10)) + '</time>' +
       (modified && modified.slice(0, 10) !== published.slice(0, 10) ? ' · Updated <time datetime="' + escape(modified) + '">' + escape(modified.slice(0, 10)) + '</time>' : '') + '</small></p>' : '',
     imageUrl ? '<figure><img src="' + escape(imageUrl) + '" alt="' + escape('Cover image for ' + keyword) + '" loading="lazy"></figure>' : '',
-    '<h2>' + escape('About ' + keyword) + '</h2>',
-    bodyText && bodyText !== description ? '<div>' + escape(bodyText) + '</div>' : '',
+    page.sections ? '<h2>' + escape('About ' + keyword) + '</h2>' + guideBody(page) : '<h2>' + escape('About ' + keyword) + '</h2>',
+    !page.sections && bodyText && bodyText !== description ? '<div>' + escape(bodyText) + '</div>' : '',
     hubLinks(page),
     links.length ? '<nav aria-label="Related ScholarPortal pages"><h2>Related scholarships and guides</h2>' +
       links.map(link => '<a href="' + escape(link.path) + '">' + escape(link.label) + '</a>').join(' · ') + '</nav>' : '',
@@ -269,7 +286,7 @@ if (duplicateOf.size) {
 // llms.txt for answer engines / AI crawlers: regenerated every build from the real manifest so the
 // "latest" list never goes stale. Plain facts only; nothing here is a ranking or traffic claim.
 const mdSafe = value => String(value || '').replace(/[[\]]/g, '').replace(/\s+/g, ' ').trim();
-const latest = pages.filter(page => page.kind === 'Article' && page.date && !Number.isNaN(Date.parse(page.date)))
+const latest = pages.filter(page => page.kind === 'Article' && !page.path.startsWith('/guides/') && page.date && !Number.isNaN(Date.parse(page.date)))
   .sort((a, b) => Date.parse(b.date) - Date.parse(a.date) || a.path.localeCompare(b.path)).slice(0, 30);
 const articleCount = pages.filter(page => page.kind === 'Article').length;
 const llms = [
@@ -292,6 +309,8 @@ const llms = [
   `- [Terms](${siteUrl}/terms)`,
   `- [Privacy policy](${siteUrl}/privacy-policy)`,
   '',
+  ...(pages.some(page => page.path.startsWith('/guides/')) ? ['## Study guides',
+    ...pages.filter(page => page.path.startsWith('/guides/')).map(page => `- [${mdSafe(page.title)}](${siteUrl}${page.path}): ${mdSafe(clamp(text(page.description || ''), 140))}`), ''] : []),
   '## Latest guides and reports',
   ...latest.map(page => `- [${mdSafe(page.title)}](${siteUrl}${page.path}): ${mdSafe(clamp(text(page.description || ''), 140))}`),
   '',

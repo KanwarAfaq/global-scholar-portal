@@ -1,0 +1,150 @@
+{
+  "date": "2026-10-30",
+  "guides": [
+    {
+      "slug": "scholarships-for-international-students",
+      "title": "Scholarships for International Students: How to Find and Apply",
+      "description": "A practical method for finding and applying for scholarships as an international student: steps, a documents checklist, a timeline and how to avoid scams.",
+      "focus_keyword": "scholarships for international students",
+      "related": ["/guides/fully-funded-scholarships-what-is-covered", "/guides/how-to-read-scholarship-eligibility-and-deadlines", "/guides/study-in-taiwan-scholarships-guide"],
+      "sections": [
+        { "h": "Start with a method, not a list", "p": ["Scholarships for international students come from governments, universities, foundations and employers, and each sets its own rules. Because amounts, deadlines and eligibility change every cycle, the most reliable skill is a repeatable method for finding awards and checking them against the official source. This guide gives you that method. For live opportunities, [browse verified scholarships](/) and always confirm details on the funder's own page."] },
+        { "h": "Steps to find and apply", "ol": [
+          "Define your target: degree level, field, countries you would study in, and the intake you are aiming for.",
+          "Search in three places: government programmes for your nationality, the universities you want to attend, and independent foundations. Use the [scholarship search](/) with a keyword such as your field or country.",
+          "Shortlist awards you appear to meet, then read each official eligibility page in full (see our guide to [reading eligibility and deadlines](/guides/how-to-read-scholarship-eligibility-and-deadlines)).",
+          "Check what each award pays for before you commit effort (see [what fully funded scholarships cover](/guides/fully-funded-scholarships-what-is-covered)).",
+          "Find out whether you must apply for admission and for funding separately. Many programmes require both.",
+          "Prepare documents early, ask referees well ahead of time, and tailor each statement to the funder's stated purpose.",
+          "Submit through the official channel, keep confirmation emails, and note any later stages such as interviews."
+        ] },
+        { "h": "Documents checklist", "p": ["Requirements differ, so treat this as a starting list and replace it with the official one for each award."], "ul": [
+          "Valid passport and any proof of citizenship the funder asks for",
+          "Academic transcripts and degree certificates, with certified or official translations if required",
+          "Proof of English or other language ability, if the programme requires it",
+          "CV or resume",
+          "Personal statement or motivation letter",
+          "Recommendation letters from referees who know your work",
+          "Research proposal or portfolio, for research and arts programmes",
+          "Any forms, photographs or health documents named in the instructions"
+        ] },
+        { "h": "A planning timeline", "p": ["There is no universal calendar, but working backwards from the intake date is a sound habit. As a rule of thumb, begin researching many months before you plan to start, because some funders close applications a year or more ahead and some documents take weeks to obtain. Create a tracker with each award, its official link, the closing date you read on that page and the date you will request each document."] },
+        { "h": "How to avoid scholarship scams", "ul": [
+          "Treat any request to pay a fee just to receive or release an award as a serious red flag, and ask the official funder to confirm.",
+          "Apply only through links you reach from the funder's or university's own website, not from messages or social posts.",
+          "Be wary of guaranteed results, urgent pressure, or awards you never applied for.",
+          "Never share passwords, banking details or copies of your passport with unverified contacts.",
+          "Cross-check the programme name and contact details on an official government or university page."
+        ] }
+      ],
+      "faqs": [
+        ["Where should I look for scholarships as an international student?", "Check government programmes, the websites of the universities you want to attend, and independent foundations. ScholarPortal links each listing to its official source so you can confirm details."],
+        ["Do I apply for admission and the scholarship separately?", "Often yes, but it depends on the programme. Read the official instructions to see whether funding is requested with the admission application or through a separate process."],
+        ["When should I start applying?", "Start as early as you can. Some funders and universities have long lead times, so work backwards from the intake date using the dates published on the official page."],
+        ["How do I know a scholarship is real?", "Reach it through the official funder or university website, confirm the contact details independently, and be cautious about any request for fees."]
+      ]
+    },
+    {
+      "slug": "fully-funded-scholarships-what-is-covered",
+      "title": "Fully Funded Scholarships: What Is Usually Covered",
+      "description": "What fully funded scholarships usually cover, what they often leave out, and how to check exactly what a specific award pays for before you apply.",
+      "focus_keyword": "fully funded scholarships",
+      "related": ["/guides/scholarships-for-international-students", "/guides/how-to-read-scholarship-eligibility-and-deadlines", "/guides/study-in-taiwan-scholarships-guide"],
+      "sections": [
+        { "h": "\"Fully funded\" is a description, not a standard", "p": ["There is no single definition of a fully funded scholarship. Providers use the phrase to suggest that the main costs of study are paid, but what counts as a main cost differs between awards. Two scholarships that both say fully funded can cover quite different things, so the label alone tells you very little. To compare real options, [search fully funded scholarships](/?q=fully%20funded) and read the funding section of each official page."] },
+        { "h": "What fully funded awards often include", "ul": [
+          "Tuition and compulsory university fees",
+          "A regular living allowance, sometimes called a stipend",
+          "A travel contribution, such as a flight to the study country",
+          "Health insurance, or a contribution towards it",
+          "Settling-in, research, thesis or study-material allowances in some programmes",
+          "Language courses before or alongside the degree in some programmes"
+        ] },
+        { "h": "What may not be covered", "p": ["Items that are commonly left out or only partly covered include visa and residence permit fees, accommodation deposits, family members and dependants, return travel, living costs during holidays, and costs incurred before the award starts. Some awards fund tuition but not living costs, or the reverse. Treat each of these as an open question until the official terms answer it."] },
+        { "h": "How to check what a specific award covers", "ol": [
+          "Open the official programme page or guidelines document, not a third-party summary.",
+          "Find the section on benefits, funding or what the award provides, and list each item exactly as written.",
+          "Note the duration: which degree stages and how many years or semesters are funded, and whether renewal depends on progress.",
+          "Check whether payments go to you or directly to the university, and how often.",
+          "Look for conditions such as work limits, return-to-home-country requirements or reporting duties.",
+          "Compare the list with your own budget for the destination, using the university's published cost information.",
+          "If anything is unclear, email the contact address on the official page and keep the reply."
+        ] },
+        { "h": "Next steps", "p": ["Once you know what an award covers, check that you meet its rules with our guide to [reading eligibility and deadlines](/guides/how-to-read-scholarship-eligibility-and-deadlines), then follow the [step-by-step application method](/guides/scholarships-for-international-students). You can also compare [degree programs](/programs) and their official funding information."] }
+      ],
+      "faqs": [
+        ["Does fully funded mean everything is free?", "Not necessarily. It usually means the main costs such as tuition and a living allowance are covered, but items like visas, dependants or travel may not be. Check the official terms."],
+        ["Is a stipend the same as a scholarship?", "A stipend is typically a regular payment for living costs. It may be one part of a funding package alongside tuition coverage, or it may be offered separately."],
+        ["Are fully funded scholarships only for PhD students?", "No. Funding structures vary by programme and degree level, so read each award's page to see which levels it supports."],
+        ["Where is the most reliable source for what is covered?", "The official programme page or guidelines from the funder or university. Third-party summaries can be out of date."]
+      ]
+    },
+    {
+      "slug": "how-to-read-scholarship-eligibility-and-deadlines",
+      "title": "How to Read Scholarship Eligibility and Deadlines",
+      "description": "How to read scholarship eligibility criteria and deadlines correctly: key terms, time zones, application stages and a checklist to avoid ineligible or late entries.",
+      "focus_keyword": "scholarship eligibility and deadlines",
+      "related": ["/guides/scholarships-for-international-students", "/guides/fully-funded-scholarships-what-is-covered", "/guides/study-in-taiwan-scholarships-guide"],
+      "sections": [
+        { "h": "Why careful reading matters", "p": ["Many strong applications fail because the applicant missed a rule rather than lacked merit. Eligibility criteria and deadlines are written for a specific cycle and can change from year to year, so treat the official page for the current round as the only authority. When you shortlist awards from the [scholarship directory](/), open the official link and read these sections before you plan anything else."] },
+        { "h": "Reading eligibility criteria", "ul": [
+          "Nationality or residence: some awards are open only to citizens or residents of listed countries, or exclude certain groups.",
+          "Level and field: confirm the degree level and subject areas the award supports.",
+          "Academic requirements: look for minimum results, required qualifications and how they are measured.",
+          "Language: check which tests or evidence of language ability are accepted.",
+          "Admission: find out whether you need an offer or application to a specific institution first.",
+          "Other limits: age, work experience, prior funding, or holding another scholarship at the same time."
+        ], "p": ["Words matter. \"Must\" and \"required\" are conditions you have to meet. \"Preferred\" or \"encouraged\" usually signals a factor in selection rather than a barrier. If wording is ambiguous, ask the funder in writing."] },
+        { "h": "Reading deadlines", "ul": [
+          "Find the exact closing date and time for the cycle you are applying to, and record the page where you read it.",
+          "Check the time zone. A deadline may be set in the funder's local time, not yours.",
+          "Look for several dates: some programmes have separate dates for admission, for the scholarship, for referees and for documents.",
+          "Note whether the date is for starting, submitting or receiving the application, and whether postal items must arrive or only be sent.",
+          "Allow a buffer. Portals can be slow near closing time, and some require approvals from your university or embassy first."
+        ] },
+        { "h": "Eligibility and deadline checklist", "ol": [
+          "Open the official page for the current cycle.",
+          "Copy each eligibility condition into a list and mark it met, not met or unsure.",
+          "Resolve every unsure item by reading the guidelines or contacting the funder.",
+          "List every date and the time zone it uses.",
+          "Add earlier personal deadlines for documents, referees and translations.",
+          "Re-check the page shortly before submitting in case the rules were updated."
+        ] },
+        { "h": "Related guides", "p": ["See [what fully funded scholarships cover](/guides/fully-funded-scholarships-what-is-covered) to check the value of an award, and the [application method](/guides/scholarships-for-international-students) for the full process."] }
+      ],
+      "faqs": [
+        ["What if the deadline on a third-party website differs from the official page?", "Use the official funder or university page. Third-party listings can be outdated or copied from an earlier cycle."],
+        ["Can I apply if I only partly meet the criteria?", "Required conditions are usually strict. If you are unsure whether you qualify, ask the funder directly before investing time."],
+        ["Do deadlines stay the same every year?", "No. Dates and rules are set per cycle and can change, so always read the current round's official information."],
+        ["Which time zone applies to a deadline?", "Check the instructions. If none is stated, ask the funder, and submit well before the closing time."]
+      ]
+    },
+    {
+      "slug": "study-in-taiwan-scholarships-guide",
+      "title": "Study in Taiwan: Scholarships and How to Apply",
+      "description": "General guidance for international students planning to study in Taiwan, with how to use official portals and government scholarship pages.",
+      "focus_keyword": "scholarships in Taiwan",
+      "related": ["/guides/scholarships-for-international-students", "/guides/how-to-read-scholarship-eligibility-and-deadlines", "/guides/fully-funded-scholarships-what-is-covered"],
+      "sections": [
+        { "h": "Where to start", "p": ["If you are looking for scholarships in Taiwan, begin with official sources. [Study in Taiwan](https://www.studyintaiwan.org/) is a site that promotes Taiwan as a destination for international students. Its How to Apply section includes a five-step guide, a way to find a university or college, a way to find a program, and a scholarship directory. It also has Plan Your Study pages on living, interning and working in Taiwan, and a section on learning Mandarin. To see opportunities on this portal, [search for Taiwan](/?q=Taiwan)."] },
+        { "h": "Finding a programme", "p": ["Study in Taiwan's [program search](https://www.studyintaiwan.org/how-to-apply/program) lets you filter by school, field of study, level of study, language of instruction and region of Taiwan. Choosing a programme first matters because many scholarships are tied to admission, and some universities run their own awards. You can also compare [degree programs](/programs) on ScholarPortal and follow each link to the university's official page."] },
+        { "h": "Types of scholarships", "p": ["The [scholarship directory on Study in Taiwan](https://www.studyintaiwan.org/how-to-apply/scholarship) can be filtered by government scholarships, university scholarships and other scholarships, and by school. The page notes that additional scholarship opportunities may be available at your chosen school, so check with the university's international office as well."] },
+        { "h": "Government scholarship programmes", "p": ["The official [Taiwan Scholarship and Huayu Enrichment Scholarship Program site](https://taiwanscholarship.moe.gov.tw/web/pages.aspx?p=7) covers the MOE Taiwan Scholarship, the MOE Huayu Enrichment Scholarship and the MOFA Taiwan Scholarship, and publishes guidelines for each. Eligibility differs by programme and nationality, so read the guidelines for the one you are considering. The Ministry of Education's [Taiwan Scholarship Program page](https://english.moe.gov.tw/cp-24-16833-23C09-1.html) states that applications are submitted to a Republic of China (Taiwan) overseas mission and that applicants must also apply separately to a university or college in Taiwan for admission. Confirm the current process with your local Taiwan representative office."] },
+        { "h": "A practical order of steps", "ol": [
+          "Read the Study in Taiwan five-step guide for the overall process.",
+          "Use the program search to shortlist universities and programmes in your field and language of instruction.",
+          "Check the official scholarship guidelines and your university's own scholarship page for eligibility, funding terms and dates.",
+          "Prepare documents using the [documents checklist](/guides/scholarships-for-international-students) and apply to both the university and, if required, the scholarship.",
+          "Plan living arrangements using the Plan Your Study pages."
+        ] },
+        { "h": "Check the details yourself", "p": ["Amounts, quotas and dates are set by each provider and change between cycles, so this guide does not list them. Use [reading eligibility and deadlines](/guides/how-to-read-scholarship-eligibility-and-deadlines) and [what fully funded awards cover](/guides/fully-funded-scholarships-what-is-covered) to review each official page."] }
+      ],
+      "faqs": [
+        ["Where can I find official information on studying in Taiwan?", "Study in Taiwan (studyintaiwan.org) is a good starting point, with program and scholarship directories, and the Taiwan Scholarship site publishes government scholarship guidelines."],
+        ["Do I need to apply to a university as well as a scholarship?", "For the MOE Taiwan Scholarship, the Ministry of Education page says applicants must also apply separately to a Taiwanese university or college for admission."],
+        ["Where do I submit a Taiwan government scholarship application?", "The official MOE pages say applications go to the local Taiwan representative office or overseas mission. Check the current guidelines for your country."],
+        ["Do universities in Taiwan offer their own scholarships?", "Yes, the Study in Taiwan directory lists university scholarships offered by individual schools. Check each university's page for terms."]
+      ]
+    }
+  ]
+}

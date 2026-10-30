@@ -21,6 +21,10 @@ export default function Footer() {
             <Link className="text-slate-600 dark:text-slate-300 hover:text-indigo-600" to="/">Scholarships</Link>
             <Link className="text-slate-600 dark:text-slate-300 hover:text-indigo-600" to="/blog">Application guides</Link>
             <Link className="text-slate-600 dark:text-slate-300 hover:text-indigo-600" to="/programs">Degree programs</Link>
+            <Link className="text-slate-600 dark:text-slate-300 hover:text-indigo-600" to="/guides/scholarships-for-international-students">International student guide</Link>
+            <Link className="text-slate-600 dark:text-slate-300 hover:text-indigo-600" to="/guides/fully-funded-scholarships-what-is-covered">Fully funded explained</Link>
+            <Link className="text-slate-600 dark:text-slate-300 hover:text-indigo-600" to="/guides/how-to-read-scholarship-eligibility-and-deadlines">Eligibility and deadlines</Link>
+            <Link className="text-slate-600 dark:text-slate-300 hover:text-indigo-600" to="/guides/study-in-taiwan-scholarships-guide">Study in Taiwan</Link>
             <Link className="text-slate-600 dark:text-slate-300 hover:text-indigo-600" to="/pricing">Pricing</Link>
             <Link className="text-slate-600 dark:text-slate-300 hover:text-indigo-600" to="/privacy-policy">Privacy</Link>
             <Link className="text-slate-600 dark:text-slate-300 hover:text-indigo-600" to="/terms">Terms</Link>

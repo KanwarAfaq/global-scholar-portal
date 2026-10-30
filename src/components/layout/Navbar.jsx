@@ -23,6 +23,7 @@ export default function Navbar({ toggleSidebar }) {
     { name: 'Scholarships', path: '/', icon: LayoutDashboard },
     { name: 'Programs', path: '/programs', icon: School },
     { name: 'Blog', path: '/blog', icon: BookOpen },
+    { name: 'Guides', path: '/guides/scholarships-for-international-students', icon: BookOpen, wideOnly: true },
     { name: 'AI Copilot', path: '/copilot', icon: Sparkles },
     { name: 'Pricing', path: '/pricing', icon: Tag, wideOnly: true },
   ];
