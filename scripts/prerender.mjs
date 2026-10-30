@@ -167,7 +167,7 @@ for (const page of pages) {
   const shortened = shortKey(page);
   const headTitle = shortCounts.get(shortened.toLowerCase()) > 1 ? text(page.title) + (dup ? dup.titleSuffix : '') : shortened;
   const description = text(page.description || page.title);
-  const metaDescription = clamp(description, 158);
+  const metaDescription = clamp(description, 152);
   const ownImage = validWebUrl(page.image);
   const socialImage = ownImage || DEFAULT_IMAGE.url;
   const keyword = text(page.focus_keyword || page.title);
@@ -224,6 +224,9 @@ for (const page of pages) {
     `<link rel="canonical" href="${escape(canonicalHref)}">`,
     '<meta property="og:site_name" content="ScholarPortal">',
     `<meta property="og:type" content="${article ? 'article' : 'website'}">`,
+    article && published ? `<meta property="article:published_time" content="${escape(published)}">` : '',
+    article && modified ? `<meta property="article:modified_time" content="${escape(modified)}">` : '',
+    article ? '<meta property="article:author" content="ScholarPortal Editorial Team">' : '',
     `<meta property="og:title" content="${escape(headTitle)}">`,
     `<meta property="og:description" content="${escape(metaDescription)}">`,
     `<meta property="og:url" content="${escape(canonicalHref)}">`,
