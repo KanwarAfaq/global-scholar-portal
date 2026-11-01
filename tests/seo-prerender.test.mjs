@@ -48,7 +48,7 @@ test('public page snapshots contain SEO headings, source links, image alt and va
     assert.doesNotMatch(fs.readFileSync(path.join(root, 'dist/blog/second/index.html'), 'utf8'), /<img\b/);
     assert.match(fs.readFileSync(path.join(root, 'dist/index.html'), 'utf8'), /href="https:\/\/educationusa.state.gov\/"/);
     const home = fs.readFileSync(path.join(root, 'dist/index.html'), 'utf8');
-    assert.match(home, /Fully Funded Scholarships 2026–2027 for International Students/);
+    assert.match(home, /Fully Funded Scholarships 2026–2027/);
     assert.match(home, /What does a fully funded scholarship cover\?/);
     assert.match(home, /href="\/blog"/);
     assert.match(home, /data-seo-article-hub="true"/);

@@ -15,4 +15,7 @@
 - [How to Read Scholarship Eligibility and Deadlines](https://scholarportal.site/guides/how-to-read-scholarship-eligibility-and-deadlines): How to read scholarship eligibility criteria and deadlines correctly: key terms, time zones, application stages and a checklist to avoid ineligible or late entries.
 - [Study in Taiwan: Scholarships and How to Apply](https://scholarportal.site/guides/study-in-taiwan-scholarships-guide): General guidance for international students planning to study in Taiwan, with how to use official portals and government scholarship pages.
 
+## Machine-readable
+- [XML sitemap](https://scholarportal.site/sitemap.xml)
+
 Official source pages linked from each record remain authoritative. AI-generated guidance must be reviewed before use.

@@ -38,8 +38,8 @@ const PRERENDERED = typeof document !== 'undefined' ? {
 
 const pages = {
   '/': {
-    title: 'Fully Funded Scholarships 2026–2027 for International Students',
-    description: 'Explore fully funded scholarships 2026–2027 for international students, including master’s, PhD, fellowships and internships. Compare eligibility, funding, deadlines and official sources.',
+    title: 'Fully Funded Scholarships 2026–2027 | Study Abroad',
+    description: 'Find fully funded scholarships 2026–2027 for international students: master’s, PhD and fellowships. Compare eligibility, deadlines and official sources.',
   },
   '/blog': {
     title: 'Scholarship Application Guides 2026–2027',

@@ -134,8 +134,8 @@ const officialLink = page => {
 // Keep crawlable HTML titles synchronized even before the next scheduled sitemap refresh.
 const landingSeo = {
   '/': {
-    title: 'Fully Funded Scholarships 2026–2027 for International Students',
-    description: 'Explore fully funded scholarships 2026–2027 for international students, including master’s, PhD, fellowships and internships. Compare eligibility, funding, deadlines and official sources.',
+    title: 'Fully Funded Scholarships 2026–2027 | Study Abroad',
+    description: 'Find fully funded scholarships 2026–2027 for international students: master’s, PhD and fellowships. Compare eligibility, deadlines and official sources.',
     focus_keyword: 'fully funded scholarships 2026–2027',
   },
   '/blog': {
