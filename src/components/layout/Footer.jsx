@@ -32,6 +32,15 @@ export default function Footer() {
                className="inline-flex items-center gap-1 text-slate-600 dark:text-slate-300 hover:text-indigo-600" aria-label="ScholarPortal source code on GitHub">
               <FaGithub aria-hidden="true" /> GitHub
             </a>
+            <div className="w-full border-t border-slate-200 pt-4 dark:border-slate-700" aria-label="Related independent resources">
+              <p className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Related learning and career resources</p>
+              <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
+                <a href="https://worksheet.live/" className="text-indigo-600 hover:underline dark:text-indigo-400">Free printable learning worksheets</a>
+                <a href="https://anytool.online/" className="text-indigo-600 hover:underline dark:text-indigo-400">Free online study tools</a>
+                <a href="https://kmafaq.online/" className="text-indigo-600 hover:underline dark:text-indigo-400">Technology and career articles</a>
+                <a href="https://kmafaq.site/" className="text-indigo-600 hover:underline dark:text-indigo-400">Research projects and publications</a>
+              </div>
+            </div>
           </nav>
         </div>
       </div>
