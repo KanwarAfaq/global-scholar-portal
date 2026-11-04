@@ -156,7 +156,8 @@ const duplicateOf = findDuplicateTitles(pages);
 // Previously public/sitemap.xml listed duplicate-title variants as indexable URLs,
 // while their prerendered <link rel="canonical"> pointed elsewhere. Sitemap entries
 // should identify only canonical URLs, and a Vercel redirect must not be included.
-const redirects = JSON.parse(fs.readFileSync('vercel.json', 'utf8')).redirects || [];
+const vercelConfigPath = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../vercel.json');
+const redirects = JSON.parse(fs.readFileSync(vercelConfigPath, 'utf8')).redirects || [];
 const redirectedPaths = new Set(redirects.filter(r => r.source && r.destination && r.source.startsWith('/') && r.destination.startsWith('/')).map(r => r.source));
 const xmlEscape = value => String(value).replace(/[&<>"']/g, c => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;',
