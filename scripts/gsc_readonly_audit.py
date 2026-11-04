@@ -58,6 +58,17 @@ if not xml_root.tag.endswith(("urlset", "sitemapindex")):
     raise ValueError("The public sitemap is not a valid sitemap root")
 report["public_sitemap"] = {"http_status": sitemap_response.status_code,
                             "entries": len(xml_root)}
+# A submitted sitemap alone does not tell whether individual pages were indexed.
+# Inspect a small sample of the most recently modified URLs via the official API.
+namespace = "{http://www.sitemaps.org/schemas/sitemap/0.9}"
+recent_urls = []
+for node in xml_root.findall(namespace + "url"):
+    loc = node.findtext(namespace + "loc")
+    modified = node.findtext(namespace + "lastmod") or ""
+    if loc and loc.startswith("https://" + DOMAIN + "/"):
+        recent_urls.append((modified, loc))
+recent_urls.sort(reverse=True)
+
 try:
     sitemap_data = api("GET", "/sitemaps/" + quote(SITEMAP, safe=""))
     report["gsc_sitemap"] = {
@@ -70,6 +81,38 @@ except RuntimeError as exc:
     if "HTTP 404" not in str(exc):
         raise
     report["gsc_sitemap"] = {"submitted": False}
+
+# Search Console URL Inspection API is read-only. Results are sampled, not sitewide coverage.
+# Google can decline indexing an accessible, valid page; report the reason rather
+# than claiming sitemap submission guarantees indexing.
+inspected = []
+inspection_errors = []
+for _, url in recent_urls[:5]:
+    try:
+        response = session.post(
+            "https://searchconsole.googleapis.com/v1/urlInspection/index:inspect",
+            json={"inspectionUrl": url, "siteUrl": SITE, "languageCode": "en-US"},
+            timeout=30,
+        )
+        if not response.ok:
+            raise RuntimeError("HTTP " + str(response.status_code))
+        status = response.json().get("inspectionResult", {}).get("indexStatusResult", {})
+        inspected.append({
+            "url": url,
+            "verdict": status.get("verdict"),
+            "coverage_state": status.get("coverageState"),
+            "indexing_state": status.get("indexingState"),
+            "page_fetch_state": status.get("pageFetchState"),
+            "robots_txt_state": status.get("robotsTxtState"),
+            "last_crawl_time": status.get("lastCrawlTime"),
+            "google_canonical": status.get("googleCanonical"),
+            "user_canonical": status.get("userCanonical"),
+        })
+    except (requests.RequestException, ValueError, RuntimeError) as exc:
+        inspection_errors.append({"url": url, "error": str(exc)})
+report["recent_url_inspections"] = inspected
+report["inspection_errors"] = inspection_errors
+report["inspection_note"] = "Only up to five recent sitemap URLs are inspected; this is not the Search Console Page Indexing report."
 
 current_total = analytics([], START, END)
 previous_total = analytics([], PREVIOUS_START, PREVIOUS_END)
@@ -99,6 +142,8 @@ print("Public sitemap entries:", report["public_sitemap"]["entries"])
 print("GSC sitemap:", report["gsc_sitemap"])
 print("Current performance:", report["current"])
 print("Previous performance:", report["previous"])
+print("Recent URL inspection verdicts:", [(entry["url"], entry["verdict"], entry["coverage_state"]) for entry in inspected])
+print("URL inspection errors:", inspection_errors)
 print("Quick-win keywords:", len(report["quick_wins"]))
 print("Low-CTR pages:", len(report["low_ctr_pages"]))
 for entry in report["quick_wins"][:10]:
