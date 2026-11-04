@@ -130,3 +130,25 @@ test('robots.txt welcomes retrieval crawlers, never hides noindex, and llms.txt 
   const llms = fs.readFileSync(path.join(here, 'public/llms.txt'), 'utf8');
   for (const route of ['/blog', '/programs', '/sitemap.xml']) assert.ok(llms.includes('https://scholarportal.site' + route), route);
 });
+
+
+test('deployed sitemap contains only self-canonical non-redirected URLs', () => {
+  const sample = [
+    { path: '/', title: 'Home' },
+    { path: '/blog', title: 'Guides' },
+    { path: '/blog/primary', title: 'One scholarship', kind: 'Article', content: 'Information', date: '2026-10-01T00:00:00Z' },
+    { path: '/blog/duplicate', title: 'one scholarship', kind: 'Article', content: 'Different information' },
+    { path: '/blog/study-business-norway-fully-funded-bi-presidential-scholarship', title: 'Old redirect', kind: 'Article', content: 'Legacy record' },
+  ];
+  const b = build(sample);
+  try {
+    assert.equal(b.run.status, 0, b.run.stderr || b.run.stdout);
+    const sitemap = b.read('sitemap.xml');
+    assert.match(sitemap, /<loc>https:\/\/scholarportal\.site\/blog\/primary<\/loc>/);
+    assert.match(sitemap, /<lastmod>2026-10-01T00:00:00Z<\/lastmod>/);
+    assert.doesNotMatch(sitemap, /\/blog\/duplicate<\/loc>/);
+    assert.doesNotMatch(sitemap, /study-business-norway-fully-funded-bi-presidential-scholarship<\/loc>/);
+    assert.match(b.read('blog/duplicate/index.html'), /<link rel="canonical" href="https:\/\/scholarportal\.site\/blog\/primary">/);
+    assert.match(b.read('blog/study-business-norway-fully-funded-bi-presidential-scholarship/index.html'), /data-seo-snapshot="true"/);
+  } finally { b.done(); }
+});
