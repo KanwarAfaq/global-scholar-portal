@@ -1,0 +1,39 @@
+name: Portfolio SEO navigation checks
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/components/**'
+      - '.github/workflows/portfolio-seo.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'src/components/**'
+      - '.github/workflows/portfolio-seo.yml'
+permissions:
+  contents: read
+jobs:
+  build-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install exact dependencies
+        run: npm ci
+      - name: Run tests
+        run: npm test
+      - name: Build production assets
+        run: npm run build
+      - name: Verify contextual links and independent domain destinations
+        run: |
+          node - <<'NODE'
+          const fs=require('fs');
+          const content=fs.readFileSync('src/components/layout/Footer.jsx','utf8');
+          const expected=["https://anytool.online/","https://kmafaq.site/","https://kmafaq.online/","https://worksheet.live/"];
+          for(const url of expected)if(!content.includes(url))throw new Error('Missing related resource: '+url);
+          console.log('PORTFOLIO_CONTEXTUAL_LINKS_OK');
+          NODE
