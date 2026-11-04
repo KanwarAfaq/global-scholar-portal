@@ -151,6 +151,25 @@ const landingSeo = {
 };
 // Pages sharing a title: the first stays primary, the rest canonicalise to it and get a distinct title.
 const duplicateOf = findDuplicateTitles(pages);
+
+// Produce the deployed sitemap from the SAME canonical decisions as the HTML.
+// Previously public/sitemap.xml listed duplicate-title variants as indexable URLs,
+// while their prerendered <link rel="canonical"> pointed elsewhere. Sitemap entries
+// should identify only canonical URLs, and a Vercel redirect must not be included.
+const redirects = JSON.parse(fs.readFileSync('vercel.json', 'utf8')).redirects || [];
+const redirectedPaths = new Set(redirects.filter(r => r.source && r.destination && r.source.startsWith('/') && r.destination.startsWith('/')).map(r => r.source));
+const xmlEscape = value => String(value).replace(/[&<>"']/g, c => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;',
+}[c]));
+const sitemapEntries = pages.filter(page => !duplicateOf.has(page.path) && !redirectedPaths.has(page.path))
+  .map(page => {
+    const lastmod = page.date && !Number.isNaN(Date.parse(page.date)) ? `<lastmod>${xmlEscape(page.date)}</lastmod>` : '';
+    return `<url><loc>${xmlEscape(siteUrl + page.path)}</loc>${lastmod}</url>`;
+  });
+fs.writeFileSync('dist/sitemap.xml',
+  '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' +
+  sitemapEntries.join('') + '</urlset>\n');
+console.log(`SEO: sitemap contains ${sitemapEntries.length} canonical URLs; excluded ${duplicateOf.size} duplicate-title variants and ${pages.filter(p => redirectedPaths.has(p.path) && !duplicateOf.has(p.path)).length} redirected routes.`);
 // Shortening can make two different titles identical; those keep their full (unique) title instead.
 const shortKey = page => {
   const dup = duplicateOf.get(page.path);
