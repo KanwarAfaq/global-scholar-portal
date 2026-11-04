@@ -1,0 +1,40 @@
+name: SEO regression checks
+on:
+  pull_request:
+    paths:
+      - 'scripts/prerender.mjs'
+      - 'scripts/gsc_readonly_audit.py'
+      - 'src/lib/seoTitle.js'
+      - 'tests/**'
+      - 'public/seo-pages.json'
+      - 'vercel.json'
+      - '.github/workflows/seo-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/prerender.mjs'
+      - 'scripts/gsc_readonly_audit.py'
+      - 'src/lib/seoTitle.js'
+      - 'tests/**'
+      - 'public/seo-pages.json'
+      - 'vercel.json'
+      - '.github/workflows/seo-ci.yml'
+permissions:
+  contents: read
+jobs:
+  seo-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: python -m py_compile scripts/gsc_readonly_audit.py

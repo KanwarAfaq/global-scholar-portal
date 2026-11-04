@@ -66,7 +66,8 @@ def build(output=None):
         f'- [Application guides]({base}/blog): scholarship and application research\n'
         f'- [Degree programs]({base}/programs): verified academic program comparisons\n'
         f'- [Terms]({base}/terms)\n'
-        f'- [Privacy]({base}/privacy-policy)\n\n'
+        f'- [Privacy]({base}/privacy-policy)\n'
+        f'- [XML sitemap]({base}/sitemap.xml)\n\n'
         +('## Study guides\n'+''.join(f"- [{g['title']}]({base}/guides/{g['slug']}): {g['description']}\n" for g in guides['guides'])+'\n' if guides['guides'] else '')+
         'Official source pages linked from each record remain authoritative. AI-generated guidance must be reviewed before use.\n',
         encoding='utf-8')

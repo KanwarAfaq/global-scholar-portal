@@ -8,6 +8,7 @@
 - [Degree programs](https://scholarportal.site/programs): verified academic program comparisons
 - [Terms](https://scholarportal.site/terms)
 - [Privacy](https://scholarportal.site/privacy-policy)
+- [XML sitemap](https://scholarportal.site/sitemap.xml)
 
 ## Study guides
 - [Scholarships for International Students: How to Find and Apply](https://scholarportal.site/guides/scholarships-for-international-students): A practical method for finding and applying for scholarships as an international student: steps, a documents checklist, a timeline and how to avoid scams.
