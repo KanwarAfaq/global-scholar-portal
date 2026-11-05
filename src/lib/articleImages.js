@@ -1,4 +1,16 @@
 // Curated, stable education imagery for missing or repeatedly assigned covers.
+// Confirmed missing by the 2026-11-05 crawler export (9 failed image references).
+// Match the image pathname, regardless of width/crop query parameters.
+const KNOWN_MISSING_IMAGE_PATHS = new Set([
+  '/photo-1523050854058-8df90110c9f1',
+]);
+export function isKnownBrokenArticleImage(value) {
+  try {
+    const url = new URL(String(value || '').trim());
+    return url.hostname === 'images.unsplash.com' && KNOWN_MISSING_IMAGE_PATHS.has(url.pathname);
+  } catch { return false; }
+}
+
 export const ARTICLE_COVERS = [
   'https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&q=82&w=1200',
   'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&q=82&w=1200',
@@ -27,7 +39,7 @@ export function articleFallback(post, position) {
 }
 
 export function articleCover(post, position, repeated = false) {
-  return !repeated && String(post?.image || '').trim()
+  return !repeated && !isKnownBrokenArticleImage(post?.image) && String(post?.image || '').trim()
     ? post.image.trim()
     : articleFallback(post, position);
 }
