@@ -152,3 +152,34 @@ test('deployed sitemap contains only self-canonical non-redirected URLs', () => 
     assert.match(b.read('blog/study-business-norway-fully-funded-bi-presidential-scholarship/index.html'), /data-seo-snapshot="true"/);
   } finally { b.done(); }
 });
+
+
+test('known 404 cover URL is omitted from prerendered article and uses local social image', () => {
+  const url='https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&q=80&w=800';
+  const b=build([
+    {path:'/',title:'Home',description:'Scholarship hub'},
+    {path:'/blog/known-missing-image',title:'Known Broken Scholarship Image',kind:'Article',
+      description:'Example article with a missing image.',content:'Full scholarship article.',image:url},
+    {path:'/blog/valid-image',title:'Valid Scholarship Image',kind:'Article',
+      description:'Example article with a valid cover.',image:'https://images.example.org/campus.jpg'},
+  ]);
+  try {
+    assert.equal(b.run.status,0,b.run.stderr||b.run.stdout);
+    const broken=b.read('blog/known-missing-image/index.html');
+    assert.doesNotMatch(broken,/photo-1523050854058-8df90110c9f1/);
+    assert.doesNotMatch(broken,/<figure>/);
+    assert.match(broken,/og:image" content="https:\/\/scholarportal\.site\/og-default\.jpg"/);
+    assert.match(broken,/twitter:image" content="https:\/\/scholarportal\.site\/og-default\.jpg"/);
+    const valid=b.read('blog/valid-image/index.html');
+    assert.match(valid,/images\.example\.org\/campus\.jpg/);
+  } finally { b.done(); }
+});
+
+test('article display helper does not render known missing 404 covers', async () => {
+  const {articleCover,isKnownBrokenArticleImage}=await import('../src/lib/articleImages.js');
+  const bad='https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=100';
+  assert.equal(isKnownBrokenArticleImage(bad),true);
+  assert.equal(isKnownBrokenArticleImage('https://images.example.org/a.jpg'),false);
+  assert.ok(!articleCover({slug:'missing',image:bad},0).includes('1523050854058'));
+  assert.equal(articleCover({slug:'working',image:'https://images.example.org/cover.jpg'},0),'https://images.example.org/cover.jpg');
+});
