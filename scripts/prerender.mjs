@@ -92,6 +92,15 @@ const relatedLinks = page => {
     link.path !== page.path && all.findIndex(entry => entry.path === link.path) === index &&
     pages.some(item => item.path === link.path)).slice(0, 4);
 };
+// Crawlable, page-sized directory: do not hide hundreds of older articles behind
+// a client-only listing or cap the discoverable HTML links at 250.
+const articleDirectoryPages = () => {
+  const articles = pages.filter(item => item.kind === 'Article' && !duplicateOf.has(item.path) && !redirectedPaths.has(item.path))
+    .sort((left,right) => String(right.date||'').localeCompare(String(left.date||'')) || left.path.localeCompare(right.path));
+  const batches = [];
+  for(let i=0;i<articles.length;i+=100)batches.push(articles.slice(i,i+100));
+  return batches;
+};
 // Link each public article from a crawlable HTML hub, not solely from XML sitemaps.
 // Google's crawler can follow these anchors even if client-side data requests fail.
 const hubLinks = page => {
@@ -103,7 +112,7 @@ const hubLinks = page => {
     { heading: 'ScholarPortal study guides', items: articles.filter(item => item.path.startsWith('/guides/')) },
     { heading: 'Scholarship and opportunity reports', items: articles.filter(item => item.path.startsWith('/opportunity/')) },
   ];
-  const limit = page.path === '/' ? 12 : 250;
+  const limit = page.path === '/' ? 12 : 100;
   const lists = sections.map(section => {
     const links = section.items.slice(0, limit);
     if (!links.length) return '';
@@ -111,8 +120,10 @@ const hubLinks = page => {
       links.map(link => '<li><a href="' + escape(link.path) + '">' + escape(link.title) + '</a></li>').join('') +
       '</ul></section>';
   }).filter(Boolean);
+  const directory = page.path === '/blog' ? '<p><strong>Complete article archive:</strong> ' +
+    articleDirectoryPages().map((_,i)=>'<a href="/article-directory/'+(i+1)+'">Archive page '+(i+1)+'</a>').join(' · ') + '</p>' : '';
   return lists.length ? '<nav aria-label="Browse public scholarship articles" data-seo-article-hub="true">' +
-    lists.join('') + '</nav>' : '';
+    lists.join('') + directory + '</nav>' : directory;
 };
 const homeFaqs = [
   ['What does a fully funded scholarship cover?', 'Coverage varies by program. It can include tuition and a living allowance; travel, housing and insurance may or may not be included. Check each provider’s official funding terms.'],
@@ -297,6 +308,36 @@ for (const page of pages) {
   const destination = path.join('dist', relative);
   fs.mkdirSync(path.dirname(destination), { recursive: true });
   fs.writeFileSync(destination, html);
+}
+
+// Generate crawlable, canonical article-directory pages from exactly the same
+// non-duplicate, non-redirected public articles that appear in the sitemap.
+const directoryBatches = articleDirectoryPages();
+for(let i=0;i<directoryBatches.length;i++){
+  const route='/article-directory/'+(i+1),url=siteUrl+route;
+  const links=directoryBatches[i].map(item=>'<li><a href="'+escape(item.path)+'">'+escape(item.title)+'</a></li>').join('');
+  const pagination='<nav aria-label="Article archive pages">'+directoryBatches.map((_,n)=>'<a href="/article-directory/'+(n+1)+'"'+(n===i?' aria-current="page"':'')+'>Page '+(n+1)+'</a>').join(' · ')+'</nav>';
+  const title='Scholarship Article Archive — Page '+(i+1)+' | ScholarPortal';
+  const summary='Browse published scholarship, fellowship and study-abroad application articles in the ScholarPortal archive, page '+(i+1)+'.';
+  const structured={ '@context':'https://schema.org','@type':'CollectionPage',name:title,url,description:summary,
+    isPartOf:{'@type':'WebSite',name:'ScholarPortal',url:siteUrl+'/' }};
+  const head='<title>'+escape(title)+'</title>'+
+    '<meta name="description" content="'+escape(summary)+'">'+
+    '<meta name="robots" content="index,follow">'+
+    '<link rel="canonical" href="'+escape(url)+'">'+
+    '<script type="application/ld+json">'+JSON.stringify(structured).replace(/</g,'\\u003c')+'</script>';
+  const html=removeManagedHead(template).replace('</head>',head+'</head>').replace('<div id="root"></div>',
+    '<div id="root"><main><nav aria-label="Breadcrumb"><a href="/">Home</a> › <a href="/blog">Application guides</a></nav>'+
+    '<h1>Scholarship Article Archive — Page '+(i+1)+'</h1><p>'+escape(summary)+'</p>'+
+    pagination+'<ul>'+links+'</ul>'+pagination+'</main></div>');
+  const destination=path.join('dist',route.slice(1),'index.html');
+  fs.mkdirSync(path.dirname(destination),{recursive:true});fs.writeFileSync(destination,html);
+}
+// Add the directory pages to the same canonical sitemap generated above.
+if(directoryBatches.length){
+  const xml=fs.readFileSync('dist/sitemap.xml','utf8');
+  const extra=directoryBatches.map((_,i)=>'<url><loc>'+xmlEscape(siteUrl+'/article-directory/'+(i+1))+'</loc></url>').join('');
+  fs.writeFileSync('dist/sitemap.xml',xml.replace('</urlset>',extra+'</urlset>'));
 }
 
 // Report what was consolidated so the editorial team can merge or 301 the near-identical pages.
