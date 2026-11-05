@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { parseInline, plainText } from '../src/lib/guideMarkup.js';
 import { shortenTitle, findDuplicateTitles } from '../src/lib/seoTitle.js';
+import { isKnownBrokenArticleImage } from '../src/lib/articleImages.js';
 
 const file = 'public/seo-pages.json';
 if (!fs.existsSync(file)) {
@@ -138,7 +139,7 @@ const officialResources = {
 const officialLink = page => {
   const url = validWebUrl(page.source_url || page.original_link);
   return url && new URL(url).origin !== new URL(base).origin
-    ? { url, label: 'Official source and application information' }
+    ? { url, label: 'Source article or application information' }
     : (officialResources[page.path] || null);
 };
 
@@ -199,7 +200,7 @@ for (const page of pages) {
   const headTitle = shortCounts.get(shortened.toLowerCase()) > 1 ? text(page.title) + (dup ? dup.titleSuffix : '') : shortened;
   const description = text(page.description || page.title);
   const metaDescription = clamp(description, 152);
-  const ownImage = validWebUrl(page.image);
+  const ownImage = isKnownBrokenArticleImage(page.image) ? null : validWebUrl(page.image);
   const socialImage = ownImage || DEFAULT_IMAGE.url;
   const keyword = text(page.focus_keyword || page.title);
   const article = page.kind === 'Article';
@@ -275,7 +276,7 @@ for (const page of pages) {
   const bodyText = text(page.content || '');
   const lead = description.toLowerCase().includes(keyword.toLowerCase())
     ? description : keyword + ' — ' + description;
-  const imageUrl = validWebUrl(page.image);
+  const imageUrl = ownImage;
   const source = officialLink(page);
   const links = relatedLinks(page);
   // Provide usable initial HTML for non-JS crawlers without fabricating images or URLs.
