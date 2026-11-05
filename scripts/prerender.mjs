@@ -139,7 +139,7 @@ const officialResources = {
 const officialLink = page => {
   const url = validWebUrl(page.source_url || page.original_link);
   return url && new URL(url).origin !== new URL(base).origin
-    ? { url, label: 'Official source and application information' }
+    ? { url, label: 'Source article or application information' }
     : (officialResources[page.path] || null);
 };
 
