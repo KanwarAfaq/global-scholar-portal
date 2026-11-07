@@ -75,6 +75,746 @@
       "source": "/dashboard",
       "destination": "/",
       "permanent": true
+    },
+    {
+      "source": "/blog/2026-27-new-zealand-manaaki-scholarships-phd",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/2027-chinese-government-scholarships-csc-fully-funded-master-phd",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/2027-csc-scholarship-china-fully-funded-award",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/50-scholarships-grants-for-study-abroad-in-2026-baedfccc58",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/a-grad-student-s-guide-to-applying-for-scholarships-d0c88cf283",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/admission-requirements-international-applicants-afa56c73f1",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/ai-competency-framework-for-students-a941173f0a",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/application-deadlines-and-requirements-0737ee9928",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/application-fees-and-deadlines-graduate-admission-f859194184",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/applying-for-aid-for-international-students-3499d2d38a",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/applying-to-grad-school-step-by-step-guide-2a1399814f",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/applying-to-grad-school-the-ultimate-guide-1cc303a22a",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/applying-to-grad-school-the-ultimate-guide-31ca210fed",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/applying-to-u-s-grad-school-an-international-student-s-b33a59b046",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/april-15-resolution-council-of-graduate-schools-cgs-75eeb1702e",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/boost-your-academic-journey-eth-zurich-enhance-mobility-scholarship",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/chevening-scholarship-uk-fully-funded",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/chevening-scholarships-96dc2ad80d",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/chinese-government-scholarship-2027-fully-funded-csc",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/chinese-government-scholarship-application-academic-year-763121b376",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/complete-your-u-s-application-graduate-732a03097a",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/complete-your-u-s-application-graduate-educationusa-732a03097a",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/csc-scholarship-2027-fully-funded-study-in-china",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/csc-scholarship-china-2027",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/daad-study-scholarships-masters-germany",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/erasmus-mundus-scholarships-2027-fully-funded-master-programs",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/federal-student-aid-home-ecb072e0ea",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/fellowships-46b67184e1",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/fellowships-uw-graduate-school-8930fe362f",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/financial-aid-for-international-students-in-the-usa-0d363a428e",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/financial-aid-for-international-students-lewis-clark-college-1021b64f3a",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/financial-aid-for-undergraduate-international-students-8791fc8e27",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/finding-and-applying-for-scholarships-federal-student-aid-8fa572adef",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/finland-scholarship-2027-fully-funded-masters",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/foreign-fulbright-program-new-home-page-2b220069ee",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/france-eiffel-excellence-scholarship-2026-fully-funded",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/france-excellence-eiffel-scholarship-2026-2027",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/fulbright-us-student-program-fully-funded-grants-2027-2028",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/fulbright-us-student-program-fully-funded-study-research-grants",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/full-guide-to-scholarships-for-studying-in-usa-94105c60b4",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/fully-funded-danish-government-scholarship-masters",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/fully-funded-malaysia-government-scholarship",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/fully-funded-mext-scholarship-study-in-japan-master-phd",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/fully-funded-scholarships-new-zealand",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/funding-resources-for-graduate-students-from-graduate-e3946163a0",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/global-korea-scholarship-gks",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/global-korea-scholarship-gks-2027",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/grad-how-to-apply-9d4dbbfa6c",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/graduate-admissions-101-requirements-timeline-tips-378742e71a",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/graduate-admissions-b2feea33c5",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/graduate-admissions-nyu-sps-76f00c9574",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/graduate-admissions-steps-to-apply-3aa509ac27",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/graduate-educationusa-b8b9e819a0",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/graduate-fellowships-and-funding-opportunities-in-stem-f5f8da7438",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/graduate-masters-or-doctoral-admissions-process-0388941515",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/graduate-scholarships-university-of-cincinnati-26d1dc9ddb",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/graduate-scholarships-what-you-need-to-know-56fd8f3248",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/graduate-school-preparation-checklist-0f6d03d4a3",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/graduate-school-scholarships-explore-funding-options-45f9363534",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/how-to-apply-for-graduate-program-scholarships-in-6-steps-dfca372eab",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/how-to-apply-graduate-admissions-b2dbd8200e",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/how-to-apply-graduate-application-arizona-online-090f94eef6",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/how-to-get-an-international-scholarship-hangout-video-7ddf1e6dd5",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/important-application-policies-cornell-graduate-school-df81a016bd",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/international-admission-uic-graduate-college-a28ec45f70",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/international-admissions-the-graduate-school-83b21cc4ed",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/international-applicants-7cb00ba419",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/international-applicants-first-year-and-transfer-6d1677a038",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/international-financial-aid-a04380e835",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/international-financial-aid-college-admissions-aec1023b99",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/international-financial-aid-uchicago-admissions-aec1023b99",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/international-financial-aid-uchicago-college-admissions-aec1023b99",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/international-masters-awards-application-guidance-b216e4f4d5",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/international-masters-awards-london-f6772f3b46",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/international-masters-awards-ucl-scholarships-and-f6772f3b46",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/international-postgraduate-masters-scholarship-4fb8fcaf53",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/international-scholarships-95778c8df9",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/international-scholarships-policy-and-procedure-guidance-fe832add0e",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/international-scholarships-search-financial-aid-to-study-a4b39a7a47",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/international-student-aid-8d0eb1cb36",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/international-student-aid-bfa1e040db",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/international-student-financial-aid-2c9be36b42",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/international-student-financial-aid-application-isfaa-8f99a00d25",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/international-student-financial-aid-process-554e48da7d",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/international-student-scholarship-search-c7c626f132",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/international-student-scholarship-search-international-aca1f1f045",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/international-student-scholarship-search-international-dd1115ae75",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/international-students-ae0def3794",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/international-students-and-non-u-s-citizens-financial-aid-8fe695eed2",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/international-students-financial-aid-university-of-michigan-fffd033ab7",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/international-students-graduate-school-of-arts-science-875ce8ec9b",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/international-students-mit-student-financial-services-ae0def3794",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/international-students-office-of-financial-aid-0ff7209ca9",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/international-students-office-of-scholarships-and-student-aid-a21a1c6bf0",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/international-students-ucf-office-of-student-financial-ca6f92684d",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/international-students-uchicagograd-68d54f784b",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/international-undergraduate-and-postgraduate-scholarships-488b4f163a",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/international-undergraduate-students-apply-or-renew-3ed54ea5df",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/iste-1-students-85dffde0e6",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/joint-statement-on-rights-and-freedoms-of-students-a3c602665b",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/key-grad-school-application-dates-admissions-timeline-65f5874f9a",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/malaysia-international-scholarship-mis",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/malaysia-international-scholarship-mis-2026",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/manaaki-new-zealand-scholarships-fully-funded-opportunities",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/mcmaster-university-scholarship-fully-funded-master-phd-canada",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/mext-scholarship-2027",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/mext-scholarship-2027-fully-funded-embassy-track",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/murdoch-university-rtp-scholarship-2027",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/my-experience-applying-for-a-postgraduate-scholarship-9d94edb3f3",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/my-tips-and-experience-to-earn-an-international-scholarship-f3a4f877b5",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/my-top-5-tips-for-writing-a-scholarship-essay-d0b016ba5d",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/ncaa-postgraduate-scholarship-program-4aa92c3d95",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/our-guide-to-achieving-your-scholarship-3f56945c7e",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/postgraduate-scholarships-for-international-students-5817d39ae7",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/prospective-international-and-undocumented-students-9cd710fec9",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/qatar-scholarships-fully-funded-graduate-opportunities",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/queen-elizabeth-commonwealth-uk-scholarships-2025",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/scholarship-application-guidance-notes-6b417eadf6",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/scholarship-applications-frequently-asked-questions-ae6fd30bf0",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/scholarship-interview-1ea6bed37e",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/scholarship-personal-statement-guide-875cdec178",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/scholarship-search-bigfuture-college-board-83ac4a6582",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/scholarships-financial-aid-circle-18011ebb47",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/scholarships-for-graduate-students-sallie-add41f5b06",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/scholarships-for-international-students-financing-your-a545f5c285",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/scholarships-for-international-students-in-usa-64c82e6e38",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/scholarships-grants-and-bursaries-eu-and-international-424aa8ee20",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/scholarships-international-students-the-ohio-state-university-5e29c8cee1",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/singa-phd-scholarship-singapore-2026",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/singapore-government-scholarship-2026-2027-singa",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/singapore-international-graduate-award-singa-phd",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/singapore-international-graduate-award-singa-scholarship-2027",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/special-opportunities-and-financial-aid-6d6a104702",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/step-2-58c3be6582",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/study-in-japan-mext-scholarship-fully-funded",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/swedish-institute-scholarship-global-professionals-2027",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/swedish-institute-si-scholarships-2027",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/taiwan-icdf-scholarship-2026-fully-funded-phd",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/thedream-us-national-scholarship-for-dreamer-students-83e0daebb1",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/think-big-scholarship-application-guidance-43a6ace4e1",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/think-big-scholarships-for-international-students-7a2ae3dff4",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/top-tips-on-applying-for-a-scholarship-your-bristol-story-0aa6b30385",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/undergraduate-students-d7fe1b6391",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/unlock-global-academic-impact-fulbright-us-scholar-program",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/what-are-the-requirements-for-an-international-student-to-29e89e1961",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/what-are-the-requirements-for-scholarships-for-international-d9cbe8294b",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/what-is-the-step-by-step-process-in-applying-for-1c849a3d5e",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/your-guide-to-fellowships-and-grants-a438a2452f",
+      "destination": "/blog",
+      "permanent": true
     }
   ],
   "rewrites": [

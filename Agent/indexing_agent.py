@@ -8,6 +8,7 @@ from xml.etree.ElementTree import Element,SubElement,tostring
 from core import supabase
 from content_pipeline import all_rows
 
+PRUNED=set(json.loads((Path(__file__).parent/'pruned_paths.json').read_text())) if (Path(__file__).parent/'pruned_paths.json').exists() else set()
 def build(output=None):
     base=(os.getenv('SCHOLARPORTAL_BASE_URL') or os.getenv('FRONTEND_URL') or 'https://scholarportal.site').rstrip('/')
     if urlparse(base).scheme!='https':raise ValueError('Use the public HTTPS origin')
@@ -24,6 +25,7 @@ def build(output=None):
     ]]
     for row in all_rows('blog_posts'):
         if not (row.get('content') or '').strip() or not row.get('slug'):continue
+        if '/blog/'+quote(row['slug'],safe='') in PRUNED or len(re.findall(r'\w+',row['content']))<250:continue  # thin/derivative/duplicate: not published to sitemap
         pages.append({'path':'/blog/'+quote(row['slug'],safe=''),'title':row['title'],'focus_keyword':row['title'],'description':row.get('excerpt') or row['title'],'content':row['content'],'date':row.get('updated_at') or row.get('created_at'),'kind':'Article','image':row.get('image'),'source_url':row.get('original_link')})
     seen=set()
     # Stable iteration, one canonical per opportunity. Never index missing/empty articles.
