@@ -231,7 +231,7 @@ for (const page of pages) {
     ...(published ? { datePublished: published, dateModified: modified } : {}),
     inLanguage: 'en',
     isAccessibleForFree: true,
-    author: { '@type': 'Organization', name: 'ScholarPortal Editorial Team' },
+    author: { '@type': 'Organization', name: 'ScholarPortal Editorial Team', url: siteUrl + '/', logo: { '@type': 'ImageObject', url: LOGO.url, width: LOGO.width, height: LOGO.height } },
     publisher: { '@type': 'Organization', name: 'ScholarPortal', url: base, logo: { '@type': 'ImageObject', url: LOGO.url, width: LOGO.width, height: LOGO.height } },
     image: [socialImage],
   } : {
