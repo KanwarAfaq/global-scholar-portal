@@ -307,6 +307,14 @@ for (const page of pages) {
     imageUrl ? '<figure><img src="' + escape(imageUrl) + '" alt="' + escape('Cover image for ' + keyword) + '" loading="lazy"></figure>' : '',
     page.sections ? '<h2>' + escape('About ' + keyword) + '</h2>' + guideBody(page) : '<h2>' + escape('About ' + keyword) + '</h2>',
     !page.sections && bodyText && bodyText !== description ? '<div>' + escape(bodyText) + '</div>' : '',
+    page.path === '/programs' ? [
+      "<section aria-labelledby=\"program-guide-heading\"><h2 id=\"program-guide-heading\">How to compare international degree programs</h2>",
+      "<p>Start with the subject, degree level and entry term that match your goals. University admission criteria can differ substantially even when program names sound similar. Check the official department site for academic prerequisites, transcripts, language-test conditions, recommendation letters and application fees. Requirements and deadlines can change between admission cycles.</p>",
+      "<h3>Tuition, scholarships and living costs</h3>",
+      "<p>Evaluate the full cost of attendance rather than relying only on tuition. Consider housing, health insurance, travel, visa requirements and daily expenses. A tuition waiver, stipend, assistantship and fully funded scholarship are not interchangeable. Verify whether funding is automatic, requires a separate application, or depends on a supervisor or department nomination.</p>",
+      "<h3>Application planning</h3>",
+      "<p>Make a shortlist using official university pages and record each program\\u0027s eligibility, deadline, required documents and funding status. Confirm that a program is currently accepting applications before sending documents or sharing personal information. For general preparation, read <a href=\"/blog\">scholarship application guides</a> and compare <a href=\"/\">verified opportunities</a> with the university\\u0027s official instructions.</p></section>"
+    ].join('') : '',
     hubLinks(page),
     links.length ? '<nav aria-label="Related ScholarPortal pages"><h2>Related scholarships and guides</h2>' +
       links.map(link => '<a href="' + escape(link.path) + '">' + escape(link.label) + '</a>').join(' · ') + '</nav>' : '',
