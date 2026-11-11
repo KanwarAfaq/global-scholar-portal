@@ -1,8 +1,10 @@
 name: Cross-site sitemap health
 on:
   workflow_dispatch:
+  # GitHub cron cannot express a stable "every 3 days" interval across months.
+  # Trigger daily at 04:13 UTC; run the audit only on every third UTC day.
   schedule:
-    - cron: '13 4 * * 1'
+    - cron: '13 4 * * *'
   pull_request:
     paths:
       - 'scripts/check_site_sitemaps.py'
@@ -14,9 +16,24 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
+      - name: Decide whether audit is due (every 72 hours by UTC date)
+        id: cadence
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT_NAME" != "schedule" ] || [ $(( $(date -u +%s) / 86400 % 3 )) -eq 0 ]; then
+            echo "run_audit=true" >> "$GITHUB_OUTPUT"
+            echo "Audit due: checking all five websites"
+          else
+            echo "run_audit=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping today: next audit is on the next matching UTC date"
+          fi
       - uses: actions/checkout@v4
+        if: steps.cadence.outputs.run_audit == 'true'
       - uses: actions/setup-python@v5
+        if: steps.cadence.outputs.run_audit == 'true'
         with:
           python-version: '3.11'
       - name: Check all live robots files, sitemaps and sample pages
+        if: steps.cadence.outputs.run_audit == 'true'
         run: python scripts/check_site_sitemaps.py
