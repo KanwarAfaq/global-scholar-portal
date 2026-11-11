@@ -1,0 +1,47 @@
+name: Three-day SEO health audit
+on:
+  schedule:
+    # Run daily, execute only on every third UTC day (stable across month boundaries).
+    - cron: '37 5 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: seo-three-day-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - name: Three-day schedule gate
+        id: gate
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT_NAME" != schedule ] || [ $(( $(date -u +%s) / 86400 % 3 )) -eq 0 ]; then
+            echo "due=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "due=false" >> "$GITHUB_OUTPUT"
+            echo "Next three-day audit not due" >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.gate.outputs.due == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.gate.outputs.due == 'true'
+        with:
+          node-version: '22'
+      - name: Check production pages, sitemap, canonical and noindex
+        if: steps.gate.outputs.due == 'true'
+        env:
+          SEO_SITE_URL: https://scholarportal.site
+          SEO_MAX_PAGES: '100'
+        run: node scripts/seo-three-day.mjs
+      - name: Retain audit evidence
+        if: always() && steps.gate.outputs.due == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: seo-three-day-${{ github.run_id }}
+          path: reports/seo-three-day.*
+          retention-days: 60
+          if-no-files-found: warn
