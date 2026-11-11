@@ -5,14 +5,11 @@ on:
     # 02:47 UTC daily (10:47 Taiwan)
     - cron: '47 2 * * *'
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/standalone_blog.yml'
-      - 'Blog_Agent/**'
-      - 'Agent/content_pipeline.py'
-      - 'Agent/core.py'
-      - 'Agent/dispatch_notifications.py'
+
+# Both article agents share a lock so daily database quota checks cannot race.
+concurrency:
+  group: scholarportal-editorial-publishing
+  cancel-in-progress: false
 
 jobs:
   run-agents:
@@ -50,6 +47,8 @@ jobs:
           OPENROUTER_MODEL: ${{ vars.OPENROUTER_MODEL || 'openrouter/free' }}
           # Notifications are part of the production run and must not be silently skipped.
           AGENT_ALLOW_OUTBOUND: 'true'
+          MAX_DAILY_ARTICLES: '4'
+          PUBLISH_TIMEZONE: Asia/Taipei
           ADMIN_NOTIFICATION_EMAIL: ${{ secrets.ADMIN_NOTIFICATION_EMAIL }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
@@ -69,7 +68,7 @@ jobs:
           LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
           ADMIN_LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.ADMIN_LINE_CHANNEL_ACCESS_TOKEN }}
           ADMIN_LINE_RECIPIENT_ID: ${{ secrets.ADMIN_LINE_RECIPIENT_ID }}
-          MIN_STANDALONE_BLOGS_PER_RUN: ${{ vars.MIN_STANDALONE_BLOGS_PER_RUN || '3' }}
+          MIN_STANDALONE_BLOGS_PER_RUN: '1'
 
           # Existing social publishing remains optional and receives only verified content.
           FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
