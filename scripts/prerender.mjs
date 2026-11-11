@@ -22,6 +22,21 @@ for (const page of pages) {
   paths.add(page.path);
 }
 const siteUrl = base.replace(/\/$/, '');
+// Lightweight, build-time article directory for the React listing when the database is temporarily unavailable.
+// Only entries already approved for the public SEO manifest are exposed.
+const blogFallback = pages.filter(p => p.kind === 'Article' && p.path.startsWith('/blog/'))
+  .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))
+  .slice(0, 36).map(p => ({
+    id: 'seo-' + p.path.slice('/blog/'.length),
+    slug: p.path.slice('/blog/'.length),
+    title: String(p.title || 'Article'),
+    excerpt: String(p.description || '').slice(0, 240),
+    created_at: p.date || null,
+    image: typeof p.image === 'string' ? p.image : (p.image?.url || ''),
+    tags: [], read_time: 'Guide'
+  }));
+fs.writeFileSync('dist/blog-fallback.json', JSON.stringify({posts:blogFallback}), 'utf8');
+
 // Default social/rich-result image (1200x630) for the many pages that have no cover image of their own.
 const DEFAULT_IMAGE = { url: siteUrl + '/og-default.jpg', width: 1200, height: 630, alt: 'ScholarPortal — verified global scholarships and opportunities' };
 const LOGO = { url: siteUrl + '/logo-512.png', width: 512, height: 512 };
