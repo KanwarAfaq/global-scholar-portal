@@ -5,11 +5,11 @@ on:
     # 00:17 UTC daily (08:17 Taiwan)
     - cron: '17 0 * * *'
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/opp_agent.yml'
-      - 'Agent/**'
+
+# Both article agents share a lock so daily database quota checks cannot race.
+concurrency:
+  group: scholarportal-editorial-publishing
+  cancel-in-progress: false
 
 jobs:
   run-agents:
@@ -66,10 +66,12 @@ jobs:
           LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
           ADMIN_LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.ADMIN_LINE_CHANNEL_ACCESS_TOKEN }}
           ADMIN_LINE_RECIPIENT_ID: ${{ secrets.ADMIN_LINE_RECIPIENT_ID }}
-          MIN_OPPORTUNITIES_PER_RUN: ${{ vars.MIN_OPPORTUNITIES_PER_RUN || '3' }}
+          MIN_OPPORTUNITIES_PER_RUN: '3'
           OPPORTUNITY_PIPELINE_SECONDS: ${{ vars.OPPORTUNITY_PIPELINE_SECONDS || '2700' }}
           CHANGE_MONITOR_LIMIT: ${{ vars.CHANGE_MONITOR_LIMIT || '4' }}
           CHANGE_MONITOR_SECONDS: ${{ vars.CHANGE_MONITOR_SECONDS || '300' }}
+          MAX_DAILY_ARTICLES: '4'
+          PUBLISH_TIMEZONE: Asia/Taipei
           PYTHONUNBUFFERED: '1'
 
           # Existing social publishing remains optional and receives only verified content.
