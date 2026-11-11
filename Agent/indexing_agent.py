@@ -32,7 +32,7 @@ def build(output=None):
     blogs=list(all_rows('opportunity_blogs'))
     for row in sorted(blogs,key=lambda r:r.get('updated_at') or r.get('created_at') or '',reverse=True):
         oid=row.get('opportunity_id')
-        if not oid or oid in seen or not (row.get('content') or '').strip():continue
+        if not oid or oid in seen or len(re.findall(r'\w+',row.get('content') or ''))<250:continue  # thin: stays reachable in-app, not in sitemap/prerender
         seen.add(oid)
         pages.append({'path':f'/opportunity/{quote(oid,safe="")}/blog','title':row['title'],'focus_keyword':row['title'],'description':row.get('excerpt') or row['title'],'content':row['content'],'date':row.get('updated_at') or row.get('created_at'),'kind':'Article','image':row.get('image'),'source_url':row.get('original_link')})
     # Evergreen guides live in src/content/guides.json (single source of truth, also rendered by the app).
