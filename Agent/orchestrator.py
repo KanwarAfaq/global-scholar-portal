@@ -461,10 +461,15 @@ class ApplicationCoachAgent:
 
 class OpportunityPipeline:
     def run(self,run_id=None):
+        from editorial_policy import remaining_articles
+        remaining=remaining_articles(supabase)
+        if remaining<=0:
+            return {'discovered':0,'verified_inserted':0,'articles_created':0,'needs_review':0,'minimum_target':0,'minimum_met':True,'shortfall':0,'reason':'daily editorial cap reached','inserted':[]}
         discovered=ResearchAgent().discover(run_id); verified=0; review=0; inserted=[]; review_titles=[]; verifier=VerificationAgent()
-        minimum=max(1,int(os.getenv('MIN_OPPORTUNITIES_PER_RUN','3')))
+        minimum=min(remaining,max(1,int(os.getenv('MIN_OPPORTUNITIES_PER_RUN','3'))))
         deadline=time.monotonic()+max(300,int(os.getenv('OPPORTUNITY_PIPELINE_SECONDS','2700')))
         for c in discovered:
+            if verified>=minimum or remaining_articles(supabase)<=0:break
             if time.monotonic() >= deadline:
                 log_event('opportunity-pipeline',f'time budget reached with {verified} published and {review} queued; remaining candidates continue next run','info',run_id)
                 break
