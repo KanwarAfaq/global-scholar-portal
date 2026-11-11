@@ -29,6 +29,20 @@ export default function Blog() {
   }, {});
 
   useEffect(() => {
+    async function loadPublishedFallback() {
+      try {
+        const response = await fetch('/blog-fallback.json', { cache: 'no-store' });
+        if (!response.ok) throw new Error('Published article snapshot unavailable');
+        const body = await response.json();
+        const published = Array.isArray(body.posts) ? body.posts : [];
+        setBlogs(published);
+        setTotalPosts(published.length);
+        setTotalPages(1);
+      } catch (error) {
+        console.warn('Blog listing fallback unavailable:', error.message);
+        setBlogs([]);
+      }
+    }
     async function fetchBlogs() {
       setLoading(true);
       try {
@@ -44,16 +58,21 @@ export default function Blog() {
           
         if (error) throw error;
         
-        if (data) {
+        if (data?.length) {
           setBlogs(data);
-          if (count) {
-            const pages = Math.max(1, Math.ceil(count / ITEMS_PER_PAGE));
-            setTotalPages(pages);
-            setTotalPosts(count);
-          }
+          const total = Number(count ?? data.length);
+          setTotalPages(Math.max(1, Math.ceil(total / ITEMS_PER_PAGE)));
+          setTotalPosts(total);
+        } else if (Number(count || 0) === 0) {
+          await loadPublishedFallback();
+        } else {
+          setBlogs([]);
+          setTotalPosts(Number(count));
+          setTotalPages(Math.max(1, Math.ceil(Number(count) / ITEMS_PER_PAGE)));
         }
       } catch (err) {
         console.error("Error fetching blogs:", err.message);
+        await loadPublishedFallback();
       } finally {
         setLoading(false);
       }
@@ -144,7 +163,7 @@ export default function Blog() {
                     <div className="flex items-center gap-3">
                       <span className="flex items-center gap-1">
                         <Calendar className="w-3.5 h-3.5" /> 
-                        {new Date(post.created_at).toLocaleDateString()}
+                        {post.created_at ? new Date(post.created_at).toLocaleDateString() : 'Published guide'}
                       </span>
                       <span className="flex items-center gap-1">
                         <Clock className="w-3.5 h-3.5" /> 
