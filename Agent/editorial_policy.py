@@ -21,11 +21,16 @@ def daily_article_count(db):
     start, end = _utc_bounds()
     count = 0
     for name in ("blog_posts", "opportunity_blogs"):
-        # Fail closed on API/quota errors. Never guess that the site has room.
-        rows = (db.table(name).select("id")
-                .gte("created_at", start).lt("created_at", end)
-                .neq("content", "").execute().data or [])
-        count += len(rows)
+        # Include newly filled historical drafts, not just newly created rows.
+        # This conservatively counts same-day article updates as publishing
+        # activity rather than allowing reconciliation to bypass the cap.
+        ids = set()
+        for time_field in ("created_at", "updated_at"):
+            rows = (db.table(name).select("id")
+                    .gte(time_field, start).lt(time_field, end)
+                    .neq("content", "").execute().data or [])
+            ids.update(str(row["id"]) for row in rows)
+        count += len(ids)
     return count
 
 def remaining_articles(db):
