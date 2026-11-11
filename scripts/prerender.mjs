@@ -98,7 +98,7 @@ const relatedLinks = page => {
     ? [{ path: '/blog', label: 'More scholarship and application guides' }, { path: '/', label: 'Browse verified scholarships' }]
     : [{ path: '/', label: 'Verified scholarships and fellowships' }, { path: '/blog', label: 'Scholarship application guides' }, { path: '/programs', label: 'Verified degree programs' }];
   const words = new Set(String(page.title || '').toLowerCase().match(/[a-z]{5,}/g) || []);
-  const related = page.kind !== 'Article' ? [] : pages.filter(item => item.kind === 'Article' && item.path !== page.path)
+  const related = page.kind !== 'Article' ? [] : pages.filter(item => item.kind === 'Article' && item.path !== page.path && !duplicateOf.has(item.path) && !redirectedPaths.has(item.path))
     .map(item => ({ item, score: (String(item.title || '').toLowerCase().match(/[a-z]{5,}/g) || [])
       .filter(word => words.has(word)).length }))
     .filter(result => result.score > 0)
@@ -121,7 +121,7 @@ const articleDirectoryPages = () => {
 // Google's crawler can follow these anchors even if client-side data requests fail.
 const hubLinks = page => {
   if (page.path !== '/' && page.path !== '/blog') return '';
-  const articles = pages.filter(item => item.kind === 'Article')
+  const articles = pages.filter(item => item.kind === 'Article' && !duplicateOf.has(item.path) && !redirectedPaths.has(item.path))
     .sort((left, right) => String(right.date || '').localeCompare(String(left.date || '')));
   const sections = [
     { heading: 'Scholarship application guides', items: articles.filter(item => item.path.startsWith('/blog/')) },
