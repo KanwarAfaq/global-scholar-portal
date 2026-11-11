@@ -145,7 +145,7 @@ class StandaloneBlogAgent:
             try:rows,provider=SEARCH.search(topic,8)
             except Exception as exc:log_event(self.name,f'search: {type(exc).__name__}','warn');continue
             for row in rows:
-                if remaining_articles(supabase)<=0:break
+                if count>=minimum or remaining_articles(supabase)<=0:break
                 url=canonical_url(row.get('url'))
                 if not url or url in seen:continue
                 seen.add(url)
