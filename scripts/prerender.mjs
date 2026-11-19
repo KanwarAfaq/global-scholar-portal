@@ -317,6 +317,15 @@ for (const page of pages) {
       "<h3>Application planning</h3>",
       "<p>Make a shortlist using official university pages and record each program\\u0027s eligibility, deadline, required documents and funding status. Confirm that a program is currently accepting applications before sending documents or sharing personal information. For general preparation, read <a href=\"/blog\">scholarship application guides</a> and compare <a href=\"/\">verified opportunities</a> with the university\\u0027s official instructions.</p></section>"
     ].join('') : '',
+    page.path === '/pricing' ? [
+      '<section aria-labelledby="pricing-how-heading"><h2 id="pricing-how-heading">How to compare ScholarPortal plans</h2>',
+      '<p>Scholarship and degree-program discovery should begin with the official university or funder website. ScholarPortal keeps links to verified opportunities available without a paid membership. A subscription is optional and may add application organization, explainable matching, watchlists, notifications or assisted drafting, depending on the active plan.</p>',
+      '<h3>Choose features around your application workflow</h3>',
+      '<p>If you are still researching programs, start by comparing eligibility, degree level, funding, academic prerequisites and the original application link. If you have a shortlist, look at watchlist limits and deadline alerts. For writing support, inspect the available application-studio features and AI credit allowance. Drafting tools can assist preparation, but you remain responsible for the accuracy and originality of the documents submitted to universities.</p>',
+      '<h3>Check current prices, limits and renewal terms</h3>',
+      '<p>The interactive plans above obtain current prices, feature availability, monthly AI credits and watchlist allowances from the service. These may change, so review the live offer and billing terms before checkout. Sponsored campaigns and counselor workflows are separate from scholarship-provider eligibility decisions; buying a plan does not guarantee admission, a scholarship or a ranking in search results.</p>',
+      '<p>For practical help, browse <a href="/blog">scholarship application guides</a>, compare <a href="/programs">international degree programs</a> and return to the <a href="/">verified opportunity finder</a>.</p></section>'
+    ].join('') : '',
     hubLinks(page),
     links.length ? '<nav aria-label="Related ScholarPortal pages"><h2>Related scholarships and guides</h2>' +
       links.map(link => '<a href="' + escape(link.path) + '">' + escape(link.label) + '</a>').join(' · ') + '</nav>' : '',
